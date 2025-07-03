@@ -1,8 +1,8 @@
 FROM python:3.11-slim
 
-# Instala dependencias del sistema necesarias para wkhtmltopdf y pdfkit
+# Instala dependencias del sistema necesarias para wkhtmltopdf, pdfkit y git
 RUN apt-get update && \
-    apt-get install -y wkhtmltopdf build-essential libssl-dev libffi-dev && \
+    apt-get install -y wkhtmltopdf build-essential libssl-dev libffi-dev git && \
     rm -rf /var/lib/apt/lists/*
 
 # Establece el directorio de trabajo
