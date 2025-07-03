@@ -1,0 +1,126 @@
+{# templates/proveedores/form.html #}
+{% extends "base.html" %}
+{% block title %}PROVEEDORES - App Moderna{% endblock %}
+
+{% block content %}
+  <style>
+    /* Form y tabla conservan clases originales, solo ajustan fondo */
+    .form-control { background:#f1f1f1; font-size:14px; padding:6px; margin-bottom:8px; }
+    .btn-custom { width:100%; padding:10px; font-size:16px; }
+    .provider-table th { background: #f8f9fa; }
+    .error-message { color: red; display: none; }
+  </style>
+
+ 
+
+ <h1 class="titulo-modulo w-100">Proveedores</h1>
+  <div class="search-container mb-3">
+    <input type="text" id="searchInput" class="form-control" placeholder="Buscar proveedor por nombre...">
+  </div>
+
+  <form method="POST" action="{{ url_for('proveedores.edit_proveedor', id=proveedor['id']) if proveedor else url_for('proveedores.new_proveedor') }}">
+    <h5>Datos Empresa</h5><hr>
+    <div class="row">
+      <div class="col-md-6">
+        <label for="nombre">Nombre:</label>
+        <input type="text" name="nombre" id="nombre" value="{{ proveedor['nombre'] if proveedor else '' }}" class="form-control" required oninput="this.value=this.value.toUpperCase();">
+      </div>
+      <div class="col-md-6">
+        <label for="rut">RUT:</label>
+        <input type="text" name="rut" id="rut" value="{{ proveedor['rut'] if proveedor else '' }}" class="form-control" required onblur="validateRut(this);" placeholder="xxxxxxxx-x">
+        <small id="rut-error" class="error-message">RUT inválido. El formato debe ser xxxxxxxx-x.</small>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-4">
+        <label for="direccion">Dirección:</label>
+        <input type="text" name="direccion" id="direccion" value="{{ proveedor['direccion'] if proveedor else '' }}" class="form-control" oninput="this.value=this.value.toUpperCase();">
+      </div>
+      <div class="col-md-4">
+        <label for="comuna">Comuna:</label>
+        <input type="text" name="comuna" id="comuna" value="{{ proveedor['comuna'] if proveedor else '' }}" class="form-control" oninput="this.value=this.value.toUpperCase();">
+      </div>
+      <div class="col-md-4">
+        <label for="fono">Teléfono:</label>
+        <input type="text" name="fono" id="fono" value="{{ proveedor['fono'] if proveedor else '' }}" class="form-control" oninput="this.value=this.value.toUpperCase();">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col-md-6">
+        <label for="contacto">Contacto:</label>
+        <input type="text" name="contacto" id="contacto" value="{{ proveedor['contacto'] if proveedor else '' }}" class="form-control" oninput="this.value=this.value.toUpperCase();">
+      </div>
+      <div class="col-md-6">
+        <label for="correo">Correo:</label>
+        <input type="email" name="correo" id="correo" value="{{ proveedor['correo'] if proveedor else '' }}" class="form-control">
+      </div>
+    </div>
+
+    <h5 class="mt-4">Datos de Banco</h5><hr>
+    <div class="row">
+      <div class="col-md-6">
+        <label for="banco">Banco:</label>
+        <input type="text" name="banco" id="banco" value="{{ proveedor['banco'] if proveedor else '' }}" class="form-control" oninput="this.value=this.value.toUpperCase();">
+      </div>
+      <div class="col-md-6">
+        <label for="cuenta">Cuenta:</label>
+        <input type="text" name="cuenta" id="cuenta" value="{{ proveedor['cuenta'] if proveedor else '' }}" class="form-control" oninput="this.value=this.value.toUpperCase();">
+      </div>
+    </div>
+
+    <div class="form-group mt-3">
+      <label for="paguese_a">Páguese a:</label>
+      <input type="text" name="paguese_a" id="paguese_a" value="{{ proveedor['paguese_a'] if proveedor else '' }}" class="form-control" oninput="this.value=this.value.toUpperCase();">
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-custom mt-3">{{ 'Actualizar' if proveedor else 'Crear' }} Proveedor</button>
+  </form>
+
+  <h3 class="my-4">Proveedores Registrados</h3>
+  <table class="table table-bordered provider-table">
+    <thead>
+      <tr><th>Nombre</th><th>Teléfono</th><th>Dirección</th><th>Acciones</th></tr>
+    </thead>
+    <tbody id="providersTable">
+      {% for prov in proveedores %}
+        <tr>
+          <td>{{ prov['nombre'] }}</td>
+          <td>{{ prov['fono'] }}</td>
+          <td>{{ prov['direccion'] }}</td>
+          <td><a href="{{ url_for('proveedores.edit_proveedor', id=prov['id']) }}" class="btn btn-warning">Editar</a></td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <script>
+    function validateRut(input) {
+      const rut = input.value.trim();
+      const pattern = /^[0-9]+-[0-9Kk]$/;
+      if (!pattern.test(rut)) {
+        document.getElementById("rut-error").style.display = 'block';
+        input.setCustomValidity('Formato de RUT incorrecto.');
+        return;
+      }
+      let [num, dv] = rut.split('-'), sum = 0, mul = 2;
+      for (let i = num.length-1; i >= 0; i--) { sum += parseInt(num[i]) * mul; mul = mul===7?2:mul+1; }
+      let res = 11 - (sum % 11);
+      if (res===11) res='0'; if (res===10) res='K';
+      if (res.toString()!== dv.toUpperCase()) {
+        document.getElementById("rut-error").style.display = 'block';
+        input.setCustomValidity('RUT inválido.');
+      } else {
+        document.getElementById("rut-error").style.display = 'none';
+        input.setCustomValidity('');
+      }
+    }
+    document.getElementById("searchInput").addEventListener("input", function(){
+      const term = this.value.toLowerCase();
+      document.querySelectorAll("#providersTable tr").forEach(row => {
+        row.style.display = row.children[0].textContent.toLowerCase().includes(term)? '':'none';
+      });
+    });
+  </script>
+{% endblock %}

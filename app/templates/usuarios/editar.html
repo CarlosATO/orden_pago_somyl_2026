@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Editar Usuario{% endblock %}
+{% block content %}
+<h2>Editar Usuario</h2>
+<form method="POST" action="{{ url_for('usuarios.editar_usuario', id=usuario.id) }}">
+  <div class="mb-3">
+    <label for="nombre" class="form-label">Nombre</label>
+    <input type="text" class="form-control" id="nombre" name="nombre" value="{{ usuario.nombre }}" required>
+  </div>
+  <div class="mb-3">
+    <label for="email" class="form-label">Email</label>
+    <input type="email" class="form-control" id="email" name="email" value="{{ usuario.email }}" required>
+  </div>
+  <button type="submit" class="btn btn-success">Guardar cambios</button>
+</form>
+
+<hr>
+<h4>Permisos de módulos</h4>
+<form id="modulos-form">
+  <div class="row">
+    {% for modulo in modulos %}
+    <div class="col-md-4 mb-2">
+      <div class="form-check">
+        <input class="form-check-input modulo-checkbox"
+               type="checkbox"
+               value="{{ modulo.id }}"
+               id="modulo{{ modulo.id }}"
+               {% if modulo.id in modulos_usuario %}checked{% endif %}
+               data-usuario="{{ usuario.id }}">
+        <label class="form-check-label" for="modulo{{ modulo.id }}">
+          {{ modulo.nombre_modulo }}
+        </label>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</form>
+
+<div id="permiso-msg" style="display:none;" class="alert mt-3"></div>
+
+<script>
+document.querySelectorAll('.modulo-checkbox').forEach(function(checkbox) {
+  checkbox.addEventListener('change', function() {
+    const usuarioId = this.getAttribute('data-usuario');
+    const moduloId = this.value;
+    const checked = this.checked;
+    fetch('{{ url_for("usuarios.toggle_modulo_permiso") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        usuario_id: usuarioId,
+        modulo_id: moduloId,
+        permitir: checked
+      })
+    })
+    .then(response => response.json())
+    .then(data => {
+      const msgDiv = document.getElementById('permiso-msg');
+      msgDiv.style.display = 'block';
+      msgDiv.className = 'alert mt-3 ' + (data.success ? 'alert-success' : 'alert-danger');
+      msgDiv.textContent = data.message;
+      setTimeout(() => { msgDiv.style.display = 'none'; }, 2000);
+    })
+    .catch(() => {
+      const msgDiv = document.getElementById('permiso-msg');
+      msgDiv.style.display = 'block';
+      msgDiv.className = 'alert mt-3 alert-danger';
+      msgDiv.textContent = 'Error al actualizar permisos.';
+      setTimeout(() => { msgDiv.style.display = 'none'; }, 2000);
+    });
+  });
+});
+</script>
+{% endblock %}

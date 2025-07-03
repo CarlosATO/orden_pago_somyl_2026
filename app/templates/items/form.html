@@ -1,0 +1,99 @@
+{# templates/items/form.html #}
+{% extends "base.html" %}
+{% block title %}TIPOS - App Moderna{% endblock %}
+
+{% block content %}
+  <style>
+    .form-control {
+      background: #f8f9fa;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 14px;
+      margin-bottom: 8px;
+      max-width: 250px; /* Ajusta según tu preferencia */
+    }
+    .btn-custom {
+      /* width: 100%; */
+      min-width: 100px;   /* Ajusta para que “Crear Tipo” quepa bien */
+      padding: 8px 16px;
+      font-size: 15px;
+    }
+    .line-separator {
+      border: none;
+      border-top: 1px solid #dee2e6;
+      margin-bottom: 15px;
+    }
+    .table {
+      margin-top: 20px;
+      font-size: 14px;
+    }
+    .table th, .table td {
+      /* Padding reducido para hacerla más compacta */
+      padding: 4px 8px;
+      vertical-align: middle;
+    }
+    .table th {
+      background: #e9ecef;
+    }
+    /* Anchos específicos por columna: */
+    .table th:nth-child(1),
+    .table td:nth-child(1) {
+      width: 70%;    /* Ajusta este valor a tu gusto */
+    }
+    .table th:nth-child(2),
+    .table td:nth-child(2) {
+      width: 30%;    /* Ajusta según lo que necesites para el botón */
+    }
+  </style>
+
+  <h1 class="mb-4">TIPOS</h1>
+  <form method="POST"
+        action="{{ url_for('items.edit_item', id=item['id']) if item else url_for('items.new_item') }}">
+    <label for="tipo">Nombre del Tipo:</label>
+    <input
+      type="text"
+      name="tipo"
+      id="tipo"
+      value="{{ item['tipo'] if item else '' }}"
+      class="form-control"
+      required
+      oninput="this.value=this.value.toUpperCase()"
+    >
+
+    <button type="submit" class="btn btn-primary btn-custom mt-2">
+      {{ 'Actualizar' if item else 'Crear' }} Tipo
+    </button>
+  </form>
+
+  <h5 class="mt-5">Tipos Registrados</h5>
+  <hr class="line-separator">
+
+  {# — Tabla con columnas angostas y contenido alineado a la izquierda — #}
+  <table class="table table-bordered table-sm">
+    <thead>
+      <tr>
+        {# Columna “Tipo” (70% de ancho), alineada a la izquierda #}
+        <th class="text-start">Tipo</th>
+        {# Columna “Acciones” (30% de ancho), alineada a la izquierda #}
+        <th class="text-start">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for i in items %}
+        <tr>
+          {# Texto del “tipo” alineado a la izquierda (por defecto) #}
+          <td class="text-start">{{ i['tipo'] }}</td>
+
+          {# Botón “Editar” alineado a la izquierda #}
+          <td class="text-start">
+            <a href="{{ url_for('items.edit_item', id=i['id']) }}"
+               class="btn btn-warning btn-sm">
+              Editar
+            </a>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

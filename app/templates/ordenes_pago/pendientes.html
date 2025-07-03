@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+{% block title %}Órdenes de Pago Pendientes{% endblock %}
+
+{% block content %}
+<h1 class="titulo-modulo w-100">Documentos Pendientes</h1>
+
+  <!-- Bulk update form -->
+  <form id="bulk-form" method="POST" action="{{ url_for('ordenes_pago_pendientes.update_pendiente') }}">
+    <button type="submit" class="btn btn-primary mb-3">Actualizar todo</button>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped align-middle">
+        <thead>
+          <tr>
+            <th>O.COMPRA</th>
+            <th>O.DE PAGO</th>
+            <th>PROVEEDOR</th>
+            <th>DETALLE</th>
+            <th>CANTIDAD</th>
+            <th>DETALLE O.P.</th>
+            <th>FACTURA</th>
+            <th>ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in filas %}
+          <tr data-id="{{ f.id }}">
+            <td>{{ f.orden_compra }}</td>
+            <td>{{ f.orden_numero }}</td>
+            <td>{{ f.proveedor_nombre }}</td>
+            <td>{{ f.material_nombre }}</td>
+            <td>{{ f.cantidad }}</td>
+            <td>{{ f.detalle_compra }}</td>
+            <td style="width:120px;">
+              <input type="number"
+                     name="factura[]"
+                     class="form-control factura-input"
+                     min="1"
+                     placeholder="Nº Doc"
+                     required>
+              <input type="hidden" name="id[]" value="{{ f.id }}">
+            </td>
+            <td style="width:130px;">
+              <button type="button" class="btn btn-sm btn-outline-primary update-btn">
+                Actualizar
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.update-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const tr = e.target.closest('tr');
+        const id = tr.dataset.id;
+        const facturaInput = tr.querySelector('.factura-input');
+        const factura = facturaInput.value;
+        if (!factura || factura <= 0) {
+          alert('Ingrese un número de factura válido');
+          return;
+        }
+        // Envío por AJAX JSON
+        fetch('{{ url_for("ordenes_pago_pendientes.update_pendiente") }}', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            updates: [{ id: id, factura: factura, proveedor_nombre: tr.children[2].textContent }]
+          })
+        })
+        .then(res => res.json())
+        .then(results => {
+          const res = results[0];
+          if (res.success) {
+            tr.remove();
+          } else {
+            alert(res.msg);
+          }
+        })
+        .catch(console.error);
+      });
+    });
+  });
+</script>
+{% endblock %}

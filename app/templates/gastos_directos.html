@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% block title %}Gastos Directos{% endblock %}
+{% block content %}
+<h1 class="titulo-modulo w-100">Gastos directos</h1>
+
+<div class="mb-3">
+  <label for="proyecto" class="form-label">Proyecto</label>
+  <select id="proyecto" class="form-select" required>
+    <option value="">Seleccione un proyecto...</option>
+    {% for p in proyectos %}
+      <option value="{{ p.id }}">{{ p.proyecto }}</option>
+    {% endfor %}
+  </select>
+</div>
+
+<div id="form-linea" style="display:none;">
+  <div class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label for="item" class="form-label">Item</label>
+      <select id="item" class="form-select" required>
+        <option value="">Seleccione item...</option>
+        {% for i in items %}
+          <option value="{{ i.id }}">{{ i.tipo }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="descripcion" class="form-label">Descripción</label>
+      <input type="text" id="descripcion" class="form-control" maxlength="255">
+    </div>
+    <div class="col-md-2">
+      <label for="mes" class="form-label">Mes</label>
+      <select id="mes" class="form-select" required>
+        <option value="">Mes...</option>
+        {% for m in meses %}
+          <option value="{{ m }}">{{ m }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label for="monto" class="form-label">Monto (CLP)</label>
+      <input type="number" id="monto" class="form-control" min="1" step="1">
+    </div>
+    <div class="col-md-2">
+      <button id="agregar-gasto" class="btn btn-primary w-100">Agregar</button>
+    </div>
+  </div>
+</div>
+
+<hr>
+<h4>Gastos agregados</h4>
+<table class="table table-bordered" id="tabla-gastos">
+  <thead>
+    <tr>
+      <th>Item</th>
+      <th>Descripción</th>
+      <th>Mes</th>
+      <th>Monto</th>
+      <th>Acción</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- Aquí se agregan las filas dinámicamente -->
+  </tbody>
+</table>
+
+<button id="guardar-todo" class="btn btn-success" disabled>Guardar todos los gastos</button>
+<div id="msg" class="mt-3"></div>
+
+<script>
+const proyectos = {{ proyectos|tojson }};
+const items = {{ items|tojson }};
+let gastos = [];
+
+document.getElementById('proyecto').addEventListener('change', function() {
+  document.getElementById('form-linea').style.display = this.value ? 'block' : 'none';
+  gastos = [];
+  renderTabla();
+  document.getElementById('guardar-todo').disabled = true;
+});
+
+document.getElementById('agregar-gasto').addEventListener('click', function(e) {
+  e.preventDefault();
+  const item_id = document.getElementById('item').value;
+  const descripcion = document.getElementById('descripcion').value.trim();
+  const mes = document.getElementById('mes').value;
+  const montoRaw = document.getElementById('monto').value.replace(/\./g, '').replace(/\D/g, '');
+  if (!item_id || !mes || !montoRaw) {
+    mostrarMsg('Debe completar todos los campos obligatorios.', false);
+    return;
+  }
+  const item_nombre = items.find(i => i.id == item_id)?.tipo || '';
+  gastos.push({ item_id, item_nombre, descripcion, mes, monto: montoRaw });
+  renderTabla();
+  limpiarLinea();
+  document.getElementById('guardar-todo').disabled = gastos.length === 0;
+});
+
+function renderTabla() {
+  const tbody = document.querySelector('#tabla-gastos tbody');
+  tbody.innerHTML = '';
+  gastos.forEach((g, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${g.item_nombre}</td>
+      <td>${g.descripcion}</td>
+      <td>${g.mes}</td>
+      <td>${Number(g.monto).toLocaleString('es-CL')}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="eliminarGasto(${idx})">Eliminar</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+window.eliminarGasto = function(idx) {
+  gastos.splice(idx, 1);
+  renderTabla();
+  document.getElementById('guardar-todo').disabled = gastos.length === 0;
+};
+
+function limpiarLinea() {
+  document.getElementById('item').value = '';
+  document.getElementById('descripcion').value = '';
+  document.getElementById('mes').value = '';
+  document.getElementById('monto').value = '';
+}
+
+function mostrarMsg(msg, ok) {
+  const div = document.getElementById('msg');
+  div.className = ok ? 'alert alert-success' : 'alert alert-danger';
+  div.textContent = msg;
+  setTimeout(() => { div.textContent = ''; div.className = ''; }, 2500);
+}
+
+document.getElementById('guardar-todo').addEventListener('click', function() {
+  const proyecto_id = document.getElementById('proyecto').value;
+  if (!proyecto_id || gastos.length === 0) return;
+  fetch('{{ url_for("gastos_directos.guardar_gastos_directos") }}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ proyecto_id, gastos })
+  })
+  .then(r => r.json())
+  .then(data => {
+    mostrarMsg(data.message, data.success);
+    if (data.success) {
+      gastos = [];
+      renderTabla();
+      document.getElementById('guardar-todo').disabled = true;
+    }
+  })
+  .catch(() => mostrarMsg('Error al guardar.', false));
+});
+
+const montoInput = document.getElementById('monto');
+
+// Formatea el valor como CLP al salir del input
+montoInput.addEventListener('blur', function() {
+  let val = this.value.replace(/\D/g, '');
+  if (val) {
+    this.value = Number(val).toLocaleString('es-CL');
+  }
+});
+
+// Limpia el formato al enfocar para editar
+montoInput.addEventListener('focus', function() {
+  this.value = this.value.replace(/\./g, '').replace(/\D/g, '');
+});
+</script>
+{% endblock %}

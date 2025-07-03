@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Nuevo Presupuesto{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+<h1 class="titulo-modulo w-100">Ingreso de presupuestos</h1>
+  <div class="row mb-4">
+    <div class="col">
+      <a href="{{ url_for('presupuestos.descargar_plantilla') }}"
+         class="btn btn-outline-primary me-2">
+        Descargar plantilla
+      </a>
+      <form method="POST"
+            action="{{ url_for('presupuestos.importar_presupuesto') }}"
+            enctype="multipart/form-data"
+            class="d-inline-block">
+        <input type="file" name="archivo" accept=".xlsx" required>
+        <button type="submit" class="btn btn-primary ms-1">
+          Importar Excel
+        </button>
+      </form>
+    </div>
+  </div>
+  <form method="POST">
+    <div class="row mb-3">
+      <div class="col">
+        <label class="form-label">Proyecto *</label>
+        <select name="proyecto" class="form-select" required>
+          <option value="">Seleccione...</option>
+          {% for p in proyectos %}
+            <option value="{{ p }}">{{ p }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col">
+        <label class="form-label">Item *</label>
+        <select name="item" class="form-select" required>
+          <option value="">Seleccione...</option>
+          {% for i in items %}
+            <option value="{{ i }}">{{ i }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="row mb-3">
+      <div class="col">
+        <label class="form-label">Detalle</label>
+        <input type="text" name="detalle" class="form-control" maxlength="200">
+      </div>
+      <div class="col">
+        <label class="form-label">Fecha *</label>
+        <input type="date" name="fecha" class="form-control" required value="{{ hoy }}">
+      </div>
+      <div class="col">
+        <label class="form-label">Monto (CLP) *</label>
+        <input type="number" name="monto" class="form-control" min="1" required>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-success">Guardar</button>
+  </form>
+</div>
+{% endblock %}

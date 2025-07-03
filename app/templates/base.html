@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Mi App{% endblock %}</title>
+    <!-- Bootstrap 5 + Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+      @keyframes gradientMove {
+        0%   { background-position: 0% 50%; }
+        50%  { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        font-family: 'Roboto', sans-serif;
+        background: linear-gradient(135deg, #eef2f5, #f5f0ff, #f0f5ff);
+        background-size: 300% 300%;
+        animation: gradientMove 15s ease infinite;
+        margin-left: 260px;
+      }
+      .sidebar {
+        width: 260px;
+        padding: 2rem 1.5rem;
+        background: rgba(255,255,255,0.3);
+        backdrop-filter: blur(12px);
+        box-shadow: 2px 0 12px rgba(0,0,0,0.06);
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
+        z-index: 1000;
+      }
+      .sidebar .logo {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #444;
+        text-align: center;
+        margin-bottom: 1rem;
+      }
+      .sidebar .nav-link {
+        display: flex; align-items: center; gap: .75rem;
+        padding: .75rem 1rem; border-radius: 1rem;
+        color: #333; text-decoration: none; background: #eef1f4;
+        box-shadow: 4px 4px 8px rgba(0,0,0,0.1), -4px -4px 8px rgba(255,255,255,0.7);
+        transition: all .2s ease;
+      }
+      .sidebar .nav-link:hover {
+        transform: translateX(4px);
+        box-shadow: 6px 6px 12px rgba(0,0,0,0.12), -6px -6px 12px rgba(255,255,255,0.75);
+      }
+      .sidebar .nav-link.active {
+        background-color: #5b6bff; color: #fff;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      }
+      .sidebar .nav-link.menu-main-active {
+        background-color: #ff9800 !important;
+        color: #fff !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      }
+      .sidebar .nav-link.active:not(.menu-main-active) {
+        background-color: #5b6bff;
+        color: #fff;
+      }
+      .content {
+        flex: 1; padding: 2rem; overflow-y: auto;
+      }
+      .container-glass {
+        background: rgba(255,255,255,0.3);
+        backdrop-filter: blur(12px);
+        border-radius: 1rem;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+        padding: 2rem;
+      }
+      /* TITULO MODULO UNIFICADO */
+      .titulo-modulo {
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: #25304a;
+        letter-spacing: -1px;
+        margin-bottom: 2rem;
+        margin-top: 1rem;
+        background: #eaf1fb;
+        border-radius: 0.8rem;
+        padding: 0.5rem 1.5rem;
+        display: block;
+        width: 100%;
+        box-shadow: 0 2px 8px rgba(80,120,200,0.08);
+        border-left: 6px solid #2a4d9b;
+        transition: box-shadow 0.2s;
+      }
+      .titulo-modulo:hover {
+        box-shadow: 0 4px 16px rgba(80,120,200,0.13);
+      }
+      .sidebar-info {
+        background: #eaf1fb;
+        border-radius: 0.7rem;
+        padding: 0.7rem 1rem;
+        margin-bottom: 1.2rem;
+        box-shadow: 0 2px 8px rgba(80,120,200,0.06);
+        text-align: center;
+      }
+    </style>
+  </head>
+
+  <body>
+    {% set current = request.path %}
+
+    {% if current_user.is_authenticated and request.endpoint != 'auth.login' %}
+      <aside class="sidebar">
+        <div class="logo">Compras Somyl</div>
+        <nav>
+          <!-- 1. Usuarios -->
+          <a class="nav-link{% if current.startswith('/usuarios') %} active{% endif %}"
+             href="{{ url_for('usuarios.list_usuarios') }}">
+            <i class="bi bi-person-plus"></i> Usuarios
+          </a>
+
+          <!-- 2. Crear O.P. -->
+          <a href="{{ url_for('ordenes.new_orden') }}"
+             class="nav-link{% if current == url_for('ordenes.new_orden') %} active{% endif %}">
+            <i class="bi bi-cart-plus"></i> Crear O.P.
+          </a>
+
+          <!-- 3. Ingresos -->
+          <a href="{{ url_for('ingresos.list_ingresos') }}"
+             class="nav-link{% if current == url_for('ingresos.list_ingresos') %} active{% endif %}">
+            <i class="bi bi-arrow-down-circle"></i> Ingresos
+          </a>
+
+          <!-- 4. Órdenes de Pago (con submenú) -->
+          <a class="nav-link d-flex justify-content-between align-items-center menu-main{% if
+                current == url_for('ordenes_pago.list_ordenes_pago') or
+                current == url_for('ordenes_pago_pendientes.list_pendientes') or
+                current == url_for('pagos.list_pagos')
+              %} menu-main-active{% endif %}"
+             id="menu-ordenes"
+             data-bs-toggle="collapse" href="#collapseOrdenes"
+             role="button"
+             aria-expanded="{% if
+                current == url_for('ordenes_pago.list_ordenes_pago') or
+                current == url_for('ordenes_pago_pendientes.list_pendientes') or
+                current == url_for('pagos.list_pagos')
+              %}true{% else %}false{% endif %}">
+            <span><i class="bi bi-cash-stack"></i> Órdenes de Pago</span>
+            <i class="bi bi-chevron-down small"></i>
+          </a>
+          <div class="collapse {% if
+                current == url_for('ordenes_pago.list_ordenes_pago') or
+                current == url_for('ordenes_pago_pendientes.list_pendientes') or
+                current == url_for('pagos.list_pagos')
+              %}show{% endif %}"
+               id="collapseOrdenes"
+               data-bs-parent=".sidebar nav">
+            <nav class="nav flex-column ms-3">
+              <a href="{{ url_for('ordenes_pago.list_ordenes_pago') }}"
+                 class="nav-link{% if current == url_for('ordenes_pago.list_ordenes_pago') %} active{% endif %}">
+                Crear O.P.
+              </a>
+              <a href="{{ url_for('ordenes_pago_pendientes.list_pendientes') }}"
+                 class="nav-link{% if current == url_for('ordenes_pago_pendientes.list_pendientes') %} active{% endif %}">
+                Doc. Pendientes
+              </a>
+              <a href="{{ url_for('pagos.list_pagos') }}"
+                 class="nav-link{% if current == url_for('pagos.list_pagos') %} active{% endif %}">
+                Gestión de Pagos
+              </a>
+            </nav>
+          </div>
+
+          <!-- 5. Parámetros (con submenú) -->
+          <a class="nav-link d-flex justify-content-between align-items-center menu-main{% if
+                current.startswith(url_for('proveedores.list_proveedores')) or
+                current.startswith(url_for('materiales.list_materiales')) or
+                current.startswith(url_for('trabajadores.list_trabajadores')) or
+                current.startswith(url_for('proyectos.list_proyectos'))
+              %} menu-main-active{% endif %}"
+             id="menu-parametros"
+             data-bs-toggle="collapse" href="#collapseParams"
+             role="button"
+             aria-expanded="{% if
+                current.startswith(url_for('proveedores.list_proveedores')) or
+                current.startswith(url_for('materiales.list_materiales')) or
+                current.startswith(url_for('trabajadores.list_trabajadores')) or
+                current.startswith(url_for('proyectos.list_proyectos'))
+              %}true{% else %}false{% endif %}">
+            <span><i class="bi bi-gear"></i> Parámetros</span>
+            <i class="bi bi-chevron-down small"></i>
+          </a>
+          <div class="collapse {% if
+                current.startswith(url_for('proveedores.list_proveedores')) or
+                current.startswith(url_for('materiales.list_materiales')) or
+                current.startswith(url_for('trabajadores.list_trabajadores')) or
+                current.startswith(url_for('proyectos.list_proyectos'))
+              %}show{% endif %}"
+               id="collapseParams"
+               data-bs-parent=".sidebar nav">
+            <nav class="nav flex-column ms-3">
+              {% if 'proveedores' in modulos_usuario %}
+                <a href="{{ url_for('proveedores.list_proveedores') }}"
+                   class="nav-link{% if current == url_for('proveedores.list_proveedores') %} active{% endif %}">
+                  Proveedores
+                </a>
+              {% endif %}
+              {% if 'materiales' in modulos_usuario %}
+                <a href="{{ url_for('materiales.list_materiales') }}"
+                   class="nav-link{% if current == url_for('materiales.list_materiales') %} active{% endif %}">
+                  Materiales
+                </a>
+              {% endif %}
+              {% if 'trabajadores' in modulos_usuario %}
+                <a href="{{ url_for('trabajadores.list_trabajadores') }}"
+                   class="nav-link{% if current == url_for('trabajadores.list_trabajadores') %} active{% endif %}">
+                  Trabajadores
+                </a>
+              {% endif %}
+              {% if 'proyectos' in modulos_usuario %}
+                <a href="{{ url_for('proyectos.list_proyectos') }}"
+                   class="nav-link{% if current == url_for('proyectos.list_proyectos') %} active{% endif %}">
+                  Proyectos
+                </a>
+              {% endif %}
+            </nav>
+          </div>
+
+          <!-- Presupuesto y otros menús siguen igual... -->
+
+          <a class="nav-link d-flex justify-content-between align-items-center menu-main{% if
+                current == url_for('presupuestos.form_presupuesto') or
+                current == url_for('estado_presupuesto.show_estado') or
+                current == url_for('gastos_directos.form_gastos_directos')
+              %} menu-main-active{% endif %}"
+             id="menu-presupuesto"
+             data-bs-toggle="collapse" href="#collapsePresupuesto"
+             role="button"
+             aria-expanded="{% if
+                current == url_for('presupuestos.form_presupuesto') or
+                current == url_for('estado_presupuesto.show_estado') or
+                current == url_for('gastos_directos.form_gastos_directos')
+              %}true{% else %}false{% endif %}">
+            <span><i class="bi bi-clipboard-data"></i> Presupuesto</span>
+            <i class="bi bi-chevron-down small"></i>
+          </a>
+          <div class="collapse {% if
+                current == url_for('presupuestos.form_presupuesto') or
+                current == url_for('estado_presupuesto.show_estado') or
+                current == url_for('gastos_directos.form_gastos_directos')
+              %}show{% endif %}" id="collapsePresupuesto"
+               data-bs-parent=".sidebar nav">
+            <nav class="nav flex-column ms-3">
+              <a href="{{ url_for('presupuestos.form_presupuesto') }}"
+                 class="nav-link{% if current == url_for('presupuestos.form_presupuesto') %} active{% endif %}">
+                Planificación
+              </a>
+              {% if 'gastos_directos' in modulos_usuario %}
+              <a href="{{ url_for('gastos_directos.form_gastos_directos') }}"
+                 class="nav-link{% if current == url_for('gastos_directos.form_gastos_directos') %} active{% endif %}">
+                Gastos Directos
+              </a>
+              {% endif %}
+              <a href="{{ url_for('estado_presupuesto.show_estado') }}"
+                 class="nav-link{% if current == url_for('estado_presupuesto.show_estado') %} active{% endif %}">
+                Estado Presupuesto
+              </a>
+            </nav>
+          </div>
+
+          {% if current_user.is_authenticated %}
+            <a href="{{ url_for('auth.logout') }}" class="nav-link text-danger">
+              <i class="bi bi-box-arrow-right"></i> Cerrar sesión
+            </a>
+          {% else %}
+            <a href="{{ url_for('auth.login') }}" class="nav-link">
+              <i class="bi bi-box-arrow-in-right"></i> Iniciar sesión
+            </a>
+          {% endif %}
+        </nav>
+
+        <div class="sidebar-info mb-3">
+          <span class="fw-bold text-secondary" style="font-size:1rem;">Pendiente por pagar:</span><br>
+          <span class="fs-5 text-primary">${{ "{:,.2f}".format(total_pendiente) }}</span>
+        </div>
+      </aside>
+    {% endif %}
+
+    <main class="content{% if not (current_user.is_authenticated and request.endpoint != 'auth.login') %} d-flex justify-content-center align-items-center{% endif %}" style="{% if not (current_user.is_authenticated and request.endpoint != 'auth.login') %}min-height:100vh;{% endif %}">
+      <div class="container-glass{% if not (current_user.is_authenticated and request.endpoint != 'auth.login') %} w-100{% endif %}" style="{% if not (current_user.is_authenticated and request.endpoint != 'auth.login') %}max-width:600px;{% endif %}">
+        <div id="flash-container" style="min-height:60px;">
+          {% with msgs = get_flashed_messages(with_categories=true) %}
+            {% if msgs %}
+              {% for cat, msg in msgs %}
+                <div class="alert alert-{{ cat }}">
+                  <i class="bi bi-exclamation-circle-fill me-2"></i>{{ msg }}
+                </div>
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
+        </div>
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+
+    <!-- Bootstrap JS (necesario para modales etc.) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Aquí se inyecta el JS específico de cada vista -->
+    {% block extra_js %}{% endblock %}
+
+    {# Toastr para mensajes flash #}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    <div aria-live="polite" aria-atomic="true" class="position-relative">
+      <div class="toast-container position-absolute top-0 end-0 p-3">
+        {% for category, msg in messages %}
+        <div class="toast align-items-center text-bg-{{ 'success' if category=='success' else 'danger' }} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+          <div class="d-flex">
+            <div class="toast-body">{{ msg }}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.toast').forEach(function(t) {
+          new bootstrap.Toast(t).show();
+        });
+      });
+    </script>
+    {% endwith %}
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const menus = [
+          {btn: 'menu-parametros', collapse: 'collapseParams'},
+          {btn: 'menu-ordenes', collapse: 'collapseOrdenes'},
+          {btn: 'menu-presupuesto', collapse: 'collapsePresupuesto'}
+        ];
+        function clearMenus() {
+          menus.forEach(m => {
+            const btn = document.getElementById(m.btn);
+            if(btn) btn.classList.remove('menu-main-active');
+          });
+        }
+        menus.forEach(function(menu) {
+          const btn = document.getElementById(menu.btn);
+          const collapse = document.getElementById(menu.collapse);
+          if (btn && collapse) {
+            collapse.addEventListener('show.bs.collapse', function() {
+              clearMenus();
+              btn.classList.add('menu-main-active');
+            });
+            collapse.addEventListener('hide.bs.collapse', function() {
+              btn.classList.remove('menu-main-active');
+            });
+            if (collapse.classList.contains('show')) {
+              clearMenus();
+              btn.classList.add('menu-main-active');
+            }
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

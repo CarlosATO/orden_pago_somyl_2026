@@ -1,0 +1,93 @@
+{# templates/trabajadores/form.html #}
+{% extends "base.html" %}
+
+
+{% block content %}
+<h1 class="titulo-modulo w-100">Trabajadores</h1>
+  <style>
+    /* Neumorphism y estilos locales */
+    #searchInput {
+      width:100%; background:#fafafa; border:none; border-radius:.75rem;
+      padding:.5rem .75rem; box-shadow:inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.7);
+      margin-bottom:1.5rem; transition:box-shadow .2s;
+    }
+    #searchInput:focus { outline:none; box-shadow:inset 2px 2px 4px rgba(0,0,0,0.05), inset -2px -2px 4px rgba(255,255,255,0.7); }
+    .form-control { background:#fafafa; border:none; border-radius:.75rem; padding:.5rem .75rem;
+      box-shadow:inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.7);
+      transition:box-shadow .2s; margin-bottom:.75rem;
+    }
+    .form-control:focus { outline:none; box-shadow:inset 2px 2px 4px rgba(0,0,0,0.05), inset -2px -2px 4px rgba(255,255,255,0.7); }
+    .btn-primary, .btn-warning { border:none; border-radius:1rem;
+      box-shadow:4px 4px 8px rgba(0,0,0,0.1), -4px -4px 8px rgba(255,255,255,0.7);
+      transition:transform .2s,box-shadow .2s; padding:.5rem 1rem;
+    }
+    .btn-primary:hover, .btn-warning:hover { transform:translateY(-2px);
+      box-shadow:6px 6px 12px rgba(0,0,0,0.12), -6px -6px 12px rgba(255,255,255,0.75);
+    }
+    .table { border-radius:.75rem; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.05); margin-top:1.5rem; }
+    .table th, .table td { text-align:center; vertical-align:middle; padding:.75rem; }
+    .table thead { background:rgba(0,0,0,0.03); font-weight:600; }
+    .alert { border-radius:.75rem; margin-bottom:1rem; }
+    .line-separator { border:none; border-top:1px solid rgba(0,0,0,0.1); margin-bottom:1rem; }
+  </style>
+
+ 
+
+ 
+
+  <!-- Buscador -->
+  <input type="text" id="searchInput" placeholder="Buscar trabajador…">
+
+  <!-- Formulario -->
+  <form method="POST"
+        action="{{ url_for('trabajadores.edit_trabajador', id=trabajador['id']) if trabajador else url_for('trabajadores.new_trabajador') }}">
+    <h5>Datos de Trabajador</h5>
+    <hr class="line-separator">
+    <div class="form-row">
+      <div class="form-group col-md-6">
+        <label for="nombre">Nombre</label>
+        <input type="text" name="nombre" id="nombre"
+               value="{{ trabajador['nombre'] if trabajador else '' }}"
+               class="form-control" required oninput="this.value=this.value.toUpperCase();">
+      </div>
+      <div class="form-group col-md-6">
+        <label for="correo">Correo</label>
+        <input type="email" name="correo" id="correo"
+               value="{{ trabajador['correo'] if trabajador else '' }}"
+               class="form-control" required>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary btn-warning btn-custom">
+      {{ 'Actualizar' if trabajador else 'Crear' }} Trabajador
+    </button>
+  </form>
+
+  <!-- Tabla de registros -->
+  <h5 class="mt-4">Trabajadores Registrados</h5>
+  <hr class="line-separator">
+  <table class="table table-bordered" id="tableBody">
+    <thead>
+      <tr><th>Nombre</th><th>Correo</th><th>Acciones</th></tr>
+    </thead>
+    <tbody>
+      {% for t in trabajadores %}
+        <tr>
+          <td>{{ t['nombre'] }}</td>
+          <td>{{ t['correo'] }}</td>
+          <td>
+            <a href="{{ url_for('trabajadores.edit_trabajador', id=t['id']) }}" class="btn btn-warning btn-sm">Editar</a>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <script>
+    document.getElementById('searchInput').addEventListener('input', function() {
+      const term = this.value.toLowerCase();
+      document.querySelectorAll('#tableBody tr').forEach(row => {
+        row.style.display = row.children[0].textContent.toLowerCase().includes(term) ? '' : 'none';
+      });
+    });
+  </script>
+{% endblock %}

@@ -1,0 +1,385 @@
+{# templates/ordenes/form.html #}
+{% extends "base.html" %}
+
+
+{% block content %}
+<h1 class="titulo-modulo w-100">Ordenes de Compras</h1>
+  <style>
+    @keyframes gradientMove { 0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%} }
+    .box { border:1px solid #dee2e6; border-radius:.75rem; padding:1rem; margin-bottom:1.5rem; background:#fff; }
+    .form-header { background:#e3f2fd; color:#0d47a1; padding:.75rem 1rem; border-radius:.25rem; margin-bottom:1rem; }
+    .form-control { background:#fafafa; border:1px solid #ced4da; border-radius:.75rem; padding:.5rem .75rem; font-size:14px;
+      box-shadow: inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.7); transition:box-shadow .2s;
+    }
+    .form-control:focus { outline:none;
+      box-shadow: inset 2px 2px 4px rgba(0,0,0,0.05), inset -2px -2px 4px rgba(255,255,255,0.7);
+    }
+    .line-table th, .line-table td { text-align:center; vertical-align:middle; }
+    .line-table th { background:#e9ecef; font-weight:600; }
+    .btn-custom { background:#6c757d; color:#fff; border:none; padding:.5rem 1rem; border-radius:1rem;
+      box-shadow:4px 4px 8px rgba(0,0,0,0.1), -4px -4px 8px rgba(255,255,255,0.7); transition:transform .2s, box-shadow .2s;
+    }
+    .btn-custom:hover { background:#5a6268; transform:translateY(-3px);
+      box-shadow:6px 6px 12px rgba(0,0,0,0.12), -6px -6px 12px rgba(255,255,255,0.75);
+    }
+    .totals { text-align:right; margin-top:1rem; }
+    .toast-container { position:fixed; bottom:1rem; right:1rem; z-index:2000; }
+    .alert { border-radius:.75rem; }
+  </style>
+
+  
+
+  <form method="POST" action="{{ url_for('ordenes.new_orden') }}">
+    <!-- ENCABEZADO -->
+    <div class="box">
+      <div class="row mb-2">
+        <div class="col-md-2">
+          <label>N° OC:</label>
+          <input type="text" name="next_num" class="form-control" value="{{ next_num }}" readonly>
+        </div>
+        <div class="col-md-5">
+          <label>Proveedor:</label>
+          <select id="proveedor_nombre" name="proveedor_nombre" class="form-control">
+            <option value="" selected hidden>— Seleccione proveedor —</option>
+            {% for p in providers %}
+              <option data-id="{{ p.id }}" data-rut="{{ p.rut }}" value="{{ p.nombre }}">{{ p.nombre }}</option>
+            {% endfor %}
+          </select>
+          <input type="hidden" id="proveedor_id" name="proveedor_id">
+        </div>
+        <div class="col-md-5">
+          <label>RUT:</label>
+          <input type="text" id="rut" class="form-control" readonly>
+        </div>
+      </div>
+
+      <div class="row mb-2">
+        <div class="col-md-4">
+          <label>Tipo de entrega:</label>
+          <select name="tipo_entrega" class="form-control">
+            <option value="" selected hidden>— Seleccione tipo entrega —</option>
+            {% for t in tipos_entrega %}
+              <option value="{{ t }}">{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label>Plazo de pago:</label>
+          <select name="plazo_pago" class="form-control">
+            <option value="" selected hidden>— Seleccione plazo pago —</option>
+            {% for p in plazos_pago %}
+              <option value="{{ p }}">{{ p }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-4 d-flex align-items-center">
+          <input type="checkbox" id="sinIva" name="sin_iva" class="mr-2">
+          <label for="sinIva" class="mb-0">Sin IVA</label>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6">
+          <label>Proyecto:</label>
+          <select id="proyecto_nombre" name="proyecto_nombre" class="form-control">
+            <option value="" selected hidden>— Seleccione proyecto —</option>
+            {% for p in proyectos %}
+              <option data-id="{{ p.id }}" value="{{ p.proyecto }}">{{ p.proyecto }}</option>
+            {% endfor %}
+          </select>
+          <input type="hidden" id="proyecto_id" name="proyecto_id">
+        </div>
+        <div class="col-md-6">
+          <label>Solicitado por:</label>
+          <select name="solicitado_por" class="form-control">
+            <option value="" selected hidden>— Seleccione trabajador —</option>
+            {% for t in trabajadores %}
+              <option value="{{ t.nombre }}">{{ t.nombre }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- LÍNEAS DE DETALLE -->
+    <div class="box">
+      <table class="table line-table">
+        <!-- Definición de anchos por columna -->
+        <colgroup>
+          <col style="width: 10%;">  {# CÓDIGO #}
+          <col style="width: 40%;">  {# DESCRIPCIÓN #}
+          <col style="width: 10%;">  {# CANTIDAD #}
+          <col style="width: 10%;">  {# NETO #}
+          <col style="width: 15%;">  {# TOTAL #}
+          <col style="width: 15%;">  {# SALDO CONTABLE #}
+        </colgroup>
+        <thead>
+          <tr>
+            <th>CÓDIGO</th>
+            <th>DESCRIPCIÓN</th>
+            <th>CANTIDAD</th>
+            <th>NETO</th>
+            <th>TOTAL</th>
+            <th>SALDO CONTABLE</th>
+            {# Ya no se muestra ESTATUS #}
+          </tr>
+        </thead>
+        <tbody id="lines">
+          <tr>
+            <td>
+              <select name="cod_linea[]" class="form-control">
+                <option value="" selected hidden>— Código —</option>
+                {% for m in materiales %}
+                  <option 
+                    value="{{ m.cod }}" 
+                    data-material="{{ m.material }}" 
+                    data-tipo="{{ m.tipo }}" 
+                    data-item="{{ m.item }}"
+                  >
+                    {{ m.cod }} &nbsp;–&nbsp; {{ m.material }}
+                  </option>
+                {% endfor %}
+              </select>
+            </td>
+            <td>
+              <select name="desc_linea[]" class="form-control">
+                <option value="" selected hidden>— Descripción —</option>
+                {% for m in materiales %}
+                  <option 
+                    value="{{ m.material }}" 
+                    data-cod="{{ m.cod }}" 
+                    data-tipo="{{ m.tipo }}" 
+                    data-item="{{ m.item }}"
+                  >
+                    {{ m.material }}
+                  </option>
+                {% endfor %}
+              </select>
+            </td>
+            <td>
+              <input type="number" name="cant_linea[]" class="form-control" min="1">
+            </td>
+            <td>
+              <input type="text" name="neto_linea[]" class="form-control" value="0">
+            </td>
+            <td>
+              {# Guardamos el valor numérico en data-value, y mostramos formateado en value #}
+              <input 
+                type="text" 
+                name="total_linea[]" 
+                class="form-control" 
+                readonly 
+                data-value="0" 
+                value="$ 0"
+              >
+            </td>
+            <td>
+              <input type="text" name="saldo_cont_linea[]" class="form-control" readonly value="0">
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- OBSERVACIONES -->
+    <div class="mb-3">
+      <label for="observaciones"><strong>Observaciones:</strong></label>
+      <textarea id="observaciones" name="observaciones" class="form-control" rows="3"></textarea>
+    </div>
+
+    <!-- TOTALES -->
+    <div class="totals">
+      <p><strong>SUMA NETO:</strong> <span id="sumNeto">$ 0</span></p>
+      <p><strong>SUMA IVA:</strong> <span id="sumIva">$ 0</span></p>
+      <p><strong>SUMA TOTAL:</strong> <span id="sumTotal">$ 0</span></p>
+    </div>
+
+    <!-- BOTONES -->
+    <div class="d-flex justify-content-end mt-3">
+      <button 
+        type="submit" 
+        formaction="{{ url_for('ordenes.generate_pdf') }}" 
+        formmethod="post" 
+        class="btn btn-outline-primary mr-2" 
+        id="btnGenPdf"
+      >
+        <i class="bi bi-file-earmark-pdf"></i> Generar PDF
+      </button>
+      <button type="submit" class="btn-custom" id="btnSave">
+        <i class="bi bi-save"></i> Guardar Orden
+      </button>
+    </div>
+  </form>
+
+  <!-- Toast container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!--  ÚNICAS importaciones de jQuery y Bootstrap -->
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+
+  <!--  ÚNICO bloque de JavaScript para toda la lógica -->
+  <script>
+    // --- Configuración inicial de opciones en selects ---
+    const providersOpts = Array.from(document.querySelectorAll('#proveedor_nombre option'));
+    const proyectosOpts = Array.from(document.querySelectorAll('#proyecto_nombre option'));
+    const historyData   = {{ history|tojson }};
+
+    // Cuando cambie el SELECT de proveedor, actualiza id y RUT
+    document
+      .getElementById('proveedor_nombre')
+      .addEventListener('change', e => {
+        const val = e.target.value;
+        const opt = providersOpts.find(o => o.value === val);
+        document.getElementById('proveedor_id').value = opt?.dataset.id || '';
+        document.getElementById('rut').value          = opt?.dataset.rut || '';
+      });
+
+    // Cuando cambie el SELECT de proyecto, actualiza id de proyecto
+    document
+      .getElementById('proyecto_nombre')
+      .addEventListener('change', e => {
+        const val = e.target.value;
+        const opt = proyectosOpts.find(o => o.value === val);
+        document.getElementById('proyecto_id').value = opt?.dataset.id || '';
+      });
+
+    // Función para formatear pesos chilenos
+    function formatCLP(x) {
+      return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(x);
+    }
+
+    // Sincroniza CÓDIGO ↔ DESCRIPCIÓN y fija el neto
+    function syncMaterial(el) {
+      const row = el.closest('tr');
+      const descSelect = row.querySelector('select[name="desc_linea[]"]');
+      const codSelect  = row.querySelector('select[name="cod_linea[]"]');
+      const netInput   = row.querySelector('input[name="neto_linea[]"]');
+
+      if (el.name === 'desc_linea[]') {
+        const opt = descSelect.selectedOptions[0];
+        if (opt && opt.value) {
+          // Ajusta el SELECT de código
+          codSelect.value = opt.dataset.cod;
+          // Busca precio unitario del histórico
+          const h = historyData.find(h => h.descripcion === opt.value);
+          netInput.value = h ? h.precio_unitario : 0;
+        }
+      }
+      else if (el.name === 'cod_linea[]') {
+        const opt = codSelect.selectedOptions[0];
+        if (opt && opt.value) {
+          // Ajusta el SELECT de descripción
+          descSelect.value = opt.dataset.material;
+          // Busca precio unitario del histórico
+          const h = historyData.find(h => h.descripcion === opt.dataset.material);
+          netInput.value = h ? h.precio_unitario : 0;
+        }
+      }
+
+      // Cada vez que syncMaterial modifica el neto, recalcula la fila
+      recalcular(netInput);
+    }
+
+    // Recalcula el TOTAL de cada fila, y actualiza SUMA NETO, SUMA IVA y SUMA TOTAL
+    function recalcular(el) {
+      const row = el.closest('tr');
+      const cant = parseFloat(row.querySelector('input[name="cant_linea[]"]').value) || 0;
+      const net  = parseFloat(row.querySelector('input[name="neto_linea[]"]').value)   || 0;
+
+      // 1) subtotal (sin IVA)
+      const subtotal = cant * net;
+
+      // 2) iva (solo si no está marcado "Sin IVA")
+      const iva = document.getElementById('sinIva').checked
+        ? 0
+        : subtotal * 0.19;
+
+      // 3) total fila = subtotal + iva
+      const numericTotal = subtotal + iva;
+
+      // Almacenamos valor puro en data-value y mostramos formateado en value
+      const totalInput = row.querySelector('input[name="total_linea[]"]');
+      totalInput.dataset.value = numericTotal.toFixed(2);
+      totalInput.value = formatCLP(numericTotal);
+
+      // 4) Recorremos todas las filas para sumar subtotales, ivas y totales:
+      let sN = 0, sI = 0, sT = 0;
+      document.querySelectorAll('#lines tr').forEach(r => {
+        const q = parseFloat(r.querySelector('input[name="cant_linea[]"]').value) || 0;
+        const n = parseFloat(r.querySelector('input[name="neto_linea[]"]').value)   || 0;
+
+        // subtotal de esta fila
+        const sub = q * n;
+        // iva de esta fila (mismo criterio)
+        const ivaFila = document.getElementById('sinIva').checked
+          ? 0
+          : sub * 0.19;
+        // total de esta fila
+        const totalFila = sub + ivaFila;
+
+        sN += sub;
+        sI += ivaFila;
+        sT += totalFila;
+      });
+
+      // Actualizamos los resúmenes (todos con formato CLP)
+      document.getElementById('sumNeto').textContent  = formatCLP(sN);
+      document.getElementById('sumIva').textContent   = formatCLP(sI);
+      document.getElementById('sumTotal').textContent = formatCLP(sT);
+
+      // 5) Si estamos en la última fila y se ingresó cantidad, se clona en blanco
+      const tbody = document.getElementById('lines');
+      if (row === tbody.lastElementChild && cant > 0) {
+        const newRow = row.cloneNode(true);
+        // Limpiar inputs y selects en la fila clonada
+        newRow.querySelectorAll('input').forEach(i => {
+          i.value = '';
+          if (i.name === 'total_linea[]') {
+            i.dataset.value = '0';
+            i.value = formatCLP(0);
+          }
+        });
+        newRow.querySelectorAll('select').forEach(s => s.value = '');
+
+        tbody.appendChild(newRow);
+
+        // Reasignar los listeners en la nueva fila:
+        newRow.querySelectorAll('input[name="cant_linea[]"]').forEach(i =>
+          i.addEventListener('input', () => recalcular(i))
+        );
+        newRow.querySelectorAll('input[name="neto_linea[]"]').forEach(i =>
+          i.addEventListener('input', () => recalcular(i))
+        );
+        newRow.querySelectorAll('select[name="cod_linea[]"], select[name="desc_linea[]"]').forEach(s =>
+          s.addEventListener('change', () => syncMaterial(s))
+        );
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // 1) Listeners para selects de material (código y descripción) existentes
+      document.querySelectorAll('select[name="cod_linea[]"], select[name="desc_linea[]"]').forEach(s =>
+        s.addEventListener('change', () => syncMaterial(s))
+      );
+
+      // 2) Listener para inputs de cantidad (para recálculo inmediato)
+      document.querySelectorAll('input[name="cant_linea[]"]').forEach(i =>
+        i.addEventListener('input', () => recalcular(i))
+      );
+
+      // 3) Listener para inputs de neto (para recálculo cuando edites neto manual)
+      document.querySelectorAll('input[name="neto_linea[]"]').forEach(i =>
+        i.addEventListener('input', () => recalcular(i))
+      );
+
+      // 4) Listener para checkbox “Sin IVA” (recalcula todas las filas al cambiarlo)
+      document.getElementById('sinIva').addEventListener('change', () => {
+        document.querySelectorAll('#lines tr').forEach(r => {
+          const inputCant = r.querySelector('input[name="cant_linea[]"]');
+          if (inputCant) recalcular(inputCant);
+        });
+      });
+    });
+  </script>
+{% endblock %}

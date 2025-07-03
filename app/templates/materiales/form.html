@@ -1,0 +1,132 @@
+{# templates/materiales/form.html #}
+{% extends "base.html" %}
+
+
+{% block content %}
+<h1 class="titulo-modulo w-100">Materiales</h1>
+  <div class="search-container mb-3">
+    <input type="text" id="searchInput" class="form-control" placeholder="Buscar material por nombre...">
+  </div>
+
+  <form method="POST"
+        action="{{ url_for('materiales.edit_material', id=material['id']) if material else url_for('materiales.new_material') }}">
+
+    <hr class="line-separator">
+
+    <div class="row gx-3 gy-2">
+      <div class="col-md-3">
+        <label for="cod" class="form-label">Código:</label>
+        <input
+          type="text"
+          name="cod"
+          id="cod"
+          value="{{ material['cod'] if material else '' }}"
+          class="form-control"
+          required
+          oninput="this.value=this.value.toUpperCase();"
+        >
+      </div>
+
+      <div class="col-md-5">
+        <label for="material" class="form-label">Material:</label>
+        <input
+          type="text"
+          name="material"
+          id="material"
+          value="{{ material['material'] if material else '' }}"
+          class="form-control"
+          required
+          oninput="this.value=this.value.toUpperCase();"
+        >
+      </div>
+
+      {# Columna vacía para completar espacio (opcional) #}
+      <div class="col-md-4"></div>
+    </div>
+
+    {# ---------------------------------------------- #}
+    {# Segunda fila: “Tipo”, “Item” y botón “GRABAR” #}
+    {# ---------------------------------------------- #}
+    <div class="row gx-3 gy-2 mt-3 align-items-end">
+      <div class="col-md-4">
+        <label for="tipo" class="form-label">Tipo:</label>
+        <select name="tipo" id="tipo" class="form-select" required>
+          <option value="" disabled {{ 'selected' if not material }} hidden>— Seleccione tipo —</option>
+          {% for it in items %}
+            <option value="{{ it['tipo'] }}"
+              {% if material and material['tipo'] == it['tipo'] %} selected {% endif %}>
+              {{ it['tipo'] }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <label for="item" class="form-label">Item:</label>
+        <input
+          type="text"
+          name="item"
+          id="item"
+          value="{{ material['item'] if material else '' }}"
+          class="form-control"
+          oninput="this.value=this.value.toUpperCase();"
+        >
+      </div>
+
+      <div class="col-md-4 d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary btn-sm" style="min-width: 100px;">
+          GRABAR
+        </button>
+      </div>
+    </div>
+  </form>
+
+  <h3 class="mt-5">Materiales Registrados</h3>
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Código</th>
+        <th>Material</th>
+        <th>Tipo</th>
+        <th>Item</th>
+        <th>Acciones</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody">
+      {% for m in materiales %}
+        <tr>
+          <td>{{ m['cod'] }}</td>
+          <td>{{ m['material'] }}</td>
+          <td>{{ m['tipo'] }}</td>
+          <td>{{ m['item'] }}</td>
+          <td>
+            <a href="{{ url_for('materiales.edit_material', id=m['id']) }}"
+               class="btn btn-warning btn-sm">
+              Editar
+            </a>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <script>
+    // Filtro de “Buscar material por nombre…”
+    document.getElementById("searchInput").addEventListener("input", function() {
+      const term = this.value.toLowerCase();
+      document.querySelectorAll("#tableBody tr").forEach(row => {
+        row.style.display = row.children[1].textContent.toLowerCase().includes(term) ? "" : "none";
+      });
+    });
+
+    // Inicialización de Tom Select en “Tipo”
+    document.addEventListener("DOMContentLoaded", function() {
+      new TomSelect("#tipo", {
+        create: false,
+        sortField: { field: "text", direction: "asc" },
+        highlight: true,
+        openOnFocus: true
+      });
+    });
+  </script>
+{% endblock %}

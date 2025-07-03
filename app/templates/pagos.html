@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+
+
+
+{% block content %}
+  <style>
+    /* Horizontal scroll */
+    .table-responsive { overflow-x: auto; }
+
+    /* Prevent text wrapping */
+    .table th, .table td { white-space: nowrap; vertical-align: middle; }
+
+    /* Column widths */
+    .col-total-pago { width: 120px; text-align: right; }
+    .col-fecha-pago { width: 140px; }
+
+    /* Highlight paid rows */
+    .row-paid, .row-paid td { background-color: #e6ffe6 !important; }
+  </style>
+  <div class="d-flex justify-content-between align-items-start mb-3">
+   <h1 class="titulo-modulo w-100">Informe de pagos</h1>
+    <div class="card mb-0 p-3" style="background:#f8f9fa; display: inline-block; width: auto;">
+      <h5 class="mb-2">Proyectos Pendientes</h5>
+      {% set pending = {} %}
+      {% for p in pagos %}
+        {% if not p.fecha_pago %}
+          {% set pending = pending.update({p.proyecto: (pending.get(p.proyecto, 0) + p.total_pago)}) or pending %}
+        {% endif %}
+      {% endfor %}
+      <ul class="mb-2 list-unstyled text-start">
+        {% for proj, total in pending.items() %}
+          <li>{{ proj }}: {{ '$' + '{:,.0f}'.format(total).replace(',', '.') }}</li>
+        {% endfor %}
+      </ul>
+      {% set grand_total = pending.values()|sum %}
+      <div class="fw-bold text-start">Total: {{ '$' + '{:,.0f}'.format(grand_total).replace(',', '.') }}</div>
+    </div>
+  </div>
+  <form method="POST" action="{{ url_for('pagos.update_pagos') }}">
+    <button type="submit" class="btn btn-primary mb-3">Guardar Fechas de Pago</button>
+    <a href="{{ url_for('pagos.export_pagos') }}" class="btn btn-secondary mb-3 ms-2">
+      Exportar a Excel
+    </a>
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered align-middle">
+        <thead>
+          <tr>
+            <th class="col-fecha-op">FECHA OP</th>
+            <th class="col-opago">O.PAGO</th>
+            <th class="col-proveedor">PROVEEDOR</th>
+            <th>DETALLE O.PAGO</th>
+            <th>FACTURA<br>ASOCIADA</th>
+            <th class="col-total-pago">TOTAL PAGO</th>
+            <th class="col-fecha-pago">FECHA DE PAGO</th>
+            <th>PROYECTO</th>
+            <th>O.COMPRA</th>
+            <th>CONDICIÓN PAGO</th>
+            <th>CTA CTE PROVEEDOR</th>
+            <th>VENCIMIENTO FAC.</th>
+            <th>FECHA FAC.</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pagos %}
+          <tr class="{% if p.fecha_pago %}row-paid{% endif %}">
+            <td class="col-fecha-op">{{ p.fecha }}</td>
+            <td class="col-opago">
+              {{ p.orden_numero }}
+              <input type="hidden" name="orden_numero[]" value="{{ p.orden_numero }}">
+            </td>
+            <td class="col-proveedor">{{ p.proveedor_nombre }}</td>
+            <td>{{ p.detalle_compra }}</td>
+            <td>{{ p.factura or '' }}</td>
+            <td>{{ '$' + "{:,.0f}".format(p.total_pago).replace(',', '.') }}</td>
+            <td style="width:140px;">
+              <input type="date"
+                     name="fecha_pago[]"
+                     class="form-control"
+                     value="{{ p.fecha_pago or '' }}"
+                     min="1900-01-01"
+                     max="{{ (date.today() + timedelta(days=7)).isoformat() }}">
+            </td>
+            <td>{{ p.proyecto }}</td>
+            <td>{{ p.orden_compra }}</td>
+            <td>{{ p.condicion_pago }}</td>
+            <td>{{ p.cuenta }}</td>
+            <td>{{ p.vencimiento }}</td>
+            <td>{{ p.fecha_factura }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </form>
+{% endblock %}

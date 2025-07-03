@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+{% block title %}Estado de Presupuesto{% endblock %}
+
+{% block content %}
+<h1 class="titulo-modulo w-100">Estado de presupuesto</h1>
+{% if resumen_presupuesto and selected|length == 1 %}
+  <div class="row mb-4 justify-content-center">
+    <div class="col-md-4 d-flex justify-content-center">
+      <div class="shadow-sm rounded" style="overflow:hidden;">
+        <div style="background:#3767e3; color:#fff; font-weight:bold; padding:8px 12px; border-top-left-radius:8px; border-top-right-radius:8px; letter-spacing:1px; text-align:center;">
+          PRESUPUESTO INICIAL
+        </div>
+        <table class="table table-bordered mb-0" style="background:#f9fafb">
+          <tbody>
+            <tr>
+              <th>Venta presupuestada</th>
+              <td class="text-end">{{ resumen_presupuesto.venta | clp }}</td>
+            </tr>
+            <tr>
+              <th>Gasto presupuestado</th>
+              <td class="text-end">{{ resumen_presupuesto.gasto | clp }}</td>
+            </tr>
+            <tr>
+              <th>Saldo presupuestado</th>
+              <td class="text-end fw-bold">{{ resumen_presupuesto.saldo | clp }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Cuadro PRESUPUESTO REAL al lado -->
+    <div class="col-md-4 d-flex justify-content-center">
+      <div class="shadow-sm rounded" style="overflow:hidden;">
+        <div style="background:#3767e3; color:#fff; font-weight:bold; padding:8px 12px; border-top-left-radius:8px; border-top-right-radius:8px; letter-spacing:1px; text-align:center;">
+          PRESUPUESTO REAL
+        </div>
+        <table class="table table-bordered mb-0" style="background:#f9fafb">
+          <tbody>
+            <tr>
+              <th>Producción actual</th>
+              <td class="text-end">
+                <input type="text" id="input-produccion"
+                       class="form-control form-control-sm text-end"
+                       value="{{ resumen_real.produccion | clp }}"
+                       min="0" style="max-width:130px;display:inline-block;" autocomplete="off">
+              </td>
+            </tr>
+            <tr>
+              <th>Gasto actual</th>
+              <td class="text-end">{{ resumen_real.gasto_real | clp }}</td>
+            </tr>
+            <tr>
+              <th>Saldo actual</th>
+              <td class="text-end fw-bold" id="saldo-actual">
+                {% set prod = resumen_real.produccion %}
+                {% set gasto = resumen_real.gasto_real %}
+                {% set prod_int = (prod if prod is number else (prod|default(0)|int)) %}
+                {% set gasto_int = (gasto if gasto is number else (gasto|default(0)|int)) %}
+                {{ (prod_int - gasto_int) | clp }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const input = document.getElementById('input-produccion');
+      if (input) {
+        // Extrae el número actual desde el valor inicial
+        let lastValue = parseInt(String(input.value).replace(/\D/g,'')) || 0;
+        // Siempre formatea a CLP al cargar
+        input.value = lastValue.toLocaleString('es-CL', {style:'currency', currency:'CLP', maximumFractionDigits:0});
+
+        // Al hacer clic: deja solo número y permite editar
+        input.addEventListener('focus', function() {
+          input.value = lastValue || '';
+          input.readOnly = false;
+        });
+        // Al perder foco: vuelve a CLP y guarda si cambió
+        input.addEventListener('blur', function() {
+          input.readOnly = true;
+          const val = parseInt(input.value.replace(/\D/g,'')) || 0;
+          input.value = val.toLocaleString('es-CL', {style:'currency', currency:'CLP', maximumFractionDigits:0});
+          if (val !== lastValue) {
+            fetch("{{ url_for('estado_presupuesto.update_produccion') }}", {
+              method: 'POST',
+              headers: {'Content-Type':'application/json'},
+              body: JSON.stringify({
+                proyecto: {{ selected[0]|tojson }},
+                produccion: val
+              })
+            })
+            .then(response => response.json())
+            .then(json => {
+              // Actualizar saldo actual en pantalla (sin recargar)
+              const gasto = {{ resumen_real.gasto_real|int or 0 }};
+              const saldo = val - gasto;
+              const saldoActual = document.getElementById('saldo-actual');
+              if (saldoActual) {
+                saldoActual.textContent = saldo.toLocaleString('es-CL', {style:'currency', currency:'CLP', maximumFractionDigits:0});
+              }
+              lastValue = val;
+            });
+          }
+        });
+      }
+    });
+  </script>
+{% endif %}
+  <style>
+    .month-separator {
+      border-right: 3px solid #3767e3 !important;
+    }
+    .total-border {
+      border-left: 3px solid #3767e3 !important;
+    }
+    .table th, .table td {
+      border-right: 1px solid #dee2e6;
+    }
+  </style>
+
+  <form method="GET" class="row g-3 mb-4 align-items-end">
+    <div class="col-md-4">
+      <label for="proyectos">Proyectos:</label>
+      <select id="proyectos" name="proyecto" multiple class="form-select">
+        {% for pid, pname in proyectos %}
+          <option value="{{ pid }}" {% if pid in selected %}selected{% endif %}>{{ pname }}</option>
+        {% endfor %}
+      </select>
+      <div class="form-text">Mantén presionada Ctrl/Cmd para seleccionar varios.</div>
+    </div>
+    <div class="col-md-3">
+      <label for="desde">Desde:</label>
+      <select id="desde" name="desde" class="form-select">
+        <option value="">– Inicio –</option>
+        {% for m in months %}
+          <option value="{{ m }}" {% if m == desde %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label for="hasta">Hasta:</label>
+      <select id="hasta" name="hasta" class="form-select">
+        <option value="">– Fin –</option>
+        {% for m in months %}
+          <option value="{{ m }}" {% if m == hasta %}selected{% endif %}>{{ m }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button class="btn btn-primary">Ver estado</button>
+    </div>
+  </form>
+
+  {% if selected %}
+    <div class="mb-3 text-end">
+      <a href="{{ url_for('estado_presupuesto.export_presupuesto', proyecto=','.join(selected), desde=desde, hasta=hasta) }}"
+         class="btn btn-outline-secondary">
+        📥 Exportar a Excel
+      </a>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped align-middle">
+        <thead class="table-light text-center">
+          <tr>
+            <th rowspan="2">Proyecto</th>
+            <th rowspan="2">Item</th>
+            {% for m in months %}
+              <th colspan="2"{% if not loop.last %} class="month-separator"{% endif %}>{{ m }}</th>
+            {% endfor %}
+            <th colspan="2" class="total-border">Total</th>
+          </tr>
+          <tr>
+            {% for m in months %}
+              <th>Presupuesto</th><th {% if not loop.last %}class="month-separator"{% endif %}>Real</th>
+            {% endfor %}
+            <th class="total-border">Presupuesto</th><th>Real</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for project, items in table.items() %}
+            {% for item, meses in items|dictsort %}
+              <tr>
+                <td>{{ project_names[project]|e }}</td>
+                <td>{{ item }}</td>
+                {% for m in months %}
+                  <td class="presupuesto-cell text-end"
+                      contenteditable="true"
+                      data-project="{{ project|e }}"
+                      data-item="{{ item|e }}"
+                      data-month="{{ m|e }}">
+                    {{ meses[m]['presupuesto'] | clp }}
+                  </td>
+                  <td {% if not loop.last %}class="text-end month-separator"{% else %}class="text-end"{% endif %}>{{ meses[m]['real'] | clp }}</td>
+                {% endfor %}
+                <td class="text-end total-border">{{ row_totals[project][item]['presupuesto'] | clp }}</td>
+                <td class="text-end">{{ row_totals[project][item]['real']       | clp }}</td>
+              </tr>
+            {% endfor %}
+          {% endfor %}
+        </tbody>
+        <tfoot class="table-light text-end">
+          <tr>
+            <th colspan="2">Totales →</th>
+            {% for m in months %}
+              <th>{{ col_totals[m]['presupuesto'] | clp }}</th>
+              <th {% if not loop.last %}class="month-separator"{% endif %}>{{ col_totals[m]['real']       | clp }}</th>
+            {% endfor %}
+            <th class="total-border">{{ grand_totals['presupuesto'] | clp }}</th>
+            <th>{{ grand_totals['real']       | clp }}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  {% else %}
+    <div class="alert alert-info">Selecciona al menos un proyecto para ver su estado.</div>
+  {% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.presupuesto-cell').forEach(cell => {
+      cell.addEventListener('blur', () => {
+        const proyecto = cell.dataset.project;
+        const item      = cell.dataset.item;
+        const month     = cell.dataset.month;
+        const value     = parseInt(cell.textContent.trim()) || 0;
+
+        fetch("{{ url_for('estado_presupuesto.update_presupuesto') }}", {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ proyecto, item, month, value })
+        })
+        .then(response => response.json())
+        .then(json => {
+          if (!json.success) {
+            alert('Error al actualizar presupuesto');
+          }
+        })
+        .catch(() => {
+          alert('Error de red al actualizar');
+        });
+      });
+    });
+  });
+</script>
+{% endblock %}

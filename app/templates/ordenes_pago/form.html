@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+
+{% block content %}
+  <style>
+    .box { border:1px solid #dee2e6; border-radius:6px; padding:15px; margin-bottom:25px; background:#fafbfc; }
+    h1 { font-size:24px; font-weight:bold; color:#343a40; margin-bottom:20px; background:#e9f2ff; padding:10px; border-radius:4px; }
+    .form-control, .form-select { background:#fff; border:1px solid #ced4da; border-radius:4px; padding:6px 10px; font-size:14px; }
+    .table th, .table td { text-align:center; vertical-align:middle; }
+    .table th { background:#f1f3f5; font-weight:600; }
+    .btn-primary { background:#007bff; border:none; color:#fff; }
+    .btn-outline-primary { border-color:#007bff; color:#007bff; }
+    .btn-outline-primary:hover { background:#007bff; color:#fff; }
+  </style>
+<h1 class="titulo-modulo w-100">Ordenes de pago</h1>
+
+  <!-- 1) Form GET para seleccionar proveedor -->
+  <form method="GET" class="row mb-4 align-items-end">
+    <div class="col-md-6">
+      <label>Proveedor:</label>
+      <input list="provList" name="nombre_proveedor" class="form-control" autocomplete="off" value="{{ nombre_proveedor }}">
+      <datalist id="provList">
+        {% for prov in providers %}
+          <option value="{{ prov.nombre }}"></option>
+        {% endfor %}
+      </datalist>
+    </div>
+    <div class="col-md-2">
+      <button class="btn btn-primary">Cargar</button>
+    </div>
+  </form>
+
+  <!-- 2) Form POST para crear OP con líneas seleccionadas -->
+  <form method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="proveedor_id"     value="{{ provider_id }}">
+    <input type="hidden" name="nombre_proveedor" value="{{ nombre_proveedor }}">
+
+    <div class="box">
+      <h5>Datos de la Orden de Pago</h5>
+      <div class="row mb-2">
+        <div class="col-md-4">
+          <label>Autoriza:</label>
+          <input list="trabList" id="autoriza_input" name="autoriza_input" class="form-control" autocomplete="off">
+          <datalist id="trabList">
+            {% for t in trabajadores %}
+              <option data-id="{{ t.id }}" data-email="{{ t.correo }}" value="{{ t.nombre }}"></option>
+            {% endfor %}
+          </datalist>
+          <input type="hidden" name="autoriza_id" id="autoriza_id">
+        </div>
+        <div class="col-md-4">
+          <label>Correo:</label>
+          <input type="text" id="autoriza_email" class="form-control" readonly>
+        </div>
+        <div class="col-md-4">
+          <label>Número de Orden:</label>
+          <input type="text" class="form-control" value="{{ next_num }}" readonly>
+          <input type="hidden" name="next_num" value="{{ next_num }}">
+        </div>
+      </div>
+      <div class="row mb-2">
+        <div class="col-md-4">
+          <label>Fecha de factura:</label>
+          <input type="date" name="fecha_factura" class="form-control" required>
+        </div>
+        <div class="col-md-4">
+          <label>Vencimiento factura:</label>
+          <input type="date" name="vencimiento" class="form-control" required>
+        </div>
+        <div class="col-md-4">
+          <label>Estado de pago:</label>
+          <input type="text" name="estado_pago" class="form-control" placeholder="Pendiente / Pagado">
+        </div>
+      </div>
+      <div class="row mb-3">
+        <div class="col-12">
+          <label>Detalle de Compra:</label>
+          <textarea name="detalle_compra" class="form-control" rows="3"
+                    placeholder="Escribe aquí el detalle..."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3) Tabla Documentos Pendientes con "Seleccionar" -->
+    <div class="box">
+      <h5>Documentos Pendientes</h5>
+      <div class="table-responsive">
+        <table class="table table-sm" id="docs-table">
+          <thead>
+            <tr>
+              <th>Seleccion</th><th>Documento</th><th>Orden de Compra</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in docs %}
+            <tr>
+              <td>
+                <button type="button"
+                        class="btn btn-sm btn-outline-primary select-btn"
+                        data-guia="{{ d.guia_recepcion }}"
+                        data-oc="{{ d.orden_compra }}">
+                  Seleccionar
+                </button>
+              </td>
+              <td>{{ d.guia_recepcion }}</td>
+              <td>{{ d.orden_compra }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 4) Tabla Detalle + Totales (se irá rellenando con JS) -->
+    <div class="box table-responsive" id="selected-box" style="display:none;">
+      <h5>Detalle de Material</h5>
+      <table class="table table-sm">
+        <thead>
+          <tr>
+            <th>Descripción</th><th>Recepción</th><th>Neto Unit.</th>
+            <th>Total Neto</th><th>OC</th><th>Factura</th><th>Acción</th>
+          </tr>
+        </thead>
+        <tbody id="selected-body"></tbody>
+      </table>
+      <div id="totals" class="mt-3" style="display:none;">
+        <table class="table table-sm">
+          <tbody>
+            <tr><th class="text-end">Total Neto:</th><td id="total-neto">0.00</td></tr>
+            <tr><th class="text-end">Total IVA (19%):</th><td id="total-iva">0.00</td></tr>
+            <tr><th class="text-end">Total a Pagar:</th><td id="total-pagar">0.00</td></tr>
+          </tbody>
+        </table>
+        <input type="hidden" name="total_neto"   id="total-neto-input">
+        <input type="hidden" name="total_iva"    id="total-iva-input">
+        <input type="hidden" name="total_pagar"  id="total-pagar-input">
+      </div>
+    </div>
+
+    <!-- Adjuntar Documentos -->
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <label>Documento Adjunto 1:</label>
+        <input type="file" name="documento1" class="form-control">
+      </div>
+      <div class="col-md-6">
+        <label>Documento Adjunto 2:</label>
+        <input type="file" name="documento2" class="form-control">
+      </div>
+    </div>
+
+    <!-- 5) Botones Generar PDF / Crear OP -->
+    <div class="text-end">
+      <button id="pdf-btn"
+              formaction="{{ url_for('ordenes_pago_pdf.pdf') }}"
+              formmethod="post"
+              target="_blank"
+              class="btn btn-secondary me-2">
+        Generar PDF
+      </button>
+      <button id="create-btn" disabled
+              formaction="{{ url_for('ordenes_pago.new_orden_pago') }}"
+              formmethod="post"
+              class="btn btn-primary">
+        Crear Orden de Pago #{{ next_num }}
+      </button>
+    </div>
+  </form>
+
+{% endblock %}
+
+{% block extra_js %}
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // 2) Función de totales
+      function recalcTotals() {
+        const body = document.getElementById("selected-body");
+        let neto = 0;
+        // Calcular neto desde inputs ocultos
+        body.querySelectorAll("tr").forEach(r => {
+          const cant = parseFloat(r.querySelector('input[name="recepcion[]"]').value) || 0;
+          const unit = parseFloat(r.querySelector('input[name="neto_unitario[]"]').value) || 0;
+          neto += cant * unit;
+        });
+        const iva = neto * 0.19;
+        const formatter = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' });
+        document.getElementById("total-neto").textContent = formatter.format(neto);
+        document.getElementById("total-iva").textContent  = formatter.format(iva);
+        document.getElementById("total-pagar").textContent = formatter.format(neto + iva);
+        document.getElementById("total-neto-input").value = neto.toFixed(2);
+        document.getElementById("total-iva-input").value  = iva.toFixed(2);
+        document.getElementById("total-pagar-input").value = (neto + iva).toFixed(2);
+        document.getElementById("selected-box").style.display = body.children.length ? "block" : "none";
+        document.getElementById("totals").style.display       = body.children.length ? "block" : "none";
+      }
+
+      // 4) Click “Seleccionar” para cargar líneas
+      const docsTable = document.getElementById("docs-table");
+      if (docsTable) {
+        docsTable.addEventListener("click", e => {
+          if (!e.target.classList.contains("select-btn")) return;
+          const btn = e.target;
+          const guia = btn.dataset.guia;
+          const oc   = btn.dataset.oc;
+
+          fetch(`{{ url_for('ordenes_pago.list_ordenes_pago') }}?detail=1&guia=${guia}&oc=${oc}`)
+            .then(res => res.json())
+            .then(data => {
+              const body = document.getElementById("selected-body");
+              data.forEach(ln => {
+                // evita duplicados
+                if ([...body.querySelectorAll('input[name="ingreso_id[]"]')]
+                      .some(i => +i.value === ln.ingreso_id)) return;
+
+                const row = document.createElement("tr");
+                row.innerHTML = `
+                  <td>${ln.descripcion}</td>
+                  <td>${ln.recepcion}</td>
+                  <td>${new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(ln.neto_unitario)}</td>
+                  <td>${new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(ln.recepcion * ln.neto_unitario)}</td>
+                  <td>${oc}</td>
+                  <td class="text-center">${guia}</td>
+                  <td><button type="button" class="btn btn-sm btn-danger remove-btn">Eliminar</button></td>
+                  <input type="hidden" name="orden_compra[]"   value="${oc}">
+                  <input type="hidden" name="guia_recepcion[]" value="${guia}">
+                  <input type="hidden" name="art_corr[]"        value="${ln.art_corr}">
+                  <input type="hidden" name="descripcion[]"     value="${ln.descripcion}">
+                  <input type="hidden" name="recepcion[]"       value="${ln.recepcion}">
+                  <input type="hidden" name="neto_unitario[]"   value="${ln.neto_unitario.toFixed(2)}">
+                  <input type="hidden" name="material[]"        value="${ln.material_id}">
+                  <input type="hidden" name="ingreso_id[]"      value="${ln.ingreso_id}">`;
+
+                row.querySelector(".remove-btn").addEventListener("click", () => {
+                  row.remove();
+                  recalcTotals();
+                });
+
+                body.appendChild(row);
+              });
+
+              btn.classList.replace("btn-outline-primary", "btn-primary");
+              btn.disabled = true;
+              recalcTotals();
+            })
+            .catch(console.error);
+        });
+      }
+
+      // Autocompletar correo y ID al seleccionar autorizador
+      const autorizaInput = document.getElementById("autoriza_input");
+      const autorizaEmail = document.getElementById("autoriza_email");
+      const autorizaId    = document.getElementById("autoriza_id");
+      const trabList      = document.getElementById("trabList");
+
+      function fillAutorizaFields() {
+        const val = autorizaInput.value.trim();
+        const options = Array.from(trabList.querySelectorAll('option'));
+        const option = options.find(o => o.value.trim().toLowerCase() === val.toLowerCase());
+        if (option) {
+          autorizaId.value    = option.dataset.id || "";
+          autorizaEmail.value = option.dataset.email || "";
+        } else {
+          autorizaId.value    = "";
+          autorizaEmail.value = "";
+        }
+      }
+
+      autorizaInput.addEventListener("input", fillAutorizaFields);
+      autorizaInput.addEventListener("change", fillAutorizaFields);
+      autorizaInput.addEventListener("blur", fillAutorizaFields);
+
+      // Habilitar botón Crear Orden tras generar PDF
+      const pdfBtn    = document.getElementById('pdf-btn');
+      const createBtn = document.getElementById('create-btn');
+      if (pdfBtn && createBtn) {
+        pdfBtn.addEventListener('click', () => {
+          createBtn.disabled = false;
+        });
+      }
+    });
+  </script>
+{% endblock %}

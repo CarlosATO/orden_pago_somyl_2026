@@ -1,0 +1,211 @@
+{# templates/ingresos/form.html #}
+{% extends "base.html" %}
+{% block title %}Ingresos de OC - App Moderna{% endblock %}
+
+{% block content %}
+ <h1 class="titulo-modulo w-100">Ingresos de orden de Compras</h1>
+  <style>
+    /* Animación de fondo degradado */
+    @keyframes gradientMove { 0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%} }
+    .box { background:#fafafa; border:none; border-radius:.75rem; padding:1rem; margin-bottom:1.5rem;
+      box-shadow:inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.7);
+    }
+    .box.complete { background:#e6f9e6; box-shadow:none; }
+    .badge-complete { background:#d1e7dd; color:#0f5132; padding:.35em .75em; border-radius:.75rem; font-size:.9rem;
+      box-shadow:inset 2px 2px 4px rgba(0,0,0,0.05), inset -2px -2px 4px rgba(255,255,255,0.7);
+    }
+    .totals { text-align:right; margin-top:1rem; }
+
+    /* Estilos para la tabla */
+    .line-table th, .line-table td {
+      border-right: 1px solid #dee2e6;
+      border-left: 1px solid #dee2e6;
+    }
+    .line-table th:first-child, .line-table td:first-child {
+      border-left: none;
+    }
+    .line-table th:last-child, .line-table td:last-child {
+      border-right: none;
+    }
+  </style>
+
+
+  <!-- BUSCADOR DE OC -->
+  <form method="GET" class="row mb-4 align-items-end">
+    <div class="col-md-4">
+      <label for="oc_input">N° OC:</label>
+      <input list="oc_list" name="oc" class="form-control" value="{{ oc }}">
+      <datalist id="oc_list">
+        {% for n in oc_list %}
+          <option value="{{ n }}">
+        {% endfor %}
+      </datalist>
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-primary" id="btnLoad">Cargar OC</button>
+    </div>
+    <div id="badgeContainer" class="col-md-6 text-right"></div>
+  </form>
+
+  {% if header %}
+  <form method="POST">
+    <input type="hidden" name="oc" value="{{ header.orden_compra }}">
+    <input type="hidden" name="proveedor_id" value="{{ header.proveedor_id }}">
+
+    <!-- CABECERA -->
+    <div class="box" id="headerBox">
+      <div class="row mb-2">
+        <div class="col-md-3">
+          <label>OC:</label>
+          <input type="text" class="form-control" value="{{ header.orden_compra }}" readonly>
+        </div>
+        <div class="col-md-5">
+          <label>Proveedor:</label>
+          <input type="text" class="form-control" value="{{ header.proveedor_nombre }}" readonly>
+        </div>
+        <div class="col-md-4">
+          <label>RUT:</label>
+          <input type="text" class="form-control" value="{{ header.rut }}" readonly>
+        </div>
+      </div>
+      <div class="row mb-2">
+        <div class="col-md-4">
+          <label>Fecha OC:</label>
+          <input type="text" class="form-control" value="{{ header.fecha }}" readonly>
+        </div>
+        <div class="col-md-4">
+          <label>Solicita:</label>
+          <input type="text" class="form-control" value="{{ header.solicita }}" readonly>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6">
+          <label>Documento (Guía Recepción):</label>
+          <input type="text" name="guia_recepcion" class="form-control">
+        </div>
+      </div>
+    </div>
+
+    <!-- DETALLE -->
+    <h4 class="mt-4 mb-2">Detalle orden de compra</h4>
+    <div class="box table-responsive">
+      <table class="table table-sm line-table">
+        <thead><tr>
+          <th>CÓDIGO</th><th>DESCRIPCIÓN</th><th>SOLICITADO</th><th>NETO UNITARIO.</th><th>NETO TOTAL</th>
+          <th>IVA</th><th>TOTAL</th><th>RECIBIDOS</th><th>TOTAL RECIBIDO</th><th>PENDIENTES</th>
+        </tr></thead>
+        <tbody>
+  {% for ln in lines %}
+  <tr data-pendiente="{{ ln.pendiente }}">
+    <td>{{ ln.codigo }}</td>
+    <td>{{ ln.descripcion }}</td>
+    <td>{{ ln.solicitado }}</td>
+    <td class="clp" data-neto="{{ ln.neto }}">{{ ln.neto }}</td>
+    <td class="clp">{{ ln.neto_tot }}</td>
+    <td class="clp">{{ ln.iva }}</td>
+    <td class="clp">{{ ln.total }}</td>
+    <td>
+      <input type="number"
+             name="recibido_linea[]"
+             class="form-control"
+             min="0"
+             value="0"
+             required>
+    </td>
+    <td>{{ "%0.f"|format(ln.total_recibido) }}</td>
+    <td>{{ "%0.f"|format(ln.pendiente) }}</td>
+
+    <!-- Campos ocultos que ya existían -->
+    <input type="hidden" name="desc_linea[]" value="{{ ln.descripcion }}">
+    <input type="hidden" name="neto_linea[]" value="{{ ln.neto }}">
+    <input type="hidden" name="material_id[]" value="{{ ln.material_id }}">
+    <input type="hidden" name="art_corr_linea[]" value="{{ ln.art_corr }}">
+  </tr>
+  {% endfor %}
+</tbody>
+      </table>
+      <div class="totals">
+        <p><strong>SUMA NETO:</strong> <span id="sumNeto">$0</span></p>
+        <p><strong>SUMA IVA:</strong>   <span id="sumIva">$0</span></p>
+        <p><strong>SUMA TOTAL:</strong> <span id="sumTotal">$0</span></p>
+      </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary" id="btnSave">Guardar Ingreso</button>
+  </form>
+  {% endif %}
+
+  {% if oc_no_encontrada %}
+    <div class="alert alert-warning mt-2">
+      <strong>Advertencia:</strong> Esta orden de compra no se encuentra registrada.
+    </div>
+  {% endif %}
+
+  <div id="ocInfo" data-sin-iva="{{ 1 if header.fac_sin_iva else 0 }}"></div>
+
+  <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+  <script>
+    function formatCLP(x) { return new Intl.NumberFormat('es-CL',{style:'currency',currency:'CLP'}).format(x); }
+    function actualizarSumas() {
+      let sN = 0, sI = 0, sT = 0;
+      const sinIVA = document.getElementById('ocInfo')?.dataset.sinIva === "1";
+      document.querySelectorAll('tbody tr').forEach(r => {
+        // Toma el valor numérico original desde data-neto
+        const neto = parseFloat(r.querySelector('td.clp[data-neto]')?.dataset.neto) || 0;
+        const recibido = parseInt(r.querySelector('input[name="recibido_linea[]"]')?.value) || 0;
+        const netoTotal = neto * recibido;
+        let iva = 0, total = 0;
+        if (sinIVA) {
+          iva = 0;
+          total = netoTotal;
+        } else {
+          iva = Math.round(netoTotal * 0.19);
+          total = netoTotal + iva;
+        }
+        sN += netoTotal;
+        sI += iva;
+        sT += total;
+      });
+      document.getElementById('sumNeto').textContent = formatCLP(sN);
+      document.getElementById('sumIva').textContent = formatCLP(sI);
+      document.getElementById('sumTotal').textContent = formatCLP(sT);
+    }
+    function setupClamping() {
+      document.querySelectorAll('tbody tr').forEach(r => {
+        const inp = r.querySelector('input[name="recibido_linea[]"]');
+        const pend = parseInt(r.dataset.pendiente,10)||0;
+        inp.max = pend;
+        inp.addEventListener('input', e => {
+          let v = parseInt(e.target.value,10)||0;
+          if (v > pend) e.target.value = pend;
+          actualizarSumas();
+          checkCompleto();
+        });
+      });
+    }
+    function checkCompleto() {
+      const totalPend = Array.from(document.querySelectorAll('tbody tr'))
+        .reduce((sum,r) => sum + (parseInt(r.dataset.pendiente,10)||0), 0);
+      if (totalPend === 0) {
+        document.getElementById('headerBox').classList.add('complete');
+        if (!document.getElementById('badgeComplete')) {
+          document.getElementById('badgeContainer').innerHTML =
+            '<span id="badgeComplete" class="badge-complete">Registro completo</span>';
+        }
+        document.querySelectorAll('input[name="recibido_linea[]"]').forEach(i=>i.disabled=true);
+        document.getElementById('btnSave').disabled = true;
+      }
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      // Formatea las celdas de moneda
+      document.querySelectorAll('td.clp').forEach(td => {
+        const val = parseFloat(td.textContent.replace(/[^0-9.-]+/g,""));
+        if (!isNaN(val)) td.textContent = formatCLP(val);
+      });
+      actualizarSumas();
+      setupClamping();
+      checkCompleto();
+    });
+  </script>
+{% endblock %}
