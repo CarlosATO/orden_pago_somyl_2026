@@ -49,12 +49,12 @@
     {# ---------------------------------------------- #}
     <div class="row gx-3 gy-2 mt-3 align-items-end">
       <div class="col-md-4">
-        <label for="tipo" class="form-label">Tipo:</label>
-        <select name="tipo" id="tipo" class="form-select" required>
-          <option value="" disabled {{ 'selected' if not material }} hidden>— Seleccione tipo —</option>
+        <label for="item" class="form-label">Item:</label>
+        <select name="item" id="item" class="form-select" required>
+          <option value="" disabled {{ 'selected' if not material }} hidden>— Seleccione item —</option>
           {% for it in items %}
             <option value="{{ it['tipo'] }}"
-              {% if material and material['tipo'] == it['tipo'] %} selected {% endif %}>
+              {% if material and material['item'] == it['tipo'] %} selected {% endif %}>
               {{ it['tipo'] }}
             </option>
           {% endfor %}
@@ -62,12 +62,12 @@
       </div>
 
       <div class="col-md-4">
-        <label for="item" class="form-label">Item:</label>
+        <label for="tipo" class="form-label">Tipo:</label>
         <input
           type="text"
-          name="item"
-          id="item"
-          value="{{ material['item'] if material else '' }}"
+          name="tipo"
+          id="tipo"
+          value="{{ material['tipo'] if material else '' }}"
           class="form-control"
           oninput="this.value=this.value.toUpperCase();"
         >

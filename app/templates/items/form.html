@@ -39,7 +39,7 @@
     /* Anchos específicos por columna: */
     .table th:nth-child(1),
     .table td:nth-child(1) {
-      width: 70%;    /* Ajusta este valor a tu gusto */
+      width: 70%;   
     }
     .table th:nth-child(2),
     .table td:nth-child(2) {
@@ -47,10 +47,10 @@
     }
   </style>
 
-  <h1 class="mb-4">TIPOS</h1>
+  <h1 class="titulo-modulo w-100">Creación de items</h1>
   <form method="POST"
         action="{{ url_for('items.edit_item', id=item['id']) if item else url_for('items.new_item') }}">
-    <label for="tipo">Nombre del Tipo:</label>
+    <label for="tipo">Nombre del item a crear:</label>
     <input
       type="text"
       name="tipo"
@@ -66,7 +66,7 @@
     </button>
   </form>
 
-  <h5 class="mt-5">Tipos Registrados</h5>
+  <h5 class="mt-5">Registrados</h5>
   <hr class="line-separator">
 
   {# — Tabla con columnas angostas y contenido alineado a la izquierda — #}

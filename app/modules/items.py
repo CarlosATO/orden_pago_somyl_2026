@@ -6,7 +6,7 @@ from app.modules.usuarios import require_modulo
 bp = Blueprint("items", __name__, template_folder="../templates/items")
 
 @bp.route("/", methods=["GET"])
-@require_modulo('item')
+@require_modulo('items')
 def list_items():
     items = (
         current_app.config['SUPABASE']
@@ -19,7 +19,7 @@ def list_items():
     return render_template("items/form.html", items=items)
 
 @bp.route("/new", methods=["POST"])
-@require_modulo('item')
+@require_modulo('items')
 def new_item():
     tipo = request.form["tipo"].strip().upper()
 
@@ -40,7 +40,7 @@ def new_item():
     return redirect(url_for("items.list_items"))
 
 @bp.route("/edit/<int:id>", methods=["GET", "POST"])
-@require_modulo('item')
+@require_modulo('items')
 def edit_item(id):
     res = (
         current_app.config['SUPABASE']

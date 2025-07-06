@@ -167,6 +167,24 @@
     </div>
   </form>
 
+  <!-- Modal Bootstrap de guardando -->
+  <div class="modal fade" id="modalGuardando" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content text-center">
+        <div class="modal-body">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p class="mt-3 mb-0">Guardando información...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="mensajeExito" class="alert alert-success text-center position-fixed top-0 start-50 translate-middle-x mt-3"
+       style="display:none; z-index:2000; min-width:300px;">
+    Información guardada con éxito
+    <button type="button" class="btn-close" onclick="document.getElementById('mensajeExito').style.display='none'"></button>
+  </div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -275,6 +293,18 @@
       if (pdfBtn && createBtn) {
         pdfBtn.addEventListener('click', () => {
           createBtn.disabled = false;
+        });
+      }
+
+      // Modal guardando
+      const form = document.querySelector('form[method="POST"]');
+      const btn = document.getElementById("create-btn");
+      const modal = new bootstrap.Modal(document.getElementById('modalGuardando'));
+
+      if(form && btn) {
+        form.addEventListener("submit", function(e) {
+          btn.disabled = true;
+          modal.show();
         });
       }
     });

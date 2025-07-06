@@ -207,6 +207,12 @@
                   Materiales
                 </a>
               {% endif %}
+              {% if 'items' in modulos_usuario %}
+                <a href="{{ url_for('items.list_items') }}"
+                   class="nav-link{% if current == url_for('items.list_items') %} active{% endif %}">
+                  Ítems
+                </a>
+              {% endif %}
               {% if 'trabajadores' in modulos_usuario %}
                 <a href="{{ url_for('trabajadores.list_trabajadores') }}"
                    class="nav-link{% if current == url_for('trabajadores.list_trabajadores') %} active{% endif %}">

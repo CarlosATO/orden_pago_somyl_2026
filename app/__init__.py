@@ -70,6 +70,10 @@ def create_app():
     from .modules.gastos_directos import bp_gastos_directos
     app.register_blueprint(bp_gastos_directos)
 
+    # Registrar módulo de items
+    from .modules.items import bp as bp_items
+    app.register_blueprint(bp_items, url_prefix='/items')
+
     # Ruta raíz: redirige al listado de órdenes de pago
     @app.route('/')
     @login_required

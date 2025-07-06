@@ -5,7 +5,7 @@ import re
 from datetime import date
 from flask import (
     Blueprint, render_template, request,
-    redirect, url_for, flash, current_app, Response
+    redirect, url_for, flash, current_app, Response, jsonify
 )
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -107,6 +107,18 @@ def new_orden():
         netos   = request.form.getlist("neto_linea[]")
         totals  = request.form.getlist("total_linea[]")
 
+        lineas = []
+        for cod, desc, qty, net, tot in zip(cods, descs, qtys, netos, totals):
+            if cod and float(qty) > 0:
+                descripcion = desc  # Usa siempre lo que viene del formulario
+                lineas.append([
+                    cod,
+                    descripcion,
+                    int(qty),
+                    parse_monto(net),
+                    parse_monto(tot)
+                ])
+
         rows = []
         corr = next_corr
         for i, qty in enumerate(qtys):
@@ -180,16 +192,38 @@ def generate_pdf():
         topMargin=20 * mm, bottomMargin=30 * mm
     )
 
+    supabase = current_app.config['SUPABASE']
+
     # ——— Recoger datos del formulario ———
     orden_compra     = request.form["next_num"]
-    proveedor_nombre = request.form["proveedor_nombre"]
-    rut              = request.form.get("rut", "")
     tipo_entrega     = request.form["tipo_entrega"]
     plazo_pago       = request.form["plazo_pago"]
     sin_iva          = request.form.get("sin_iva") is not None
-    proyecto         = request.form["proyecto_nombre"]
-    solicitante      = request.form["solicitado_por"]
     observaciones    = request.form.get("observaciones", "")
+
+    # --- NUEVO: Obtener nombres y RUT desde Supabase ---
+    proveedor_id = request.form.get("proveedor_id")
+    proveedor_nombre = ""
+    rut = ""
+    if proveedor_id:
+        proveedor_row = supabase.table("proveedores").select("nombre,rut").eq("id", proveedor_id).execute().data
+        if proveedor_row:
+            proveedor_nombre = proveedor_row[0]["nombre"]
+            rut = proveedor_row[0]["rut"]
+
+    proyecto_id = request.form.get("proyecto_id")
+    proyecto = ""
+    if proyecto_id:
+        proyecto_row = supabase.table("proyectos").select("proyecto").eq("id", proyecto_id).execute().data
+        if proyecto_row:
+            proyecto = proyecto_row[0]["proyecto"]
+
+    solicitante_id = request.form.get("solicitado_por")
+    solicitante = ""
+    if solicitante_id:
+        trabajador_row = supabase.table("trabajadores").select("nombre").eq("id", solicitante_id).execute().data
+        if trabajador_row:
+            solicitante = trabajador_row[0]["nombre"]
 
     cods   = request.form.getlist("cod_linea[]")
     descs  = request.form.getlist("desc_linea[]")
@@ -202,7 +236,7 @@ def generate_pdf():
         [cod, desc, int(qty), parse_monto(net), parse_monto(tot)]
         for cod, desc, qty, net, tot
         in zip(cods, descs, qtys, netos, totals)
-        if cod and desc and float(qty) > 0
+        if cod and desc and qty and qty.strip() and float(qty) > 0
     ]
 
     styles = getSampleStyleSheet()
@@ -325,12 +359,12 @@ def generate_pdf():
         ])
 
     # ——— Calcular totales ———
-    total_neto = sum(ln[3] for ln in lineas)
+    total_neto = sum(ln[4] for ln in lineas)  # Suma los totales de cada línea
     iva = round(total_neto * 0.19)
     total_final = total_neto + iva
 
     totales_tbl = Table([
-        ["", "Totales:", formato_pesos(total_neto)],
+        ["", "Total Neto:", formato_pesos(total_neto)],
         ["", "IVA (19%):", formato_pesos(iva)],
         ["", "Total:", formato_pesos(total_final)],
     ], colWidths=[100*mm, 35*mm, 35*mm])
@@ -357,3 +391,103 @@ def generate_pdf():
         mimetype="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
+
+
+@bp.route("/api/proveedores")
+def api_proveedores():
+    supabase = current_app.config['SUPABASE']
+    term = request.args.get("term", "")
+    proveedores = supabase.table("proveedores").select("id,nombre,rut").execute().data or []
+    results = []
+    for p in proveedores:
+        if term.lower() in p["nombre"].lower():
+            results.append({
+                "id": p["id"],
+                "text": p["nombre"],
+                "rut": p["rut"]
+            })
+    return jsonify({"results": results})
+
+
+@bp.route("/api/proyectos")
+def api_proyectos():
+    supabase = current_app.config['SUPABASE']
+    term = request.args.get("term", "")
+    proyectos = supabase.table("proyectos").select("id,proyecto").execute().data or []
+    results = []
+    for p in proyectos:
+        if term.lower() in p["proyecto"].lower():
+            results.append({
+                "id": p["id"],
+                "text": p["proyecto"]
+            })
+    return jsonify({"results": results})
+
+
+@bp.route("/api/plazos_pago")
+def api_plazos_pago():
+    supabase = current_app.config['SUPABASE']
+    term = request.args.get("term", "")
+    plazos = supabase.table("plazos_pago").select("id,plazo").execute().data or []
+    results = []
+    for p in plazos:
+        if term.lower() in p["plazo"].lower():
+            results.append({"id": p["id"], "text": p["plazo"]})
+    return jsonify({"results": results})
+
+
+@bp.route("/api/tipos_entrega")
+def api_tipos_entrega():
+    supabase = current_app.config['SUPABASE']
+    term = request.args.get("term", "")
+    tipos = supabase.table("tipos_entrega").select("id,tipo").execute().data or []
+    results = []
+    for t in tipos:
+        if term.lower() in t["tipo"].lower():
+            results.append({"id": t["id"], "text": t["tipo"]})
+    return jsonify({"results": results})
+
+
+@bp.route("/api/trabajadores")
+def api_trabajadores():
+    supabase = current_app.config['SUPABASE']
+    term = request.args.get("term", "")
+    trabajadores = supabase.table("trabajadores").select("id,nombre").execute().data or []
+    results = []
+    for t in trabajadores:
+        if term.lower() in t["nombre"].lower():
+            results.append({"id": t["id"], "text": t["nombre"]})
+    return jsonify({"results": results})
+
+
+@bp.route("/api/materiales")
+def api_materiales():
+    supabase = current_app.config['SUPABASE']
+    term = request.args.get("term", "")
+    materiales = supabase.table("materiales").select("cod,material,tipo,item").execute().data or []
+    results = []
+    for m in materiales:
+        if term.lower() in m["material"].lower() or term.lower() in m["cod"].lower():
+            # Buscar el último precio en orden_de_compra por descripción exacta
+            history = supabase.table("orden_de_compra") \
+                .select("precio_unitario,descripcion") \
+                .eq("descripcion", m["material"]) \
+                .order("orden_compra", desc=True) \
+                .limit(1) \
+                .execute().data
+            ultimo_precio = 0
+            if history and history[0].get("precio_unitario"):
+                try:
+                    ultimo_precio = float(history[0]["precio_unitario"])
+                except Exception:
+                    ultimo_precio = 0
+
+            results.append({
+                "id": m["material"],      # <-- ahora el value será la descripción
+                "text": m["material"],    # <-- lo que se muestra
+                "codigo": m["cod"],       # <-- código aparte
+                "ultimo_precio": ultimo_precio,
+                "tipo": m["tipo"],
+                "item": m["item"]
+            })
+    return jsonify({"results": results})
