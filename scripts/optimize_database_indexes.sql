@@ -100,3 +100,5 @@ FROM pg_stat_user_indexes
 WHERE tablename IN ('materiales', 'orden_de_compra', 'proveedores', 'proyectos', 'trabajadores')
 ORDER BY idx_scan DESC;
 */
+
+-- "Desarrollado por Carlos Alegría | SOMYL 2025"
