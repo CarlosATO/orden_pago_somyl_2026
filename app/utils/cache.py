@@ -104,3 +104,22 @@ def get_select2_cached_results(table, term):
 
 # Configuración de logging para debug
 logger = logging.getLogger(__name__)
+
+# Exportar objeto cache para compatibilidad
+class CacheManager:
+    """Clase para gestionar el cache global"""
+    
+    def get(self, key, ttl=None):
+        return get_cached_data(key, ttl)
+    
+    def set(self, key, data, ttl=None):
+        return set_cached_data(key, data, ttl)
+    
+    def clear(self, pattern=None):
+        return clear_cache(pattern)
+    
+    def search(self, key, term):
+        return search_cached_data(key, term)
+
+# Instancia global del cache
+cache = CacheManager()

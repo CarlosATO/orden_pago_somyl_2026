@@ -115,3 +115,6 @@ def optimized_search_api(table_name, search_fields, result_fields=None, cache_tt
         
         return wrapper
     return decorator
+
+# Alias para compatibilidad
+api_cache = optimized_select2_api

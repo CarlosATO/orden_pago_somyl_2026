@@ -31,9 +31,9 @@ def create_app():
     app.secret_key = "S3cr3to_2025_de_Somyl"
     # Configurar Supabase desde variables de entorno
     url = os.getenv('SUPABASE_URL')
-    key = os.getenv('SUPABASE_KEY')
+    key = os.getenv('SUPABASE_ANON_KEY')
     if not url or not key:
-        raise RuntimeError('Debe configurar SUPABASE_URL y SUPABASE_KEY')
+        raise RuntimeError('Debe configurar SUPABASE_URL y SUPABASE_ANON_KEY')
     supabase = create_client(url, key)
     app.config['SUPABASE'] = supabase
 
