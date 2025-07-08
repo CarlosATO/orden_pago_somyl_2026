@@ -404,3 +404,40 @@ def guardar_docs():
             success=False,
             message="No se guardó ningún documento"
         ), 200
+
+
+@bp.route("/api/proveedores")
+def api_proveedores():
+    supabase = current_app.config["SUPABASE"]
+    term = request.args.get("term", "")
+    if not term:
+        return jsonify({"results": []})
+    proveedores = (
+        supabase
+        .table("proveedores")
+        .select("id, nombre")
+        .ilike("nombre", f"%{term}%")
+        .limit(20)
+        .execute()
+        .data
+    ) or []
+    results = [{"id": p["id"], "text": p["nombre"]} for p in proveedores]
+    return jsonify({"results": results})
+
+@bp.route("/api/trabajadores")
+def api_trabajadores():
+    supabase = current_app.config["SUPABASE"]
+    term = request.args.get("term", "")
+    if not term:
+        return jsonify({"results": []})
+    trabajadores = (
+        supabase
+        .table("trabajadores")
+        .select("id, nombre, correo")
+        .ilike("nombre", f"%{term}%")
+        .limit(20)
+        .execute()
+        .data
+    ) or []
+    results = [{"id": t["id"], "text": t["nombre"], "correo": t["correo"]} for t in trabajadores]
+    return jsonify({"results": results})

@@ -1,6 +1,6 @@
 # app/modules/ingresos.py
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
 from datetime import date
 from collections import defaultdict
 from app.modules.usuarios import get_modulos_usuario
@@ -269,3 +269,22 @@ def save_ingresos():
         flash("No se ingresó ningún registro.", "warning")
 
     return redirect(url_for("ingresos.list_ingresos", oc=oc_val))
+
+
+@bp.route("/api/buscar_oc")
+def api_buscar_oc():
+    supabase = current_app.config["SUPABASE"]
+    term = request.args.get("term", "")
+    if not term:
+        return jsonify({"results": []})
+    # Busca OCs que contengan el término
+    ocs = (
+        supabase.table("orden_de_compra")
+                 .select("orden_compra")
+                 .ilike("orden_compra", f"%{term}%")
+                 .order("orden_compra", desc=True)
+                 .limit(20)
+                 .execute().data or []
+    )
+    results = [{"id": oc["orden_compra"], "text": str(oc["orden_compra"])} for oc in ocs if oc.get("orden_compra")]
+    return jsonify({"results": results})

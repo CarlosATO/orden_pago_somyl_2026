@@ -58,10 +58,6 @@ def new_orden():
     supabase = current_app.config['SUPABASE']
 
     # --- Datos GET para autocompletar ---
-    providers    = supabase.table("proveedores").select("id,nombre,rut").execute().data or []
-    proyectos    = supabase.table("proyectos").select("id,proyecto").execute().data or []
-    trabajadores = supabase.table("trabajadores").select("nombre").execute().data or []
-    materiales   = supabase.table("materiales").select("cod,material,tipo,item").execute().data or []
     tipos_entrega = ["30 DIAS","45 DIAS","60 DIAS","90 DIAS","INMEDIATA","OTRO"]
     plazos_pago   = ["CONTADO","30 DIAS","45 DIAS","60 DIAS","90 DIAS","OTRO"]
     history = supabase.table("orden_de_compra") \
@@ -121,19 +117,26 @@ def new_orden():
 
         rows = []
         corr = next_corr
-        for i, qty in enumerate(qtys):
-            if not qty or float(qty) <= 0 or not descs[i]:
-                continue
+        for cod, desc, qty, net, tot in zip(cods, descs, qtys, netos, totals):
+            # Consulta el material por código o descripción
+            mat = (
+                supabase.table("materiales")
+                .select("*")
+                .eq("material", desc)
+                .limit(1)
+                .execute()
+                .data
+            )
+            mat = mat[0] if mat else {}
 
-            mat = next((m for m in materiales if m["material"] == descs[i]), {})
             tipo_val = mat.get("tipo", "")
             item_val = mat.get("item", "")
 
-            precio_unitario = parse_monto(netos[i])
-            total_num       = parse_monto(totals[i])
+            precio_unitario = parse_monto(net)
+            total_num       = parse_monto(tot)
 
             rows.append({
-                "orden_compra":     orden_compra,       # as integer
+                "orden_compra":     orden_compra,
                 "fecha":            fecha,
                 "mes":              mes,
                 "semana":           semana,
@@ -145,8 +148,8 @@ def new_orden():
                 "proyecto":         proyecto_id,
                 "solicita":         solicitante,
                 "art_corr":         corr,
-                "codigo":           cods[i],
-                "descripcion":      descs[i],
+                "codigo":           cod,
+                "descripcion":      desc,
                 "cantidad":         int(qty),
                 "precio_unitario":  precio_unitario,
                 "total":            total_num,
@@ -172,10 +175,6 @@ def new_orden():
     return render_template(
         "ordenes/form.html",
         next_num=next_num,
-        providers=providers,
-        proyectos=proyectos,
-        trabajadores=trabajadores,
-        materiales=materiales,
         tipos_entrega=tipos_entrega,
         plazos_pago=plazos_pago,
         history=history
@@ -397,15 +396,18 @@ def generate_pdf():
 def api_proveedores():
     supabase = current_app.config['SUPABASE']
     term = request.args.get("term", "")
-    proveedores = supabase.table("proveedores").select("id,nombre,rut").execute().data or []
-    results = []
-    for p in proveedores:
-        if term.lower() in p["nombre"].lower():
-            results.append({
-                "id": p["id"],
-                "text": p["nombre"],
-                "rut": p["rut"]
-            })
+    if not term:
+        return jsonify({"results": []})
+    proveedores = supabase.table("proveedores") \
+        .select("id,nombre,rut") \
+        .ilike("nombre", f"%{term}%") \
+        .limit(20) \
+        .execute().data or []
+    results = [{
+        "id": p["id"],
+        "text": p["nombre"],
+        "rut": p["rut"]
+    } for p in proveedores]
     return jsonify({"results": results})
 
 
@@ -464,30 +466,44 @@ def api_trabajadores():
 def api_materiales():
     supabase = current_app.config['SUPABASE']
     term = request.args.get("term", "")
-    materiales = supabase.table("materiales").select("cod,material,tipo,item").execute().data or []
+    if not term:
+        return jsonify({"results": []})
+
+    # Filtra en la base de datos por material o código (insensible a mayúsculas)
+    materiales = supabase.table("materiales") \
+        .select("cod,material,tipo,item") \
+        .ilike("material", f"%{term}%") \
+        .execute().data or []
+
+    # Si no encontró por material, intenta por código
+    if not materiales:
+        materiales = supabase.table("materiales") \
+            .select("cod,material,tipo,item") \
+            .ilike("cod", f"%{term}%") \
+            .execute().data or []
+
     results = []
     for m in materiales:
-        if term.lower() in m["material"].lower() or term.lower() in m["cod"].lower():
-            # Buscar el último precio en orden_de_compra por descripción exacta
-            history = supabase.table("orden_de_compra") \
-                .select("precio_unitario,descripcion") \
-                .eq("descripcion", m["material"]) \
-                .order("orden_compra", desc=True) \
-                .limit(1) \
-                .execute().data
-            ultimo_precio = 0
-            if history and history[0].get("precio_unitario"):
-                try:
-                    ultimo_precio = float(history[0]["precio_unitario"])
-                except Exception:
-                    ultimo_precio = 0
+        # Buscar el último precio en orden_de_compra por descripción exacta
+        history = supabase.table("orden_de_compra") \
+            .select("precio_unitario,descripcion") \
+            .eq("descripcion", m["material"]) \
+            .order("orden_compra", desc=True) \
+            .limit(1) \
+            .execute().data
+        ultimo_precio = 0
+        if history and history[0].get("precio_unitario"):
+            try:
+                ultimo_precio = float(history[0]["precio_unitario"])
+            except Exception:
+                ultimo_precio = 0
 
-            results.append({
-                "id": m["material"],      # <-- ahora el value será la descripción
-                "text": m["material"],    # <-- lo que se muestra
-                "codigo": m["cod"],       # <-- código aparte
-                "ultimo_precio": ultimo_precio,
-                "tipo": m["tipo"],
-                "item": m["item"]
-            })
+        results.append({
+            "id": m["material"],
+            "text": m["material"],
+            "codigo": m["cod"],
+            "ultimo_precio": ultimo_precio,
+            "tipo": m["tipo"],
+            "item": m["item"]
+        })
     return jsonify({"results": results})

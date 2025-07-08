@@ -37,6 +37,7 @@
         left: 0;
         height: 100vh;
         z-index: 1000;
+        overflow-y: auto;
       }
       .sidebar .logo {
         font-size: 1.5rem;
@@ -64,6 +65,7 @@
         background-color: #ff9800 !important;
         color: #fff !important;
         box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        cursor: pointer;
       }
       .sidebar .nav-link.active:not(.menu-main-active) {
         background-color: #5b6bff;
@@ -99,10 +101,64 @@
       .titulo-modulo:hover {
         box-shadow: 0 4px 16px rgba(80,120,200,0.13);
       }
+      /* Sidebar animación submenú */
+      .sidebar.sidebar-submenu-only > nav > .nav-link:not(.menu-main-active),
+      .sidebar.sidebar-submenu-only > nav > .collapse:not(.show) {
+        max-height: 0 !important;
+        opacity: 0;
+        margin: 0 !important;
+        padding: 0 !important;
+        pointer-events: none;
+        transform: translateY(-30px);
+        transition: all 0.6s ease-in-out;
+        display: none !important; /* <-- fuerza ocultar los no activos */
+      }
+      .sidebar.sidebar-submenu-only > nav > .menu-main-active {
+        margin-top: 0 !important;
+        opacity: 1;
+        max-height: 500px;
+        transform: translateY(0);
+        transition: all 0.6s ease-in-out;
+        display: flex !important; /* <-- fuerza mostrar el activo */
+        order: 0;
+        margin-bottom: 0.5rem;
+      }
+      .sidebar.sidebar-submenu-only > nav > .collapse.show {
+        order: 1;
+      }
+      .sidebar.sidebar-submenu-only > nav {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .sidebar.sidebar-submenu-only .menu-main-active {
+        order: 0;
+        margin-bottom: 0.5rem;
+      }
+      .sidebar.sidebar-submenu-only .collapse.show {
+        order: 1;
+      }
+      .sidebar.sidebar-submenu-only .submenu-header {
+        display: none !important;
+      }
     </style>
   </head>
 
   <body>
+<script>
+  (function() {
+    const submenuKey = localStorage.getItem('sidebarSubmenu');
+    if (submenuKey) {
+      document.addEventListener('DOMContentLoaded', function() {
+        const btn = document.getElementById(submenuKey);
+        if (btn) btn.classList.add('menu-main-active');
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar) sidebar.classList.add('sidebar-submenu-only');
+      });
+    }
+  })();
+</script>
+
     {% set current = request.path %}
 
     {% if current_user.is_authenticated and request.endpoint != 'auth.login' %}
@@ -115,10 +171,10 @@
             <i class="bi bi-person-plus"></i> Usuarios
           </a>
 
-          <!-- 2. Crear O.P. -->
+          <!-- 2. Crear O.Compra. -->
           <a href="{{ url_for('ordenes.new_orden') }}"
              class="nav-link{% if current == url_for('ordenes.new_orden') %} active{% endif %}">
-            <i class="bi bi-cart-plus"></i> Crear O.P.
+            <i class="bi bi-cart-plus"></i> Orden de Compra
           </a>
 
           <!-- 3. Ingresos -->
@@ -128,22 +184,12 @@
           </a>
 
           <!-- 4. Órdenes de Pago (con submenú) -->
-          <a class="nav-link d-flex justify-content-between align-items-center menu-main{% if
-                current == url_for('ordenes_pago.list_ordenes_pago') or
-                current == url_for('ordenes_pago_pendientes.list_pendientes') or
-                current == url_for('pagos.list_pagos')
-              %} menu-main-active{% endif %}"
+          <a class="nav-link d-flex justify-content-between align-items-center menu-main"
              id="menu-ordenes"
-             data-bs-toggle="collapse" href="#collapseOrdenes"
-             role="button"
-             aria-expanded="{% if
-                current == url_for('ordenes_pago.list_ordenes_pago') or
-                current == url_for('ordenes_pago_pendientes.list_pendientes') or
-                current == url_for('pagos.list_pagos')
-              %}true{% else %}false{% endif %}">
-            <span><i class="bi bi-cash-stack"></i> Órdenes de Pago</span>
-            <i class="bi bi-chevron-down small"></i>
-          </a>
+             data-bs-toggle="collapse" href="#collapseOrdenes">
+             <span><i class="bi bi-cash-stack"></i> Pagos y registros</span>
+             <i class="bi bi-chevron-down small"></i>
+           </a>
           <div class="collapse {% if
                 current == url_for('ordenes_pago.list_ordenes_pago') or
                 current == url_for('ordenes_pago_pendientes.list_pendientes') or
@@ -151,38 +197,29 @@
               %}show{% endif %}"
                id="collapseOrdenes"
                data-bs-parent=".sidebar nav">
+            <div class="submenu-header" data-back="sidebar">
+              Pagos y registros
+            </div>
             <nav class="nav flex-column ms-3">
               <a href="{{ url_for('ordenes_pago.list_ordenes_pago') }}"
                  class="nav-link{% if current == url_for('ordenes_pago.list_ordenes_pago') %} active{% endif %}">
-                Crear O.P.
+                Orden de Pago.
               </a>
               <a href="{{ url_for('ordenes_pago_pendientes.list_pendientes') }}"
                  class="nav-link{% if current == url_for('ordenes_pago_pendientes.list_pendientes') %} active{% endif %}">
-                Doc. Pendientes
+                Sin Factura
               </a>
               <a href="{{ url_for('pagos.list_pagos') }}"
                  class="nav-link{% if current == url_for('pagos.list_pagos') %} active{% endif %}">
-                Gestión de Pagos
+                Informe de Pagos
               </a>
             </nav>
           </div>
 
           <!-- 5. Parámetros (con submenú) -->
-          <a class="nav-link d-flex justify-content-between align-items-center menu-main{% if
-                current.startswith(url_for('proveedores.list_proveedores')) or
-                current.startswith(url_for('materiales.list_materiales')) or
-                current.startswith(url_for('trabajadores.list_trabajadores')) or
-                current.startswith(url_for('proyectos.list_proyectos'))
-              %} menu-main-active{% endif %}"
+          <a class="nav-link d-flex justify-content-between align-items-center menu-main"
              id="menu-parametros"
-             data-bs-toggle="collapse" href="#collapseParams"
-             role="button"
-             aria-expanded="{% if
-                current.startswith(url_for('proveedores.list_proveedores')) or
-                current.startswith(url_for('materiales.list_materiales')) or
-                current.startswith(url_for('trabajadores.list_trabajadores')) or
-                current.startswith(url_for('proyectos.list_proyectos'))
-              %}true{% else %}false{% endif %}">
+             data-bs-toggle="collapse" href="#collapseParams" role="button" aria-expanded="false">
             <span><i class="bi bi-gear"></i> Parámetros</span>
             <i class="bi bi-chevron-down small"></i>
           </a>
@@ -194,55 +231,47 @@
               %}show{% endif %}"
                id="collapseParams"
                data-bs-parent=".sidebar nav">
-            <nav class="nav flex-column ms-3">
-              {% if 'proveedores' in modulos_usuario %}
-                <a href="{{ url_for('proveedores.list_proveedores') }}"
-                   class="nav-link{% if current == url_for('proveedores.list_proveedores') %} active{% endif %}">
-                  Proveedores
-                </a>
-              {% endif %}
-              {% if 'materiales' in modulos_usuario %}
-                <a href="{{ url_for('materiales.list_materiales') }}"
-                   class="nav-link{% if current == url_for('materiales.list_materiales') %} active{% endif %}">
-                  Materiales
-                </a>
-              {% endif %}
-              {% if 'items' in modulos_usuario %}
-                <a href="{{ url_for('items.list_items') }}"
-                   class="nav-link{% if current == url_for('items.list_items') %} active{% endif %}">
-                  Ítems
-                </a>
-              {% endif %}
-              {% if 'trabajadores' in modulos_usuario %}
-                <a href="{{ url_for('trabajadores.list_trabajadores') }}"
-                   class="nav-link{% if current == url_for('trabajadores.list_trabajadores') %} active{% endif %}">
-                  Trabajadores
-                </a>
-              {% endif %}
-              {% if 'proyectos' in modulos_usuario %}
-                <a href="{{ url_for('proyectos.list_proyectos') }}"
-                   class="nav-link{% if current == url_for('proyectos.list_proyectos') %} active{% endif %}">
-                  Proyectos
-                </a>
-              {% endif %}
-            </nav>
-          </div>
+              <div class="submenu-header" data-back="sidebar">
+                <i class="bi bi-arrow-left"></i> Parámetros
+              </div>
+              <nav class="nav flex-column ms-3">
+                {% if 'proveedores' in modulos_usuario %}
+                  <a href="{{ url_for('proveedores.list_proveedores') }}"
+                     class="nav-link{% if current == url_for('proveedores.list_proveedores') %} active{% endif %}">
+                    Proveedores
+                  </a>
+                {% endif %}
+                {% if 'materiales' in modulos_usuario %}
+                  <a href="{{ url_for('materiales.list_materiales') }}"
+                     class="nav-link{% if current == url_for('materiales.list_materiales') %} active{% endif %}">
+                    Materiales
+                  </a>
+                {% endif %}
+                {% if 'items' in modulos_usuario %}
+                  <a href="{{ url_for('items.list_items') }}"
+                     class="nav-link{% if current == url_for('items.list_items') %} active{% endif %}">
+                    Ítems
+                  </a>
+                {% endif %}
+                {% if 'trabajadores' in modulos_usuario %}
+                  <a href="{{ url_for('trabajadores.list_trabajadores') }}"
+                     class="nav-link{% if current == url_for('trabajadores.list_trabajadores') %} active{% endif %}">
+                    Trabajadores
+                  </a>
+                {% endif %}
+                {% if 'proyectos' in modulos_usuario %}
+                  <a href="{{ url_for('proyectos.list_proyectos') }}"
+                     class="nav-link{% if current == url_for('proyectos.list_proyectos') %} active{% endif %}">
+                    Proyectos
+                  </a>
+                {% endif %}
+              </nav>
+            </div>
 
           <!-- Presupuesto y otros menús siguen igual... -->
-
-          <a class="nav-link d-flex justify-content-between align-items-center menu-main{% if
-                current == url_for('presupuestos.form_presupuesto') or
-                current == url_for('estado_presupuesto.show_estado') or
-                current == url_for('gastos_directos.form_gastos_directos')
-              %} menu-main-active{% endif %}"
+          <a class="nav-link d-flex justify-content-between align-items-center menu-main"
              id="menu-presupuesto"
-             data-bs-toggle="collapse" href="#collapsePresupuesto"
-             role="button"
-             aria-expanded="{% if
-                current == url_for('presupuestos.form_presupuesto') or
-                current == url_for('estado_presupuesto.show_estado') or
-                current == url_for('gastos_directos.form_gastos_directos')
-              %}true{% else %}false{% endif %}">
+             data-bs-toggle="collapse" href="#collapsePresupuesto" role="button" aria-expanded="false">
             <span><i class="bi bi-clipboard-data"></i> Presupuesto</span>
             <i class="bi bi-chevron-down small"></i>
           </a>
@@ -252,6 +281,9 @@
                 current == url_for('gastos_directos.form_gastos_directos')
               %}show{% endif %}" id="collapsePresupuesto"
                data-bs-parent=".sidebar nav">
+            <div class="submenu-header" data-back="sidebar">
+              <i class="bi bi-arrow-left"></i> Presupuesto
+            </div>
             <nav class="nav flex-column ms-3">
               <a href="{{ url_for('presupuestos.form_presupuesto') }}"
                  class="nav-link{% if current == url_for('presupuestos.form_presupuesto') %} active{% endif %}">
@@ -333,37 +365,77 @@
       });
     </script>
     {% endwith %}
+
+   
+
     <script>
-      document.addEventListener('DOMContentLoaded', function() {
-        const menus = [
-          {btn: 'menu-parametros', collapse: 'collapseParams'},
-          {btn: 'menu-ordenes', collapse: 'collapseOrdenes'},
-          {btn: 'menu-presupuesto', collapse: 'collapsePresupuesto'}
-        ];
-        function clearMenus() {
-          menus.forEach(m => {
-            const btn = document.getElementById(m.btn);
-            if(btn) btn.classList.remove('menu-main-active');
-          });
+    document.addEventListener('DOMContentLoaded', function() {
+      const sidebar = document.querySelector('.sidebar');
+      // Restaurar estado del sidebar si estaba en modo submenú
+      const submenuKey = localStorage.getItem('sidebarSubmenu');
+      if (submenuKey) {
+        sidebar.classList.add('sidebar-submenu-only');
+        // Abrir el submenú correspondiente
+        const btn = document.getElementById(submenuKey);
+        if (btn) {
+          btn.classList.add('menu-main-active'); // <-- fuerza la clase SIEMPRE
+          // Asegura que el menú padre esté visible aunque el template no lo marque activo
+          const collapseId = btn.getAttribute('href');
+          if (collapseId) {
+            const collapse = document.querySelector(collapseId);
+            if (collapse && !collapse.classList.contains('show')) {
+              new bootstrap.Collapse(collapse, {toggle: true});
+            }
+          }
         }
-        menus.forEach(function(menu) {
-          const btn = document.getElementById(menu.btn);
-          const collapse = document.getElementById(menu.collapse);
-          if (btn && collapse) {
-            collapse.addEventListener('show.bs.collapse', function() {
-              clearMenus();
-              btn.classList.add('menu-main-active');
-            });
-            collapse.addEventListener('hide.bs.collapse', function() {
+      }
+
+      // Al hacer clic en un menú principal con submenú
+      document.querySelectorAll('.menu-main').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+          // Si ya está en modo submenú y se hace clic en el menú padre activo, volver al menú principal
+          if (sidebar.classList.contains('sidebar-submenu-only') &&
+              this.classList.contains('menu-main-active')) {
+            sidebar.classList.remove('sidebar-submenu-only');
+            localStorage.removeItem('sidebarSubmenu');
+            // Quita la clase activa de todos los menús padres
+            document.querySelectorAll('.menu-main').forEach(function(btn) {
               btn.classList.remove('menu-main-active');
             });
-            if (collapse.classList.contains('show')) {
-              clearMenus();
-              btn.classList.add('menu-main-active');
-            }
+            // Cierra todos los submenús
+            document.querySelectorAll('.collapse').forEach(function(c) {
+              if (c.classList.contains('show')) {
+                new bootstrap.Collapse(c, {toggle: true});
+              }
+            });
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+          }
+          // Si no, activar modo submenú solo si tiene submenú
+          if (this.getAttribute('data-bs-toggle') === 'collapse') {
+            this.classList.add('menu-main-active');
+            setTimeout(() => {
+              sidebar.classList.add('sidebar-submenu-only');
+              localStorage.setItem('sidebarSubmenu', this.id);
+            }, 350);
           }
         });
       });
+
+      // Al hacer clic en un hijo, mantener el modo submenú (no limpiar localStorage)
+      document.querySelectorAll('.sidebar .collapse .nav-link').forEach(function(childLink) {
+        childLink.addEventListener('click', function(e) {
+          // Nada, solo mantener el modo submenú
+        });
+      });
+
+      // Oculta el header del submenú (opcional: puedes eliminarlo del HTML)
+      document.querySelectorAll('.submenu-header').forEach(function(header) {
+        header.style.display = 'none';
+      });
+    });
     </script>
   </body>
 </html>
+

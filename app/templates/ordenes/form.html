@@ -64,6 +64,12 @@
       height: 40px !important;
       top: 0 !important;
     }
+
+    /* Loader para Select2 en materiales */
+    .select2-container--default .select2-selection--single .select2-selection__loading {
+      background: url('https://cdnjs.cloudflare.com/ajax/libs/timelinejs/2.36.0/css/loading.gif') no-repeat right center;
+      background-size: 20px 20px;
+    }
   </style>
 
   <form method="POST" action="{{ url_for('ordenes.new_orden') }}">
@@ -311,6 +317,27 @@
       }
     });
 
+    // --- OC: Select2 AJAX ---
+    $('#oc_select').select2({
+      width: '100%',
+      placeholder: "Buscar OC...",
+      allowClear: true,
+      language: "es",
+      minimumInputLength: 1,
+      ajax: {
+        url: "/ingresos/api/buscar_oc",
+        dataType: 'json',
+        delay: 250,
+        data: function (params) {
+          return { term: params.term };
+        },
+        processResults: function (data) {
+          return { results: data.results };
+        },
+        cache: true
+      }
+    });
+
     // --- MATERIAL: Select2 AJAX (para cada fila nueva debes inicializar también) ---
     $('select.material-codigo').select2({
       width: '100%',
@@ -339,7 +366,13 @@
         delay: 250,
         data: function (params) { return { term: params.term }; },
         processResults: function (data) { return { results: data.results }; },
-        cache: true
+        cache: true,
+        beforeSend: function() {
+          setMaterialLoader($(this.$element), true);
+        },
+        complete: function() {
+          setMaterialLoader($(this.$element), false);
+        }
       }
     });
 
@@ -417,7 +450,13 @@
           delay: 250,
           data: function (params) { return { term: params.term }; },
           processResults: function (data) { return { results: data.results }; },
-          cache: true
+          cache: true,
+          beforeSend: function() {
+            setMaterialLoader($(this.$element), true);
+          },
+          complete: function() {
+            setMaterialLoader($(this.$element), false);
+          }
         }
       });
     }
@@ -528,6 +567,15 @@
 
     // Llama a checkFormEmpty cuando cambian los campos de las líneas
     $(document).on('change input', 'select[name="desc_linea[]"], input[name="cant_linea[]"]', checkFormEmpty);
+
+    function setMaterialLoader($select, loading) {
+      let $selection = $select.next('.select2-container').find('.select2-selection');
+      if (loading) {
+        $selection.addClass('select2-selection__loading');
+      } else {
+        $selection.removeClass('select2-selection__loading');
+      }
+    }
   });
   </script>
 {% endblock %}

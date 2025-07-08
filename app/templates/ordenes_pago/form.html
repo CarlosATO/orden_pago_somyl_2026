@@ -307,6 +307,19 @@
           modal.show();
         });
       }
+
+      // Select2 para proveedor
+      $('#proveedor_id').select2({
+        placeholder: 'Buscar proveedor...',
+        ajax: {
+          url: '/ordenes_pago/api/proveedores',
+          dataType: 'json',
+          delay: 250,
+          data: params => ({ term: params.term }),
+          processResults: data => ({ results: data.results })
+        },
+        minimumInputLength: 1
+      });
     });
   </script>
 {% endblock %}
