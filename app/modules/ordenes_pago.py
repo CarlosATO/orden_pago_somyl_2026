@@ -13,7 +13,8 @@ from flask_mail import Message
 import pdfkit
 from flask import render_template
 import logging
-from app.modules.usuarios import require_modulo  # <-- Agrega esta línea
+from app.modules.usuarios import require_modulo
+from app.utils.cache import get_select2_cached_results, cache_select2_results  # <-- Agrega esta línea
 
 bp = Blueprint(
     "ordenes_pago", __name__,
@@ -412,6 +413,13 @@ def api_proveedores():
     term = request.args.get("term", "")
     if not term:
         return jsonify({"results": []})
+    
+    # Intentar cache primero
+    cached_results = get_select2_cached_results("proveedores", term)
+    if cached_results is not None:
+        return jsonify({"results": cached_results})
+    
+    # Consulta optimizada
     proveedores = (
         supabase
         .table("proveedores")
@@ -421,7 +429,13 @@ def api_proveedores():
         .execute()
         .data
     ) or []
+    
     results = [{"id": p["id"], "text": p["nombre"]} for p in proveedores]
+    
+    # Cachear resultados
+    if results:
+        cache_select2_results("proveedores", term, results)
+    
     return jsonify({"results": results})
 
 @bp.route("/api/trabajadores")
@@ -430,6 +444,13 @@ def api_trabajadores():
     term = request.args.get("term", "")
     if not term:
         return jsonify({"results": []})
+    
+    # Intentar cache primero
+    cached_results = get_select2_cached_results("trabajadores", term)
+    if cached_results is not None:
+        return jsonify({"results": cached_results})
+    
+    # Consulta optimizada
     trabajadores = (
         supabase
         .table("trabajadores")
@@ -439,5 +460,11 @@ def api_trabajadores():
         .execute()
         .data
     ) or []
+    
     results = [{"id": t["id"], "text": t["nombre"], "correo": t["correo"]} for t in trabajadores]
+    
+    # Cachear resultados
+    if results:
+        cache_select2_results("trabajadores", term, results)
+    
     return jsonify({"results": results})

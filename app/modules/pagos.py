@@ -8,6 +8,7 @@ from flask_login import login_required
 import io
 from openpyxl import Workbook
 from app.modules.usuarios import require_modulo
+from app.utils.static_data import get_cached_proveedores, get_cached_proyectos_with_id
 
 bp_pagos = Blueprint(
     "pagos", __name__,
@@ -66,14 +67,14 @@ def get_pagos(filtros=None):
     for num, data in pagos.items():
         data["fecha_pago"] = fecha_map.get(num)
 
-    # Cuentas corrientes de proveedores
-    provs = supabase.table("proveedores").select("nombre, cuenta").execute().data or []
+    # Cuentas corrientes de proveedores - usar datos cacheados
+    provs = get_cached_proveedores()
     cuenta_map = {p["nombre"]: p["cuenta"] for p in provs}
     for data in pagos.values():
         data["cuenta"] = cuenta_map.get(data["proveedor_nombre"], "")
 
-    # Nombres de proyectos
-    projs = supabase.table("proyectos").select("id, proyecto").execute().data or []
+    # Nombres de proyectos - usar datos cacheados
+    projs = get_cached_proyectos_with_id()
     proyecto_map = {pr["id"]: pr["proyecto"] for pr in projs}
     for data in pagos.values():
         proj_id = data.get("proyecto")

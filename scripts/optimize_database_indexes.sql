@@ -1,8 +1,11 @@
 -- Script de optimización de índices para mejorar rendimiento de consultas
 -- Ejecutar en Supabase SQL Editor
 
+-- ========================================
+-- ÍNDICES PRINCIPALES PARA MATERIALES
+-- ========================================
+
 -- 1. Índice compuesto para búsqueda de materiales por nombre y código
--- Esto optimizará significativamente las consultas de api_materiales
 CREATE INDEX IF NOT EXISTS idx_materiales_search 
 ON materiales (material, cod);
 
@@ -14,17 +17,24 @@ ON materiales USING gin (material gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_materiales_cod_ilike 
 ON materiales USING gin (cod gin_trgm_ops);
 
--- 4. Índice optimizado para orden_de_compra para búsqueda de últimos precios
--- Esto mejorará mucho la consulta de histórico de precios
+-- ========================================
+-- ÍNDICES PARA ORDEN_DE_COMPRA
+-- ========================================
+
+-- 4. Índice optimizado para búsqueda de últimos precios
 CREATE INDEX IF NOT EXISTS idx_orden_compra_precio_lookup 
 ON orden_de_compra (descripcion, orden_compra DESC, fecha DESC) 
 WHERE precio_unitario IS NOT NULL AND precio_unitario > 0;
 
--- 5. Índice adicional para orden_de_compra por fecha descendente
-CREATE INDEX IF NOT EXISTS idx_orden_compra_fecha_desc 
-ON orden_de_compra (fecha DESC, descripcion);
+-- 5. Índice para búsquedas por número de OC
+CREATE INDEX IF NOT EXISTS idx_orden_compra_numero_ilike 
+ON orden_de_compra USING gin (orden_compra::text gin_trgm_ops);
 
--- 6. Índice para proveedores por nombre (para api_proveedores)
+-- ========================================
+-- ÍNDICES PARA APIS DE SELECT2
+-- ========================================
+
+-- 6. Índice para proveedores por nombre
 CREATE INDEX IF NOT EXISTS idx_proveedores_nombre_ilike 
 ON proveedores USING gin (nombre gin_trgm_ops);
 
@@ -36,12 +46,48 @@ ON proyectos USING gin (proyecto gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_trabajadores_nombre_ilike 
 ON trabajadores USING gin (nombre gin_trgm_ops);
 
--- 9. Activar extensión pg_trgm si no está activada (necesaria para los índices GIN)
--- NOTA: Esto debe ejecutarse como superusuario en Supabase
+-- ========================================
+-- ÍNDICES ADICIONALES PARA OTRAS TABLAS
+-- ========================================
+
+-- 9. Índices para plazos_pago
+CREATE INDEX IF NOT EXISTS idx_plazos_pago_plazo_ilike 
+ON plazos_pago USING gin (plazo gin_trgm_ops);
+
+-- 10. Índices para tipos_entrega
+CREATE INDEX IF NOT EXISTS idx_tipos_entrega_tipo_ilike 
+ON tipos_entrega USING gin (tipo gin_trgm_ops);
+
+-- 11. Índices para usuarios (si necesitan búsqueda)
+CREATE INDEX IF NOT EXISTS idx_usuarios_nombre_ilike 
+ON usuarios USING gin (nombre gin_trgm_ops);
+
+-- ========================================
+-- EXTENSIÓN REQUERIDA
+-- ========================================
+
+-- 12. Activar extensión pg_trgm (necesaria para índices GIN)
+-- NOTA: Debe ejecutarse como superusuario en Supabase
 -- CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
--- 10. Estadísticas para verificar uso de índices
--- Ejecutar después de crear los índices para ver su efectividad:
+-- ========================================
+-- VERIFICACIÓN DE ÍNDICES
+-- ========================================
+
+-- Consulta para verificar índices creados:
+/*
+SELECT 
+    schemaname,
+    tablename,
+    indexname,
+    indexdef
+FROM pg_indexes 
+WHERE schemaname = 'public' 
+AND indexname LIKE 'idx_%'
+ORDER BY tablename, indexname;
+*/
+
+-- Consulta para verificar uso de índices:
 /*
 SELECT 
     schemaname,
@@ -54,14 +100,3 @@ FROM pg_stat_user_indexes
 WHERE tablename IN ('materiales', 'orden_de_compra', 'proveedores', 'proyectos', 'trabajadores')
 ORDER BY idx_scan DESC;
 */
-
--- INSTRUCCIONES DE USO:
--- 1. Copiar y pegar este script en el SQL Editor de Supabase
--- 2. Ejecutar línea por línea o todo el script
--- 3. Los índices mejorarán automáticamente el rendimiento
--- 4. Monitorear el rendimiento antes y después de crear los índices
-
--- NOTA IMPORTANTE:
--- La extensión pg_trgm debe estar habilitada para los índices GIN
--- Si tienes permisos de superusuario, descomenta la línea CREATE EXTENSION
--- Si no, contacta al administrador de la base de datos

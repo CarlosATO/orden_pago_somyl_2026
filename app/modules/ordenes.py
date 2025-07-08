@@ -16,33 +16,18 @@ from reportlab.platypus import (
 )
 from reportlab.lib.units import mm
 from app.modules.usuarios import require_modulo
+from app.utils.cache import get_cached_data, set_cached_data, get_select2_cached_results, cache_select2_results
 
 bp = Blueprint("ordenes", __name__, template_folder="../templates/ordenes")
 
-# Cache simple para materiales (en memoria)
-_materiales_cache = {
-    'data': {},
-    'timestamp': None,
-    'ttl': 300  # 5 minutos
-}
-
+# Cache optimizado para materiales usando sistema global
 def get_cached_materiales(term):
-    """Obtiene materiales del cache si están vigentes"""
-    now = datetime.now()
-    if (_materiales_cache['timestamp'] and 
-        now - _materiales_cache['timestamp'] < timedelta(seconds=_materiales_cache['ttl'])):
-        # Cache vigente, buscar en cache
-        cached_results = []
-        for key, data in _materiales_cache['data'].items():
-            if term.lower() in key.lower():
-                cached_results.extend(data)
-        return cached_results[:15]  # Limitar resultados
-    return None
+    """Obtiene materiales del cache global si están vigentes"""
+    return get_cached_data(f"materiales_{term.lower()}", ttl=300)
 
 def set_cached_materiales(term, results):
-    """Guarda materiales en cache"""
-    _materiales_cache['timestamp'] = datetime.now()
-    _materiales_cache['data'][term.lower()] = results
+    """Guarda materiales en cache global"""
+    set_cached_data(f"materiales_{term.lower()}", results)
 
 
 def parse_monto(x):
@@ -423,16 +408,29 @@ def api_proveedores():
     term = request.args.get("term", "")
     if not term:
         return jsonify({"results": []})
+    
+    # Intentar cache primero
+    cached_results = get_select2_cached_results("proveedores", term)
+    if cached_results is not None:
+        return jsonify({"results": cached_results})
+    
+    # Consulta optimizada con índices
     proveedores = supabase.table("proveedores") \
         .select("id,nombre,rut") \
         .ilike("nombre", f"%{term}%") \
         .limit(20) \
         .execute().data or []
+    
     results = [{
         "id": p["id"],
         "text": p["nombre"],
         "rut": p["rut"]
     } for p in proveedores]
+    
+    # Cachear resultados
+    if results:
+        cache_select2_results("proveedores", term, results)
+    
     return jsonify({"results": results})
 
 
@@ -440,14 +438,30 @@ def api_proveedores():
 def api_proyectos():
     supabase = current_app.config['SUPABASE']
     term = request.args.get("term", "")
-    proyectos = supabase.table("proyectos").select("id,proyecto").execute().data or []
-    results = []
-    for p in proyectos:
-        if term.lower() in p["proyecto"].lower():
-            results.append({
-                "id": p["id"],
-                "text": p["proyecto"]
-            })
+    if not term:
+        return jsonify({"results": []})
+    
+    # Intentar cache primero
+    cached_results = get_select2_cached_results("proyectos", term)
+    if cached_results is not None:
+        return jsonify({"results": cached_results})
+    
+    # Optimizado: usar índice GIN y consulta SQL directa
+    proyectos = supabase.table("proyectos") \
+        .select("id,proyecto") \
+        .ilike("proyecto", f"%{term}%") \
+        .limit(20) \
+        .execute().data or []
+    
+    results = [{
+        "id": p["id"],
+        "text": p["proyecto"]
+    } for p in proyectos]
+    
+    # Cachear resultados
+    if results:
+        cache_select2_results("proyectos", term, results)
+    
     return jsonify({"results": results})
 
 
@@ -455,11 +469,17 @@ def api_proyectos():
 def api_plazos_pago():
     supabase = current_app.config['SUPABASE']
     term = request.args.get("term", "")
-    plazos = supabase.table("plazos_pago").select("id,plazo").execute().data or []
-    results = []
-    for p in plazos:
-        if term.lower() in p["plazo"].lower():
-            results.append({"id": p["id"], "text": p["plazo"]})
+    if not term:
+        return jsonify({"results": []})
+    
+    # Optimizado: usar índice y consulta SQL directa
+    plazos = supabase.table("plazos_pago") \
+        .select("id,plazo") \
+        .ilike("plazo", f"%{term}%") \
+        .limit(20) \
+        .execute().data or []
+    
+    results = [{"id": p["id"], "text": p["plazo"]} for p in plazos]
     return jsonify({"results": results})
 
 
@@ -467,11 +487,17 @@ def api_plazos_pago():
 def api_tipos_entrega():
     supabase = current_app.config['SUPABASE']
     term = request.args.get("term", "")
-    tipos = supabase.table("tipos_entrega").select("id,tipo").execute().data or []
-    results = []
-    for t in tipos:
-        if term.lower() in t["tipo"].lower():
-            results.append({"id": t["id"], "text": t["tipo"]})
+    if not term:
+        return jsonify({"results": []})
+    
+    # Optimizado: usar índice y consulta SQL directa
+    tipos = supabase.table("tipos_entrega") \
+        .select("id,tipo") \
+        .ilike("tipo", f"%{term}%") \
+        .limit(20) \
+        .execute().data or []
+    
+    results = [{"id": t["id"], "text": t["tipo"]} for t in tipos]
     return jsonify({"results": results})
 
 
@@ -479,11 +505,27 @@ def api_tipos_entrega():
 def api_trabajadores():
     supabase = current_app.config['SUPABASE']
     term = request.args.get("term", "")
-    trabajadores = supabase.table("trabajadores").select("id,nombre").execute().data or []
-    results = []
-    for t in trabajadores:
-        if term.lower() in t["nombre"].lower():
-            results.append({"id": t["id"], "text": t["nombre"]})
+    if not term:
+        return jsonify({"results": []})
+    
+    # Intentar cache primero
+    cached_results = get_select2_cached_results("trabajadores", term)
+    if cached_results is not None:
+        return jsonify({"results": cached_results})
+    
+    # Optimizado: usar índice GIN y consulta SQL directa
+    trabajadores = supabase.table("trabajadores") \
+        .select("id,nombre") \
+        .ilike("nombre", f"%{term}%") \
+        .limit(20) \
+        .execute().data or []
+    
+    results = [{"id": t["id"], "text": t["nombre"]} for t in trabajadores]
+    
+    # Cachear resultados
+    if results:
+        cache_select2_results("trabajadores", term, results)
+    
     return jsonify({"results": results})
 
 

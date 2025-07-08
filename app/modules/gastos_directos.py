@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
 from flask_login import login_required, current_user
 from app.modules.usuarios import require_modulo
+from app.utils.static_data import get_cached_proyectos_with_id, get_cached_items_with_id
 from datetime import date
 
 bp_gastos_directos = Blueprint("gastos_directos", __name__, url_prefix="/gastos_directos")
@@ -10,9 +11,11 @@ bp_gastos_directos = Blueprint("gastos_directos", __name__, url_prefix="/gastos_
 @require_modulo('gastos_directos')
 def form_gastos_directos():
     supabase = current_app.config["SUPABASE"]
-    # Traer proyectos e items para los selects
-    proyectos = supabase.table("proyectos").select("id,proyecto").execute().data or []
-    items = supabase.table("item").select("id,tipo").execute().data or []
+    
+    # Usar datos cacheados para mejorar performance
+    proyectos = get_cached_proyectos_with_id()
+    items = get_cached_items_with_id()
+    
     meses = [
         "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
         "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"

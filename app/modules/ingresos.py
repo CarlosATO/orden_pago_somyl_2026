@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from datetime import date
 from collections import defaultdict
 from app.modules.usuarios import get_modulos_usuario
+from app.utils.cache import get_select2_cached_results, cache_select2_results
 
 # 1) Definimos el Blueprint ANTES de usar @bp.route
 bp = Blueprint("ingresos", __name__, template_folder="../templates/ingresos")
@@ -277,14 +278,31 @@ def api_buscar_oc():
     term = request.args.get("term", "")
     if not term:
         return jsonify({"results": []})
-    # Busca OCs que contengan el término
-    ocs = (
-        supabase.table("orden_de_compra")
-                 .select("orden_compra")
-                 .ilike("orden_compra", f"%{term}%")
-                 .order("orden_compra", desc=True)
-                 .limit(20)
-                 .execute().data or []
-    )
-    results = [{"id": oc["orden_compra"], "text": str(oc["orden_compra"])} for oc in ocs if oc.get("orden_compra")]
-    return jsonify({"results": results})
+    
+    # Intentar cache primero
+    cached_results = get_select2_cached_results("orden_compra", term)
+    if cached_results is not None:
+        return jsonify({"results": cached_results})
+    
+    try:
+        # Busca OCs que contengan el término - optimizado
+        ocs = (
+            supabase.table("orden_de_compra")
+                     .select("orden_compra")
+                     .ilike("orden_compra", f"%{term}%")
+                     .order("orden_compra", desc=True)
+                     .limit(20)
+                     .execute().data or []
+        )
+        
+        results = [{"id": oc["orden_compra"], "text": str(oc["orden_compra"])} for oc in ocs if oc.get("orden_compra")]
+        
+        # Cachear resultados
+        if results:
+            cache_select2_results("orden_compra", term, results)
+        
+        return jsonify({"results": results})
+        
+    except Exception as e:
+        current_app.logger.error(f"Error en api_buscar_oc: {e}")
+        return jsonify({"results": [], "error": "Error interno"}), 500

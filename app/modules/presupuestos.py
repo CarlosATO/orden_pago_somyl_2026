@@ -12,6 +12,7 @@ from datetime import date
 # from app import db  # Si usas SQLAlchemy
 # from app.supabase import supabase  # Si usas Supabase
 from app.modules.usuarios import require_modulo
+from app.utils.static_data import get_cached_proyectos, get_cached_items, get_cached_trabajadores
 
 bp_presupuestos = Blueprint("presupuestos", __name__, url_prefix="/presupuestos")
 
@@ -19,10 +20,11 @@ bp_presupuestos = Blueprint("presupuestos", __name__, url_prefix="/presupuestos"
 @require_modulo('presupuesto')
 def form_presupuesto():
     supabase = current_app.config["SUPABASE"]
-    # Traer los proyectos e items ya creados (para los selects)
-    proyectos = [p['proyecto'] for p in supabase.table("proyectos").select("proyecto").execute().data]
-    items = [i['tipo'] for i in supabase.table("item").select("tipo").execute().data]
-    trabajadores = [t['nombre'] for t in supabase.table("trabajadores").select("nombre").execute().data]
+    
+    # Usar datos cacheados para mejorar performance
+    proyectos = get_cached_proyectos()
+    items = get_cached_items()
+    trabajadores = get_cached_trabajadores()
 
     if request.method == "POST":
         proyecto = request.form.get("proyecto")
@@ -94,9 +96,9 @@ def importar_presupuesto():
         flash("El archivo debe tener exactamente las columnas: " + ", ".join(expected), "danger")
         return redirect(url_for("presupuestos.form_presupuesto"))
 
-    # Traer listas válidas
-    proyectos = [p["proyecto"] for p in supabase.table("proyectos").select("proyecto").execute().data]
-    items = [i["tipo"] for i in supabase.table("item").select("tipo").execute().data]
+    # Usar datos cacheados para validación
+    proyectos = get_cached_proyectos()
+    items = get_cached_items()
 
     records = []
     seen = set()
