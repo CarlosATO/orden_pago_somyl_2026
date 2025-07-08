@@ -3,7 +3,10 @@
 {% block title %}Órdenes de Pago Pendientes{% endblock %}
 
 {% block content %}
-<h1 class="titulo-modulo w-100">Documentos Pendientes</h1>
+<h1 class="titulo-modulo w-100 titulo-modulo-con-icono">
+  <span class="icono-modulo">S</span>
+  Documentos Pendientes
+</h1>
 
   <!-- Bulk update form -->
   <form id="bulk-form" method="POST" action="{{ url_for('ordenes_pago_pendientes.update_pendiente') }}">

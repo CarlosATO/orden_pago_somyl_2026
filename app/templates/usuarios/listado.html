@@ -1,7 +1,10 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1 class="titulo-modulo w-100">Usuarios</h1>
+<h1 class="titulo-modulo w-100 titulo-modulo-con-icono">
+  <span class="icono-modulo">S</span>
+  Usuarios
+</h1>
 <a href="{{ url_for('usuarios.nuevo_usuario') }}" class="btn btn-success mb-3">Nuevo usuario</a>
 <table class="table table-bordered">
   <thead>

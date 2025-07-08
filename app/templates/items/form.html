@@ -47,7 +47,10 @@
     }
   </style>
 
-  <h1 class="titulo-modulo w-100">Creación de items</h1>
+  <h1 class="titulo-modulo w-100 titulo-modulo-con-icono">
+    <span class="icono-modulo">S</span>
+    Creación de items
+  </h1>
   <form method="POST"
         action="{{ url_for('items.edit_item', id=item['id']) if item else url_for('items.new_item') }}">
     <label for="tipo">Nombre del item a crear:</label>

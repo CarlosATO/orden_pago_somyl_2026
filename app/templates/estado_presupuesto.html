@@ -2,7 +2,10 @@
 {% block title %}Estado de Presupuesto{% endblock %}
 
 {% block content %}
-<h1 class="titulo-modulo w-100">Estado de presupuesto</h1>
+<h1 class="titulo-modulo w-100 titulo-modulo-con-icono">
+  <span class="icono-modulo">S</span>
+  Estado de presupuesto
+</h1>
 {% if resumen_presupuesto and selected|length == 1 %}
   <div class="row mb-4 justify-content-center">
     <div class="col-md-4 d-flex justify-content-center">
