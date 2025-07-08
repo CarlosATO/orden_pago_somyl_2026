@@ -70,7 +70,6 @@ def check_environment():
     print("\n🚀 Creación de la App:")
     try:
         # Agregar directorio padre al path para importar app
-        import os
         parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         sys.path.insert(0, parent_dir)
         
