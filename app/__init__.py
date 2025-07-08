@@ -14,6 +14,11 @@ load_dotenv()
 
 def create_app():
     app = Flask(__name__)
+    
+    # Configuración para evitar cache en templates
+    app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
+    
     # Registrar filtro de moneda chilena
     def format_clp(value):
         try:
@@ -129,6 +134,14 @@ def create_app():
         except Exception:
             total = 0
         return dict(total_pendiente=total)
+
+    # Agregar headers para evitar cache
+    @app.after_request
+    def after_request(response):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
 
     return app
 
