@@ -70,8 +70,48 @@
 
     /* Loader para Select2 en materiales */
     .select2-container--default .select2-selection--single .select2-selection__loading {
-      background: url('https://cdnjs.cloudflare.com/ajax/libs/timelinejs/2.36.0/css/loading.gif') no-repeat right center;
-      background-size: 20px 20px;
+      background: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="%23007bff" stroke-width="4" stroke-linecap="round" stroke-dasharray="31.416" stroke-dashoffset="31.416"><animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/><animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/></circle></svg>') no-repeat right 8px center;
+      background-size: 16px 16px;
+    }
+
+    /* Estilos para resultados de materiales optimizados */
+    .select2-result-material {
+      padding: 4px 0;
+    }
+    
+    .select2-result-material .material-name {
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 2px;
+    }
+    
+    .select2-result-material .material-details {
+      color: #666;
+      font-size: 0.85em;
+    }
+
+    /* Loading state para selects */
+    .material-loading {
+      background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="none" stroke="%23007bff" stroke-width="4" stroke-linecap="round" stroke-dasharray="31.416" stroke-dashoffset="31.416"><animate attributeName="stroke-dasharray" dur="1s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/></circle></svg>') !important;
+      background-repeat: no-repeat !important;
+      background-position: right 8px center !important;
+      background-size: 16px 16px !important;
+    }
+
+    /* Optimización visual para Select2 */
+    .select2-container .select2-selection--single {
+      height: 40px !important;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+      line-height: 38px !important;
+    }
+    
+    /* Indicador de rendimiento mejorado */
+    .select2-dropdown {
+      border: 1px solid #007bff !important;
+      border-radius: 8px !important;
+      box-shadow: 0 4px 12px rgba(0,123,255,0.15) !important;
     }
   </style>
 
@@ -341,41 +381,87 @@
       }
     });
 
-    // --- MATERIAL: Select2 AJAX (para cada fila nueva debes inicializar también) ---
+    // --- MATERIAL: Select2 AJAX (optimizado para rendimiento) ---
     $('select.material-codigo').select2({
       width: '100%',
       placeholder: "Buscar código...",
       allowClear: true,
       language: "es",
-      minimumInputLength: 1,
+      minimumInputLength: 2,  // Aumentado a 2 caracteres
       ajax: {
         url: "/ordenes/api/materiales",
         dataType: 'json',
-        delay: 250,
+        delay: 400,  // Aumentado el delay para evitar consultas excesivas
         data: function (params) { return { term: params.term }; },
         processResults: function (data) { return { results: data.results }; },
         cache: true
       }
     });
+    
     $('select.material-descripcion').select2({
       width: '100%',
       placeholder: "Buscar descripción...",
       allowClear: true,
       language: "es",
-      minimumInputLength: 1,
+      minimumInputLength: 2,  // Aumentado a 2 caracteres
       ajax: {
         url: "/ordenes/api/materiales",
         dataType: 'json',
-        delay: 250,
-        data: function (params) { return { term: params.term }; },
-        processResults: function (data) { return { results: data.results }; },
+        delay: 400,  // Delay optimizado
+        data: function (params) { 
+          return { 
+            term: params.term,
+            page: params.page || 1  // Paginación para mejor rendimiento
+          }; 
+        },
+        processResults: function (data) { 
+          return { 
+            results: data.results || [],
+            pagination: {
+              more: (data.results && data.results.length >= 15)  // Indicar si hay más resultados
+            }
+          }; 
+        },
         cache: true,
         beforeSend: function() {
-          setMaterialLoader($(this.$element), true);
+          // Mostrar indicador de carga visual
+          if (this.$element) {
+            setMaterialLoader(this.$element, true);
+          }
         },
         complete: function() {
-          setMaterialLoader($(this.$element), false);
+          // Ocultar indicador de carga
+          if (this.$element) {
+            setMaterialLoader(this.$element, false);
+          }
+        },
+        error: function(xhr, status, error) {
+          console.warn('Error en búsqueda de materiales:', error);
+          // Mostrar mensaje amigable al usuario
+          return { results: [] };
         }
+      },
+      // Optimizaciones adicionales
+      escapeMarkup: function (markup) { return markup; },
+      templateResult: function(data) {
+        if (data.loading) return data.text;
+        
+        // Template optimizado para mostrar información relevante
+        var $result = $(
+          '<div class="select2-result-material">' +
+            '<div class="material-name">' + (data.text || '') + '</div>' +
+            '<div class="material-details">' +
+              '<small class="text-muted">' +
+                'Código: ' + (data.codigo || 'N/A') + 
+                (data.ultimo_precio > 0 ? ' | Último precio: $' + data.ultimo_precio.toLocaleString('es-CL') : '') +
+              '</small>' +
+            '</div>' +
+          '</div>'
+        );
+        return $result;
+      },
+      templateSelection: function(data) {
+        return data.text || data.id;
       }
     });
 
@@ -424,42 +510,82 @@
       });
     });
 
-    // Función para inicializar Select2 en nuevas filas de materiales
+    // Función optimizada para inicializar Select2 en nuevas filas de materiales
     function initMaterialSelect2($row) {
+      // Configuración optimizada para materiales por código
       $row.find('select.material-codigo').select2({
         width: '100%',
         placeholder: "Buscar código...",
         allowClear: true,
         language: "es",
-        minimumInputLength: 1,
+        minimumInputLength: 2,  // Mínimo 2 caracteres
         ajax: {
           url: "/ordenes/api/materiales",
           dataType: 'json',
-          delay: 250,
+          delay: 400,  // Delay optimizado
           data: function (params) { return { term: params.term }; },
-          processResults: function (data) { return { results: data.results }; },
+          processResults: function (data) { return { results: data.results || [] }; },
           cache: true
-        }
+        },
+        escapeMarkup: function (markup) { return markup; }
       });
+      
+      // Configuración optimizada para materiales por descripción
       $row.find('select.material-descripcion').select2({
         width: '100%',
-        placeholder: "Buscar descripción...",
+        placeholder: "Buscar descripción (mín. 2 caracteres)...",
         allowClear: true,
         language: "es",
-        minimumInputLength: 1,
+        minimumInputLength: 2,  // Mínimo 2 caracteres
         ajax: {
           url: "/ordenes/api/materiales",
           dataType: 'json',
-          delay: 250,
-          data: function (params) { return { term: params.term }; },
-          processResults: function (data) { return { results: data.results }; },
+          delay: 400,  // Delay optimizado
+          data: function (params) { 
+            return { 
+              term: params.term,
+              page: params.page || 1
+            }; 
+          },
+          processResults: function (data) { 
+            return { 
+              results: data.results || [],
+              pagination: {
+                more: (data.results && data.results.length >= 15)
+              }
+            }; 
+          },
           cache: true,
           beforeSend: function() {
-            setMaterialLoader($(this.$element), true);
+            setMaterialLoader(this.$element, true);
           },
           complete: function() {
-            setMaterialLoader($(this.$element), false);
+            setMaterialLoader(this.$element, false);
+          },
+          error: function(xhr, status, error) {
+            console.warn('Error en búsqueda de materiales (nueva fila):', error);
+            return { results: [] };
           }
+        },
+        escapeMarkup: function (markup) { return markup; },
+        templateResult: function(data) {
+          if (data.loading) return data.text;
+          
+          var $result = $(
+            '<div class="select2-result-material">' +
+              '<div class="material-name">' + (data.text || '') + '</div>' +
+              '<div class="material-details">' +
+                '<small class="text-muted">' +
+                  'Código: ' + (data.codigo || 'N/A') + 
+                  (data.ultimo_precio > 0 ? ' | $' + data.ultimo_precio.toLocaleString('es-CL') : '') +
+                '</small>' +
+              '</div>' +
+            '</div>'
+          );
+          return $result;
+        },
+        templateSelection: function(data) {
+          return data.text || data.id;
         }
       });
     }
@@ -571,12 +697,26 @@
     // Llama a checkFormEmpty cuando cambian los campos de las líneas
     $(document).on('change input', 'select[name="desc_linea[]"], input[name="cant_linea[]"]', checkFormEmpty);
 
+    // Función optimizada para mostrar/ocultar loading en materiales
     function setMaterialLoader($select, loading) {
-      let $selection = $select.next('.select2-container').find('.select2-selection');
-      if (loading) {
-        $selection.addClass('select2-selection__loading');
-      } else {
-        $selection.removeClass('select2-selection__loading');
+      if (!$select || !$select.length) return;
+      
+      try {
+        let $container = $select.next('.select2-container');
+        let $selection = $container.find('.select2-selection');
+        
+        if (loading) {
+          $selection.addClass('material-loading');
+          // Agregar texto de loading si no existe
+          if (!$container.find('.select2-loading-text').length) {
+            $selection.append('<span class="select2-loading-text" style="position:absolute;right:30px;top:50%;transform:translateY(-50%);font-size:12px;color:#666;">Buscando...</span>');
+          }
+        } else {
+          $selection.removeClass('material-loading');
+          $container.find('.select2-loading-text').remove();
+        }
+      } catch (error) {
+        console.warn('Error en setMaterialLoader:', error);
       }
     }
   });

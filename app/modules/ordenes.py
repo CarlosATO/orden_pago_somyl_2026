@@ -2,7 +2,7 @@
 
 import io
 import re
-from datetime import date
+from datetime import date, datetime, timedelta
 from flask import (
     Blueprint, render_template, request,
     redirect, url_for, flash, current_app, Response, jsonify
@@ -18,6 +18,31 @@ from reportlab.lib.units import mm
 from app.modules.usuarios import require_modulo
 
 bp = Blueprint("ordenes", __name__, template_folder="../templates/ordenes")
+
+# Cache simple para materiales (en memoria)
+_materiales_cache = {
+    'data': {},
+    'timestamp': None,
+    'ttl': 300  # 5 minutos
+}
+
+def get_cached_materiales(term):
+    """Obtiene materiales del cache si están vigentes"""
+    now = datetime.now()
+    if (_materiales_cache['timestamp'] and 
+        now - _materiales_cache['timestamp'] < timedelta(seconds=_materiales_cache['ttl'])):
+        # Cache vigente, buscar en cache
+        cached_results = []
+        for key, data in _materiales_cache['data'].items():
+            if term.lower() in key.lower():
+                cached_results.extend(data)
+        return cached_results[:15]  # Limitar resultados
+    return None
+
+def set_cached_materiales(term, results):
+    """Guarda materiales en cache"""
+    _materiales_cache['timestamp'] = datetime.now()
+    _materiales_cache['data'][term.lower()] = results
 
 
 def parse_monto(x):
@@ -466,44 +491,80 @@ def api_trabajadores():
 def api_materiales():
     supabase = current_app.config['SUPABASE']
     term = request.args.get("term", "")
-    if not term:
+    if not term or len(term) < 2:  # Mínimo 2 caracteres para buscar
         return jsonify({"results": []})
 
-    # Filtra en la base de datos por material o código (insensible a mayúsculas)
-    materiales = supabase.table("materiales") \
-        .select("cod,material,tipo,item") \
-        .ilike("material", f"%{term}%") \
-        .execute().data or []
+    # Intentar obtener del cache primero
+    cached_results = get_cached_materiales(term)
+    if cached_results:
+        return jsonify({"results": cached_results})
 
-    # Si no encontró por material, intenta por código
-    if not materiales:
+    try:
+        # Búsqueda optimizada: buscar en material O código en una sola consulta
         materiales = supabase.table("materiales") \
             .select("cod,material,tipo,item") \
-            .ilike("cod", f"%{term}%") \
+            .or_(f"material.ilike.%{term}%,cod.ilike.%{term}%") \
+            .limit(15) \
             .execute().data or []
 
-    results = []
-    for m in materiales:
-        # Buscar el último precio en orden_de_compra por descripción exacta
-        history = supabase.table("orden_de_compra") \
-            .select("precio_unitario,descripcion") \
-            .eq("descripcion", m["material"]) \
-            .order("orden_compra", desc=True) \
-            .limit(1) \
-            .execute().data
-        ultimo_precio = 0
-        if history and history[0].get("precio_unitario"):
-            try:
-                ultimo_precio = float(history[0]["precio_unitario"])
-            except Exception:
-                ultimo_precio = 0
+        if not materiales:
+            return jsonify({"results": []})
 
-        results.append({
-            "id": m["material"],
-            "text": m["material"],
-            "codigo": m["cod"],
-            "ultimo_precio": ultimo_precio,
-            "tipo": m["tipo"],
-            "item": m["item"]
-        })
-    return jsonify({"results": results})
+        # Estrategia optimizada para precios: solo para materiales más relevantes
+        material_names = [m["material"] for m in materiales[:10]]  # Solo top 10
+        
+        # Obtener precios de manera más eficiente
+        precios_data = {}
+        
+        if material_names:
+            # Intentar una consulta batch optimizada
+            try:
+                # Crear un query más eficiente agrupando por material
+                for material_name in material_names:
+                    # Consulta optimizada con índices
+                    history = supabase.table("orden_de_compra") \
+                        .select("precio_unitario") \
+                        .eq("descripcion", material_name) \
+                        .not_.is_("precio_unitario", "null") \
+                        .order("fecha", desc=True) \
+                        .limit(1) \
+                        .execute().data
+                    
+                    if history and len(history) > 0 and history[0].get("precio_unitario"):
+                        try:
+                            precio = float(history[0]["precio_unitario"])
+                            precios_data[material_name] = precio if precio > 0 else 0
+                        except (ValueError, TypeError):
+                            precios_data[material_name] = 0
+                    else:
+                        precios_data[material_name] = 0
+                        
+            except Exception as e:
+                # Si hay error en consulta de precios, continuar sin precios
+                current_app.logger.warning(f"Error obteniendo precios: {e}")
+                precios_data = {name: 0 for name in material_names}
+
+        # Construir resultados optimizados
+        results = []
+        for i, m in enumerate(materiales):
+            # Solo buscar precio para los primeros 10 (optimización)
+            ultimo_precio = precios_data.get(m["material"], 0) if i < 10 else 0
+            
+            results.append({
+                "id": m["material"],
+                "text": m["material"],
+                "codigo": m["cod"],
+                "ultimo_precio": ultimo_precio,
+                "tipo": m.get("tipo", ""),
+                "item": m.get("item", "")
+            })
+
+        # Guardar en cache solo si la búsqueda fue exitosa
+        if results:
+            set_cached_materiales(term, results)
+        
+        return jsonify({"results": results})
+        
+    except Exception as e:
+        current_app.logger.error(f"Error en api_materiales: {e}")
+        return jsonify({"results": [], "error": "Error interno del servidor"}), 500
