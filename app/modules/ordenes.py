@@ -119,9 +119,21 @@ def new_orden():
         proveedor_id    = int(request.form["proveedor_id"])
         tipo_de_entrega = request.form["tipo_entrega"]
         condicion_pago  = request.form["plazo_pago"]
-        fac_sin_iva     = 1 if request.form.get("sin_iva") else 0
+        
+        # Nueva lógica: checkbox "incluir_iva" está marcado por defecto
+        # Si incluir_iva está marcado = fac_sin_iva = 0 (con IVA)
+        # Si incluir_iva NO está marcado = fac_sin_iva = 1 (sin IVA)
+        incluir_iva = request.form.get("incluir_iva") is not None
+        fac_sin_iva = 0 if incluir_iva else 1
+        
         proyecto_id     = int(request.form["proyecto_id"])
         solicitante     = request.form["solicitado_por"]
+        
+        # Debug: Log del valor en guardado
+        print(f"DEBUG SAVE: incluir_iva recibido = {request.form.get('incluir_iva')}")
+        print(f"DEBUG SAVE: incluir_iva procesado = {incluir_iva}")
+        print(f"DEBUG SAVE: fac_sin_iva calculado = {fac_sin_iva}")
+        print(f"DEBUG SAVE: form keys = {list(request.form.keys())}")
 
         # --- Leer líneas ---
         cods    = request.form.getlist("cod_linea[]")
@@ -200,7 +212,7 @@ def new_orden():
 
     # GET: renderizar formulario
     return render_template(
-        "ordenes/form.html",
+        "ordenes/form_modern.html",
         next_num=next_num,
         tipos_entrega=tipos_entrega,
         plazos_pago=plazos_pago,
@@ -227,8 +239,19 @@ def generate_pdf():
     orden_compra     = request.form["next_num"]
     tipo_entrega     = request.form["tipo_entrega"]
     plazo_pago       = request.form["plazo_pago"]
-    sin_iva          = request.form.get("sin_iva") is not None
-    observaciones    = request.form.get("observaciones", "")
+    # Nueva lógica: checkbox "incluir_iva" está marcado por defecto
+    # Si está marcado = incluir IVA (sin_iva = False)
+    # Si no está marcado = no incluir IVA (sin_iva = True)
+    incluir_iva = request.form.get("incluir_iva") is not None
+    sin_iva = not incluir_iva  # Invertir la lógica
+    observaciones = request.form.get("observaciones", "")
+    
+    # Debug: Log del valor
+    print(f"DEBUG PDF: incluir_iva recibido = {request.form.get('incluir_iva')}")
+    print(f"DEBUG PDF: incluir_iva procesado = {incluir_iva}")
+    print(f"DEBUG PDF: sin_iva calculado = {sin_iva}")
+    print(f"DEBUG PDF: form keys = {list(request.form.keys())}")
+    print(f"DEBUG PDF: form values = {dict(request.form)}")
 
     # --- NUEVO: Obtener nombres y RUT desde Supabase ---
     proveedor_id = request.form.get("proveedor_id")
@@ -391,6 +414,12 @@ def generate_pdf():
     total_neto = sum(ln[4] for ln in lineas)  # Suma los totales de cada línea
     iva = 0 if sin_iva else round(total_neto * 0.19)  # IVA = 0 si es sin IVA
     total_final = total_neto + iva
+    
+    # Debug: Log del cálculo de IVA
+    print(f"DEBUG PDF TOTALES: sin_iva = {sin_iva}")
+    print(f"DEBUG PDF TOTALES: total_neto = {total_neto}")
+    print(f"DEBUG PDF TOTALES: iva calculado = {iva}")
+    print(f"DEBUG PDF TOTALES: total_final = {total_final}")
 
     # Texto del IVA que cambia según si es exento o no
     iva_text = "IVA (19%) - EXENTO:" if sin_iva else "IVA (19%):"

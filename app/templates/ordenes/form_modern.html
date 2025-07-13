@@ -406,8 +406,10 @@
       </div>
       <div class="col-md-4">
         <div class="form-check" style="margin-top: 2rem;">
-          <input type="checkbox" id="sin_iva" name="sin_iva" class="form-check-input">
-          <label for="sin_iva" class="form-check-label">Facturación sin IVA</label>
+          <input type="checkbox" id="incluir_iva" name="incluir_iva" class="form-check-input" value="1" checked="checked">
+          <label for="incluir_iva" class="form-check-label">
+            <strong>✓ Incluir IVA (19%)</strong>
+          </label>
         </div>
       </div>
     </div>
@@ -678,7 +680,7 @@ $(document).ready(function() {
       sumaNeto += cant * net;
     });
 
-    const sinIva = $('#sin_iva').is(':checked');
+    const sinIva = !$('#incluir_iva').is(':checked');  // Invertido: sin IVA = NO incluir IVA
     const iva = sinIva ? 0 : Math.round(sumaNeto * 0.19);
     const sumaTotal = sumaNeto + iva;
 
@@ -692,7 +694,8 @@ $(document).ready(function() {
     recalcular(this);
   });
 
-  $('#sin_iva').on('change', function() {
+  $('#incluir_iva').on('change', function() {
+    console.log('DEBUG FRONTEND: Checkbox incluir_iva cambió a:', $(this).is(':checked'));
     $('#lines tr').each(function() {
       const inputCant = $(this).find('input[name="cant_linea[]"]');
       if (inputCant.length) recalcular(inputCant[0]);
@@ -709,15 +712,61 @@ $(document).ready(function() {
 
   // Generar PDF
   $('#pdf-btn').click(function() {
+    console.log('DEBUG FRONTEND: Botón PDF clickeado');
+    console.log('DEBUG FRONTEND: Estado del checkbox antes de enviar:', $('#incluir_iva').is(':checked'));
+    console.log('DEBUG FRONTEND: Valor del checkbox antes de enviar:', $('#incluir_iva').val());
+    
+    // Deshabilitar botón para evitar doble click
+    const pdfBtn = $(this);
+    pdfBtn.prop('disabled', true);
+    pdfBtn.html('<i class="bi bi-hourglass-split me-2"></i>Generando PDF...');
+    
+    // Crear formulario temporal para envío
     const form = $('#ordenForm');
-    const originalAction = form.attr('action');
-    form.attr('action', '{{ url_for("ordenes.generate_pdf") }}');
-    form.submit();
-    form.attr('action', originalAction);
+    const formData = new FormData(form[0]);
+    
+    // Realizar request para generar PDF
+    fetch('{{ url_for("ordenes.generate_pdf") }}', {
+      method: 'POST',
+      body: formData
+    })
+    .then(response => {
+      if (response.ok) {
+        return response.blob();
+      }
+      throw new Error('Error en la respuesta del servidor');
+    })
+    .then(blob => {
+      // Crear URL y descargar archivo
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `O. Compra ${$('#next_num').val()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      
+      // Restaurar botón
+      pdfBtn.prop('disabled', false);
+      pdfBtn.html('<i class="bi bi-file-earmark-pdf me-2"></i>Generar PDF');
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('Error al generar el PDF. Por favor, intenta nuevamente.');
+      
+      // Restaurar botón
+      pdfBtn.prop('disabled', false);
+      pdfBtn.html('<i class="bi bi-file-earmark-pdf me-2"></i>Generar PDF');
+    });
   });
 
   // Inicializar estado de botones de eliminar al cargar
   updateDeleteButtons();
+  
+  // FORZAR que el checkbox de IVA esté marcado al cargar la página
+  $('#incluir_iva').prop('checked', true);
+  console.log('DEBUG: Checkbox IVA forzado a marcado al cargar página');
 });
 </script>
 

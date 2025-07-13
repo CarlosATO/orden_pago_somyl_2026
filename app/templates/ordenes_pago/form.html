@@ -313,7 +313,7 @@
                   </td>
                   <td class="text-end">
                     <span class="fw-bold text-success">
-                      ${{ "{:,.2f}".format(d.total_neto_recepcion) }}
+                      ${{ "{:,.0f}".format(d.total_neto_recepcion) }}
                     </span>
                   </td>
                 </tr>
@@ -505,13 +505,18 @@
         // Verificar si hay órdenes sin IVA
         checkIVAStatus().then(sinIva => {
           const iva = sinIva ? 0 : neto * 0.19;
-          const formatter = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' });
+          const formatter = new Intl.NumberFormat('es-CL', { 
+            style: 'currency', 
+            currency: 'CLP',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+          });
           document.getElementById("total-neto").textContent = formatter.format(neto);
           document.getElementById("total-iva").textContent  = formatter.format(iva);
           document.getElementById("total-pagar").textContent = formatter.format(neto + iva);
-          document.getElementById("total-neto-input").value = neto.toFixed(2);
-          document.getElementById("total-iva-input").value  = iva.toFixed(2);
-          document.getElementById("total-pagar-input").value = (neto + iva).toFixed(2);
+          document.getElementById("total-neto-input").value = Math.round(neto);
+          document.getElementById("total-iva-input").value  = Math.round(iva);
+          document.getElementById("total-pagar-input").value = Math.round(neto + iva);
           
           // Actualizar el texto del IVA si es necesario
           if (sinIva) {
@@ -546,13 +551,18 @@
           console.warn('Error verificando IVA, usando cálculo por defecto:', error);
           // Fallback al cálculo normal con IVA
           const iva = neto * 0.19;
-          const formatter = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' });
+          const formatter = new Intl.NumberFormat('es-CL', { 
+            style: 'currency', 
+            currency: 'CLP',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+          });
           document.getElementById("total-neto").textContent = formatter.format(neto);
           document.getElementById("total-iva").textContent  = formatter.format(iva);
           document.getElementById("total-pagar").textContent = formatter.format(neto + iva);
-          document.getElementById("total-neto-input").value = neto.toFixed(2);
-          document.getElementById("total-iva-input").value  = iva.toFixed(2);
-          document.getElementById("total-pagar-input").value = (neto + iva).toFixed(2);
+          document.getElementById("total-neto-input").value = Math.round(neto);
+          document.getElementById("total-iva-input").value  = Math.round(iva);
+          document.getElementById("total-pagar-input").value = Math.round(neto + iva);
         });
         
         document.getElementById("selected-box").style.display = body.children.length ? "block" : "none";
@@ -649,10 +659,20 @@
                     <span class="badge bg-secondary">${ln.recepcion}</span>
                   </td>
                   <td class="text-end">
-                    <span class="fw-bold text-info">${new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(ln.neto_unitario)}</span>
+                    <span class="fw-bold text-info">${new Intl.NumberFormat('es-CL', { 
+                      style: 'currency', 
+                      currency: 'CLP',
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0
+                    }).format(ln.neto_unitario)}</span>
                   </td>
                   <td class="text-end">
-                    <span class="fw-bold text-success">${new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(ln.recepcion * ln.neto_unitario)}</span>
+                    <span class="fw-bold text-success">${new Intl.NumberFormat('es-CL', { 
+                      style: 'currency', 
+                      currency: 'CLP',
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0
+                    }).format(ln.recepcion * ln.neto_unitario)}</span>
                   </td>
                   <td class="text-center">
                     <span class="badge bg-info">${oc}</span>
@@ -670,7 +690,7 @@
                   <input type="hidden" name="art_corr[]"        value="${ln.art_corr}">
                   <input type="hidden" name="descripcion[]"     value="${ln.descripcion}">
                   <input type="hidden" name="recepcion[]"       value="${ln.recepcion}">
-                  <input type="hidden" name="neto_unitario[]"   value="${ln.neto_unitario.toFixed(2)}">
+                  <input type="hidden" name="neto_unitario[]"   value="${Math.round(ln.neto_unitario)}">
                   <input type="hidden" name="material[]"        value="${ln.material_id}">
                   <input type="hidden" name="ingreso_id[]"      value="${ln.ingreso_id}">`;
 

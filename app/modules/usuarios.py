@@ -156,6 +156,10 @@ def list_usuarios():
                          buscar=buscar)
 
 def get_modulos_usuario():
+    from flask_login import current_user
+    if not current_user.is_authenticated:
+        return []
+    
     supabase = current_app.config['SUPABASE']
     # Obtiene los módulos permitidos para el usuario actual
     rows = supabase.table('usuario_modulo').select('modulo_id,modulos(nombre_modulo)').eq('usuario_id', current_user.id).execute().data
@@ -192,7 +196,14 @@ def require_modulo(nombre_modulo):
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
+            from flask_login import current_user
             from app.modules.usuarios import get_modulos_usuario
+            
+            # Verificar que el usuario esté autenticado
+            if not current_user.is_authenticated:
+                flash('Debes iniciar sesión para acceder a este módulo.', 'warning')
+                return redirect(url_for('auth.login'))
+            
             if nombre_modulo not in get_modulos_usuario():
                 flash('No tienes permiso para acceder a este módulo.', 'danger')
                 return redirect(url_for('auth.sin_permisos'))
