@@ -2,6 +2,18 @@
 {% block title %}Órdenes de Pago - Apps. Adquisiciones{% endblock %}
 
 {% block content %}
+
+  <!-- Mostrar mensajes flash -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+          <i class="bi bi-check-circle me-2"></i>{{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
   <style>
     .box { border:1px solid #dee2e6; border-radius:6px; padding:15px; margin-bottom:25px; background:#fafbfc; }
     h1 { font-size:24px; font-weight:bold; color:#343a40; margin-bottom:20px; background:#e9f2ff; padding:10px; border-radius:4px; }
@@ -11,6 +23,110 @@
     .btn-primary { background:#007bff; border:none; color:#fff; }
     .btn-outline-primary { border-color:#007bff; color:#007bff; }
     .btn-outline-primary:hover { background:#007bff; color:#fff; }
+    
+    /* Estilos mejorados para las cards */
+    .card {
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+    }
+    
+    .card-header {
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .icon-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    
+    .table-hover tbody tr:hover {
+      background-color: rgba(0,123,255,0.05);
+    }
+    
+    .badge {
+      font-size: 0.75em;
+      font-weight: 500;
+    }
+    
+    .btn-outline-danger:hover {
+      background-color: #dc3545;
+      border-color: #dc3545;
+    }
+    
+    .text-sm {
+      font-size: 0.875rem;
+    }
+    
+    .rounded-pill {
+      border-radius: 50rem !important;
+    }
+    
+    /* Animaciones suaves */
+    .btn {
+      transition: all 0.2s ease;
+    }
+    
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+    
+    .btn:active {
+      transform: translateY(0);
+    }
+    
+    /* Mejorar el aspecto de los totales */
+    .card-footer {
+      border-top: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .fs-5 {
+      font-size: 1.25rem !important;
+    }
+
+    /* Estilos para feedback visual */
+    .loading-overlay {
+      position: relative;
+    }
+
+    .loading-overlay::after {
+      content: 'Buscando...';
+      position: absolute;
+      top: 50%;
+      right: 10px;
+      transform: translateY(-50%);
+      font-size: 12px;
+      color: #6c757d;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+
+    /* Modal moderno */
+    .modal-content {
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    }
+
+    .spinner-border {
+      width: 3rem;
+      height: 3rem;
+    }
   </style>
 <h1 class="titulo-modulo w-100 titulo-modulo-con-icono">
   <span class="icono-modulo">S</span>
@@ -18,18 +134,22 @@
 </h1>
 
   <!-- 1) Form GET para seleccionar proveedor -->
-  <form method="GET" class="row mb-4 align-items-end">
-    <div class="col-md-6">
-      <label>Proveedor:</label>
-      <input list="provList" name="nombre_proveedor" class="form-control" autocomplete="off" value="{{ nombre_proveedor }}">
-      <datalist id="provList">
-        {% for prov in providers %}
-          <option value="{{ prov.nombre }}"></option>
-        {% endfor %}
-      </datalist>
+  <form method="GET" class="row mb-4 align-items-end" id="form-proveedor">
+    <div class="col-md-8">
+      <label class="form-label fw-medium">
+        <i class="bi bi-person-workspace me-1"></i>Proveedor:
+      </label>
+      <select name="nombre_proveedor" id="proveedor_select" class="form-select" style="width: 100%;">
+        <option value="">Seleccione un proveedor...</option>
+        {% if nombre_proveedor and provider_id %}
+          <option value="{{ provider_id }}" selected>{{ nombre_proveedor }}</option>
+        {% endif %}
+      </select>
     </div>
     <div class="col-md-2">
-      <button class="btn btn-primary">Cargar</button>
+      <button type="submit" class="btn btn-primary" id="cargar-btn" disabled>
+        <i class="bi bi-arrow-repeat me-1"></i><span class="btn-text">Cargar</span>
+      </button>
     </div>
   </form>
 
@@ -38,102 +158,256 @@
     <input type="hidden" name="proveedor_id"     value="{{ provider_id }}">
     <input type="hidden" name="nombre_proveedor" value="{{ nombre_proveedor }}">
 
-    <div class="box">
-      <h5>Datos de la Orden de Pago</h5>
-      <div class="row mb-2">
-        <div class="col-md-4">
-          <label>Autoriza:</label>
-          <input list="trabList" id="autoriza_input" name="autoriza_input" class="form-control" autocomplete="off">
-          <datalist id="trabList">
-            {% for t in trabajadores %}
-              <option data-id="{{ t.id }}" data-email="{{ t.correo }}" value="{{ t.nombre }}"></option>
-            {% endfor %}
-          </datalist>
-          <input type="hidden" name="autoriza_id" id="autoriza_id">
-        </div>
-        <div class="col-md-4">
-          <label>Correo:</label>
-          <input type="text" id="autoriza_email" class="form-control" readonly>
-        </div>
-        <div class="col-md-4">
-          <label>Número de Orden:</label>
-          <input type="text" class="form-control" value="{{ next_num }}" readonly>
-          <input type="hidden" name="next_num" value="{{ next_num }}">
+    <!-- 2) Datos de la Orden de Pago - Diseño mejorado -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-light border-0 py-3">
+        <div class="d-flex align-items-center">
+          <div class="icon-circle bg-primary text-white me-3">
+            <i class="bi bi-file-earmark-plus"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold text-dark">Datos de la Orden de Pago</h5>
+            <small class="text-muted">Información general de la orden</small>
+          </div>
         </div>
       </div>
-      <div class="row mb-2">
-        <div class="col-md-4">
-          <label>Fecha de factura:</label>
-          <input type="date" name="fecha_factura" class="form-control" required>
+      <div class="card-body">
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <label class="form-label fw-medium">
+              <i class="bi bi-person-check me-1"></i>Autoriza:
+            </label>
+            <input list="trabList" id="autoriza_input" name="autoriza_input" class="form-control" autocomplete="off" placeholder="Selecciona quien autoriza">
+            <datalist id="trabList">
+              {% for t in trabajadores %}
+                <option data-id="{{ t.id }}" data-email="{{ t.correo }}" value="{{ t.nombre }}"></option>
+              {% endfor %}
+            </datalist>
+            <input type="hidden" name="autoriza_id" id="autoriza_id">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-medium">
+              <i class="bi bi-envelope me-1"></i>Correo:
+            </label>
+            <input type="email" id="autoriza_email" class="form-control" readonly placeholder="Se completa automáticamente">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-medium">
+              <i class="bi bi-hash me-1"></i>Número de Orden:
+            </label>
+            <div class="input-group">
+              <span class="input-group-text bg-light">
+                <i class="bi bi-file-earmark-text"></i>
+              </span>
+              <input type="text" class="form-control fw-bold" value="{{ next_num }}" readonly>
+            </div>
+            <input type="hidden" name="next_num" value="{{ next_num }}">
+          </div>
         </div>
-        <div class="col-md-4">
-          <label>Vencimiento factura:</label>
-          <input type="date" name="vencimiento" class="form-control" required>
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <label class="form-label fw-medium">
+              <i class="bi bi-calendar-event me-1"></i>Fecha de factura:
+            </label>
+            <input type="date" name="fecha_factura" class="form-control" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-medium">
+              <i class="bi bi-calendar-x me-1"></i>Vencimiento factura:
+            </label>
+            <input type="date" name="vencimiento" class="form-control" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-medium">
+              <i class="bi bi-credit-card me-1"></i>Estado de pago:
+            </label>
+            <select name="estado_pago" class="form-select">
+              <option value="">Selecciona estado</option>
+              <option value="Pendiente">Pendiente</option>
+              <option value="Pagado">Pagado</option>
+              <option value="En proceso">En proceso</option>
+            </select>
+          </div>
         </div>
-        <div class="col-md-4">
-          <label>Estado de pago:</label>
-          <input type="text" name="estado_pago" class="form-control" placeholder="Pendiente / Pagado">
-        </div>
-      </div>
-      <div class="row mb-3">
-        <div class="col-12">
-          <label>Detalle de Compra:</label>
-          <textarea name="detalle_compra" class="form-control" rows="3"
-                    placeholder="Escribe aquí el detalle..."></textarea>
+        <div class="row">
+          <div class="col-12">
+            <label class="form-label fw-medium">
+              <i class="bi bi-text-paragraph me-1"></i>Detalle de Compra:
+            </label>
+            <textarea name="detalle_compra" class="form-control" rows="3"
+                      placeholder="Escribe aquí el detalle de la compra..."></textarea>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 3) Tabla Documentos Pendientes con "Seleccionar" -->
-    <div class="box">
-      <h5>Documentos Pendientes</h5>
-      <div class="table-responsive">
-        <table class="table table-sm" id="docs-table">
-          <thead>
-            <tr>
-              <th>Seleccion</th><th>Documento</th><th>Orden de Compra</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for d in docs %}
-            <tr>
-              <td>
-                <button type="button"
-                        class="btn btn-sm btn-outline-primary select-btn"
-                        data-guia="{{ d.guia_recepcion }}"
-                        data-oc="{{ d.orden_compra }}">
-                  Seleccionar
-                </button>
-              </td>
-              <td>{{ d.guia_recepcion }}</td>
-              <td>{{ d.orden_compra }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+    <!-- 3) Tabla Documentos Pendientes con "Seleccionar" - Diseño mejorado -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-light border-0 py-3">
+        <div class="d-flex align-items-center">
+          <div class="icon-circle bg-primary text-white me-3">
+            <i class="bi bi-file-earmark-text"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold text-dark">Documentos Pendientes</h5>
+            <small class="text-muted">Selecciona los documentos para procesar</small>
+          </div>
+          <div class="ms-auto">
+            <span class="badge bg-secondary">{{ docs|length }} documento(s)</span>
+          </div>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        {% if docs %}
+          <div class="table-responsive">
+            <table class="table table-hover mb-0" id="docs-table">
+              <thead class="table-light">
+                <tr>
+                  <th class="text-center" style="width: 120px;">
+                    <i class="bi bi-check2-circle me-1"></i>Acción
+                  </th>
+                  <th style="width: 200px;">
+                    <i class="bi bi-file-text me-1"></i>Documento
+                  </th>
+                  <th style="width: 150px;">
+                    <i class="bi bi-cart3 me-1"></i>Orden de Compra
+                  </th>
+                  <th class="text-end">
+                    <i class="bi bi-currency-dollar me-1"></i>Total Neto
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for d in docs %}
+                <tr class="align-middle">
+                  <td class="text-center">
+                    <button type="button"
+                            class="btn btn-sm btn-outline-primary select-btn rounded-pill px-3"
+                            data-guia="{{ d.guia_recepcion }}"
+                            data-oc="{{ d.orden_compra }}">
+                      <i class="bi bi-plus-circle me-1"></i>Seleccionar
+                    </button>
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      {% if d.guia_recepcion == "SIN_DOCUMENTO" %}
+                        <div class="icon-circle bg-warning text-white me-2" style="width: 24px; height: 24px; font-size: 10px;">
+                          <i class="bi bi-exclamation-triangle"></i>
+                        </div>
+                        <span class="text-warning fw-medium">Sin documento</span>
+                      {% else %}
+                        <div class="icon-circle bg-success text-white me-2" style="width: 24px; height: 24px; font-size: 10px;">
+                          <i class="bi bi-file-check"></i>
+                        </div>
+                        <span class="text-dark fw-medium">{{ d.guia_recepcion }}</span>
+                      {% endif %}
+                    </div>
+                  </td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <div class="icon-circle bg-info text-white me-2" style="width: 24px; height: 24px; font-size: 10px;">
+                        <i class="bi bi-hash"></i>
+                      </div>
+                      <span class="fw-medium">{{ d.orden_compra }}</span>
+                    </div>
+                  </td>
+                  <td class="text-end">
+                    <span class="fw-bold text-success">
+                      ${{ "{:,.2f}".format(d.total_neto_recepcion) }}
+                    </span>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-5">
+            <div class="mb-3">
+              <i class="bi bi-inbox display-1 text-muted"></i>
+            </div>
+            <h6 class="text-muted">No hay documentos pendientes</h6>
+            <p class="text-muted small mb-0">Selecciona un proveedor para ver los documentos disponibles</p>
+          </div>
+        {% endif %}
       </div>
     </div>
 
-    <!-- 4) Tabla Detalle + Totales (se irá rellenando con JS) -->
-    <div class="box table-responsive" id="selected-box" style="display:none;">
-      <h5>Detalle de Material</h5>
-      <table class="table table-sm">
-        <thead>
-          <tr>
-            <th>Descripción</th><th>Recepción</th><th>Neto Unit.</th>
-            <th>Total Neto</th><th>OC</th><th>Factura</th><th>Acción</th>
-          </tr>
-        </thead>
-        <tbody id="selected-body"></tbody>
-      </table>
-      <div id="totals" class="mt-3" style="display:none;">
-        <table class="table table-sm">
-          <tbody>
-            <tr><th class="text-end">Total Neto:</th><td id="total-neto">0.00</td></tr>
-            <tr><th class="text-end">Total IVA (19%):</th><td id="total-iva">0.00</td></tr>
-            <tr><th class="text-end">Total a Pagar:</th><td id="total-pagar">0.00</td></tr>
-          </tbody>
-        </table>
+    <!-- 4) Tabla Detalle + Totales (se irá rellenando con JS) - Diseño mejorado -->
+    <div class="card border-0 shadow-sm mb-4" id="selected-box" style="display:none;">
+      <div class="card-header bg-light border-0 py-3">
+        <div class="d-flex align-items-center">
+          <div class="icon-circle bg-success text-white me-3">
+            <i class="bi bi-list-check"></i>
+          </div>
+          <div>
+            <h5 class="mb-0 fw-bold text-dark">Detalle de Material Seleccionado</h5>
+            <small class="text-muted">Materiales incluidos en la orden de pago</small>
+          </div>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 30%;">
+                  <i class="bi bi-box me-1"></i>Descripción
+                </th>
+                <th class="text-center" style="width: 10%;">
+                  <i class="bi bi-123 me-1"></i>Cant.
+                </th>
+                <th class="text-end" style="width: 15%;">
+                  <i class="bi bi-currency-dollar me-1"></i>Precio Unit.
+                </th>
+                <th class="text-end" style="width: 15%;">
+                  <i class="bi bi-calculator me-1"></i>Total Neto
+                </th>
+                <th class="text-center" style="width: 10%;">
+                  <i class="bi bi-cart3 me-1"></i>OC
+                </th>
+                <th class="text-center" style="width: 10%;">
+                  <i class="bi bi-file-text me-1"></i>Doc.
+                </th>
+                <th class="text-center" style="width: 10%;">
+                  <i class="bi bi-trash me-1"></i>Acción
+                </th>
+              </tr>
+            </thead>
+            <tbody id="selected-body"></tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Totales -->
+      <div class="card-footer bg-light border-0" id="totals" style="display:none;">
+        <div class="row">
+          <div class="col-md-8">
+            <div class="d-flex align-items-center text-muted">
+              <i class="bi bi-info-circle me-2"></i>
+              <small>Los totales incluyen IVA (19%)</small>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card bg-white border">
+              <div class="card-body p-3">
+                <div class="row text-sm">
+                  <div class="col-6 text-muted">Total Neto:</div>
+                  <div class="col-6 text-end fw-bold" id="total-neto">$0</div>
+                </div>
+                <div class="row text-sm">
+                  <div class="col-6 text-muted">IVA (19%):</div>
+                  <div class="col-6 text-end fw-bold" id="total-iva">$0</div>
+                </div>
+                <hr class="my-2">
+                <div class="row">
+                  <div class="col-6 fw-bold text-dark">Total a Pagar:</div>
+                  <div class="col-6 text-end fw-bold text-success fs-5" id="total-pagar">$0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
         <input type="hidden" name="total_neto"   id="total-neto-input">
         <input type="hidden" name="total_iva"    id="total-iva-input">
         <input type="hidden" name="total_pagar"  id="total-pagar-input">
@@ -154,18 +428,17 @@
 
     <!-- 5) Botones Generar PDF / Crear OP -->
     <div class="text-end">
-      <button id="pdf-btn"
-              formaction="{{ url_for('ordenes_pago_pdf.pdf') }}"
-              formmethod="post"
-              target="_blank"
+      <button type="button" id="pdf-btn"
               class="btn btn-secondary me-2">
+        <i class="bi bi-file-earmark-pdf me-1"></i>
         Generar PDF
       </button>
       <button id="create-btn" disabled
               formaction="{{ url_for('ordenes_pago.new_orden_pago') }}"
               formmethod="post"
               class="btn btn-primary">
-        Crear Orden de Pago #{{ next_num }}
+        <i class="bi bi-plus-circle me-1"></i>
+        <span class="btn-text">Crear Orden de Pago #{{ next_num }}</span>
       </button>
     </div>
   </form>
@@ -182,6 +455,18 @@
     </div>
   </div>
 
+  <!-- Modal Bootstrap de buscando -->
+  <div class="modal fade" id="modalBuscando" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content text-center">
+        <div class="modal-body">
+          <div class="spinner-border text-info" role="status"></div>
+          <p class="mt-3 mb-0">Buscando proveedores...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="mensajeExito" class="alert alert-success text-center position-fixed top-0 start-50 translate-middle-x mt-3"
        style="display:none; z-index:2000; min-width:300px;">
     Información guardada con éxito
@@ -193,6 +478,19 @@
 {% block extra_js %}
   <script>
     document.addEventListener("DOMContentLoaded", () => {
+      // Mostrar mensaje de éxito si hay flash messages
+      const alertSuccess = document.querySelector('.alert-success');
+      if (alertSuccess) {
+        // Auto-hide después de 5 segundos
+        setTimeout(() => {
+          alertSuccess.style.transition = 'opacity 0.5s ease';
+          alertSuccess.style.opacity = '0';
+          setTimeout(() => {
+            alertSuccess.remove();
+          }, 500);
+        }, 5000);
+      }
+
       // 2) Función de totales
       function recalcTotals() {
         const body = document.getElementById("selected-body");
@@ -203,16 +501,95 @@
           const unit = parseFloat(r.querySelector('input[name="neto_unitario[]"]').value) || 0;
           neto += cant * unit;
         });
-        const iva = neto * 0.19;
-        const formatter = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' });
-        document.getElementById("total-neto").textContent = formatter.format(neto);
-        document.getElementById("total-iva").textContent  = formatter.format(iva);
-        document.getElementById("total-pagar").textContent = formatter.format(neto + iva);
-        document.getElementById("total-neto-input").value = neto.toFixed(2);
-        document.getElementById("total-iva-input").value  = iva.toFixed(2);
-        document.getElementById("total-pagar-input").value = (neto + iva).toFixed(2);
+        
+        // Verificar si hay órdenes sin IVA
+        checkIVAStatus().then(sinIva => {
+          const iva = sinIva ? 0 : neto * 0.19;
+          const formatter = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' });
+          document.getElementById("total-neto").textContent = formatter.format(neto);
+          document.getElementById("total-iva").textContent  = formatter.format(iva);
+          document.getElementById("total-pagar").textContent = formatter.format(neto + iva);
+          document.getElementById("total-neto-input").value = neto.toFixed(2);
+          document.getElementById("total-iva-input").value  = iva.toFixed(2);
+          document.getElementById("total-pagar-input").value = (neto + iva).toFixed(2);
+          
+          // Actualizar el texto del IVA si es necesario
+          if (sinIva) {
+            // Buscar el elemento que contiene "IVA (19%):" y cambiarlo
+            const ivaElements = document.querySelectorAll('.col-6');
+            ivaElements.forEach(el => {
+              if (el.textContent.includes('IVA (19%):')) {
+                el.textContent = "IVA (19%) - EXENTO:";
+              }
+            });
+            
+            // También actualizar el texto informativo
+            const infoElement = document.querySelector('small');
+            if (infoElement && infoElement.textContent.includes('incluyen IVA')) {
+              infoElement.textContent = "Los totales NO incluyen IVA (EXENTO)";
+            }
+          } else {
+            // Restaurar texto normal si no es sin IVA
+            const ivaElements = document.querySelectorAll('.col-6');
+            ivaElements.forEach(el => {
+              if (el.textContent.includes('EXENTO')) {
+                el.textContent = "IVA (19%):";
+              }
+            });
+            
+            const infoElement = document.querySelector('small');
+            if (infoElement && infoElement.textContent.includes('NO incluyen')) {
+              infoElement.textContent = "Los totales incluyen IVA (19%)";
+            }
+          }
+        }).catch(error => {
+          console.warn('Error verificando IVA, usando cálculo por defecto:', error);
+          // Fallback al cálculo normal con IVA
+          const iva = neto * 0.19;
+          const formatter = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' });
+          document.getElementById("total-neto").textContent = formatter.format(neto);
+          document.getElementById("total-iva").textContent  = formatter.format(iva);
+          document.getElementById("total-pagar").textContent = formatter.format(neto + iva);
+          document.getElementById("total-neto-input").value = neto.toFixed(2);
+          document.getElementById("total-iva-input").value  = iva.toFixed(2);
+          document.getElementById("total-pagar-input").value = (neto + iva).toFixed(2);
+        });
+        
         document.getElementById("selected-box").style.display = body.children.length ? "block" : "none";
         document.getElementById("totals").style.display       = body.children.length ? "block" : "none";
+      }
+
+      // Función para verificar si hay órdenes sin IVA
+      async function checkIVAStatus() {
+        const body = document.getElementById("selected-body");
+        const rows = body.querySelectorAll("tr");
+        
+        console.log('Verificando IVA para', rows.length, 'filas');
+        
+        for (let row of rows) {
+          const ocInput = row.querySelector('input[name="orden_compra[]"]');
+          if (ocInput) {
+            const oc = ocInput.value;
+            console.log('Consultando IVA para OC:', oc);
+            try {
+              const response = await fetch(`/ordenes_pago/check_iva/${oc}`);
+              if (response.ok) {
+                const data = await response.json();
+                console.log('Respuesta IVA para OC', oc, ':', data);
+                if (data.sin_iva) {
+                  console.log('Orden', oc, 'es SIN IVA');
+                  return true; // Si cualquier orden es sin IVA, toda la orden de pago es sin IVA
+                }
+              } else {
+                console.warn('Error HTTP verificando IVA para OC:', oc, response.status);
+              }
+            } catch (error) {
+              console.warn('Error verificando IVA para OC:', oc, error);
+            }
+          }
+        }
+        console.log('Ninguna orden es sin IVA');
+        return false;
       }
 
       // 4) Click “Seleccionar” para cargar líneas
@@ -223,27 +600,73 @@
           const btn = e.target;
           const guia = btn.dataset.guia;
           const oc   = btn.dataset.oc;
-
-          fetch(`{{ url_for('ordenes_pago.list_ordenes_pago') }}?detail=1&guia=${guia}&oc=${oc}`)
-            .then(res => res.json())
+          
+          console.log("Botón seleccionar clickeado:", { guia, oc });
+          
+          // Manejar valores "SIN_DOCUMENTO"
+          const guiaParam = guia === "SIN_DOCUMENTO" ? "SIN_DOCUMENTO" : guia;
+          const url = `{{ url_for('ordenes_pago.list_ordenes_pago') }}?detail=1&guia=${encodeURIComponent(guiaParam)}&oc=${encodeURIComponent(oc)}`;
+          
+          console.log("URL de consulta:", url);
+          
+          fetch(url)
+            .then(res => {
+              console.log("Respuesta del servidor:", res.status);
+              if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+              }
+              return res.json();
+            })
             .then(data => {
+              console.log("Datos recibidos:", data);
+              
+              if (!Array.isArray(data)) {
+                console.error("Los datos recibidos no son un array:", data);
+                return;
+              }
+              
               const body = document.getElementById("selected-body");
               data.forEach(ln => {
                 // evita duplicados
                 if ([...body.querySelectorAll('input[name="ingreso_id[]"]')]
-                      .some(i => +i.value === ln.ingreso_id)) return;
+                      .some(i => +i.value === ln.ingreso_id)) {
+                  console.log("Línea duplicada omitida:", ln.ingreso_id);
+                  return;
+                }
 
                 const row = document.createElement("tr");
+                row.className = "align-middle";
                 row.innerHTML = `
-                  <td>${ln.descripcion}</td>
-                  <td>${ln.recepcion}</td>
-                  <td>${new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(ln.neto_unitario)}</td>
-                  <td>${new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(ln.recepcion * ln.neto_unitario)}</td>
-                  <td>${oc}</td>
-                  <td class="text-center">${guia}</td>
-                  <td><button type="button" class="btn btn-sm btn-danger remove-btn">Eliminar</button></td>
+                  <td>
+                    <div class="d-flex align-items-center">
+                      <div class="icon-circle bg-primary text-white me-2" style="width: 24px; height: 24px; font-size: 10px;">
+                        <i class="bi bi-box"></i>
+                      </div>
+                      <span class="fw-medium">${ln.descripcion}</span>
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-secondary">${ln.recepcion}</span>
+                  </td>
+                  <td class="text-end">
+                    <span class="fw-bold text-info">${new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(ln.neto_unitario)}</span>
+                  </td>
+                  <td class="text-end">
+                    <span class="fw-bold text-success">${new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(ln.recepcion * ln.neto_unitario)}</span>
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-info">${oc}</span>
+                  </td>
+                  <td class="text-center">
+                    ${guia === "SIN_DOCUMENTO" ? '<span class="badge bg-warning">Sin documento</span>' : '<span class="badge bg-success">' + guia + '</span>'}
+                  </td>
+                  <td class="text-center">
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-btn rounded-pill">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
                   <input type="hidden" name="orden_compra[]"   value="${oc}">
-                  <input type="hidden" name="guia_recepcion[]" value="${guia}">
+                  <input type="hidden" name="guia_recepcion[]" value="${guia === "SIN_DOCUMENTO" ? "" : guia}">
                   <input type="hidden" name="art_corr[]"        value="${ln.art_corr}">
                   <input type="hidden" name="descripcion[]"     value="${ln.descripcion}">
                   <input type="hidden" name="recepcion[]"       value="${ln.recepcion}">
@@ -259,11 +682,15 @@
                 body.appendChild(row);
               });
 
-              btn.classList.replace("btn-outline-primary", "btn-primary");
+              btn.classList.replace("btn-outline-primary", "btn-success");
               btn.disabled = true;
+              btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Seleccionado';
               recalcTotals();
             })
-            .catch(console.error);
+            .catch(error => {
+              console.error("Error en fetch:", error);
+              alert("Error al cargar los datos. Por favor, revisa la consola para más detalles.");
+            });
         });
       }
 
@@ -293,9 +720,59 @@
       // Habilitar botón Crear Orden tras generar PDF
       const pdfBtn    = document.getElementById('pdf-btn');
       const createBtn = document.getElementById('create-btn');
+      
       if (pdfBtn && createBtn) {
-        pdfBtn.addEventListener('click', () => {
-          createBtn.disabled = false;
+        pdfBtn.addEventListener('click', function() {
+          // Mostrar loading en el botón PDF
+          const originalText = pdfBtn.innerHTML;
+          pdfBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Generando PDF...';
+          pdfBtn.disabled = true;
+          
+          // Crear formulario temporal para enviar datos al PDF
+          const tempForm = document.createElement('form');
+          tempForm.method = 'POST';
+          tempForm.action = '{{ url_for("ordenes_pago_pdf.pdf") }}';
+          tempForm.style.display = 'none';
+          
+          // Copiar todos los datos del formulario principal
+          const formData = new FormData(document.querySelector('form[method="POST"]'));
+          for (let [key, value] of formData.entries()) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = value;
+            tempForm.appendChild(input);
+          }
+          
+          document.body.appendChild(tempForm);
+          tempForm.submit();
+          document.body.removeChild(tempForm);
+          
+          // Restaurar botón y habilitar crear orden después de un delay
+          setTimeout(() => {
+            pdfBtn.innerHTML = originalText;
+            pdfBtn.disabled = false;
+            createBtn.disabled = false;
+            
+            // Mostrar mensaje de éxito
+            const toast = document.createElement('div');
+            toast.className = 'alert alert-success alert-dismissible fade show position-fixed';
+            toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            toast.innerHTML = `
+              <i class="bi bi-check-circle me-2"></i>
+              PDF generado correctamente. Ahora puede crear la orden de pago.
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(toast);
+            
+            // Auto-remover el toast después de 5 segundos
+            setTimeout(() => {
+              if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+              }
+            }, 5000);
+            
+          }, 2000); // 2 segundos de delay para simular la generación
         });
       }
 
@@ -306,22 +783,242 @@
 
       if(form && btn) {
         form.addEventListener("submit", function(e) {
+          // Cambiar texto del botón
+          const btnText = btn.querySelector('.btn-text');
+          const btnIcon = btn.querySelector('i');
+          
+          btnIcon.className = 'bi bi-hourglass-split me-1';
+          btnText.textContent = 'Guardando...';
           btn.disabled = true;
+          
+          // Mostrar modal
           modal.show();
         });
       }
 
-      // Select2 para proveedor
-      $('#proveedor_id').select2({
-        placeholder: 'Buscar proveedor...',
+      // Feedback visual para búsqueda de proveedor
+      const proveedorSelect = document.getElementById('proveedor_select');
+      const cargarBtn = document.getElementById('cargar-btn');
+      const formProveedor = document.getElementById('form-proveedor');
+      
+      if (proveedorSelect && cargarBtn && formProveedor) {
+        // Feedback en el botón Cargar
+        formProveedor.addEventListener('submit', function(e) {
+          const selectedValue = $(proveedorSelect).val();
+          if (selectedValue && selectedValue.trim()) {
+            const btnText = cargarBtn.querySelector('.btn-text');
+            const btnIcon = cargarBtn.querySelector('i');
+            
+            btnIcon.className = 'bi bi-hourglass-split me-1';
+            btnText.textContent = 'Buscando...';
+            cargarBtn.disabled = true;
+            
+            // El formulario se enviará y la página se recargará
+            // por lo que no necesitamos restaurar el estado
+          } else {
+            e.preventDefault();
+            alert('Por favor seleccione un proveedor antes de cargar.');
+          }
+        });
+      }
+
+      // Inicializar Select2 para proveedores
+      $('#proveedor_select').select2({
+        placeholder: 'Busque y seleccione un proveedor...',
+        allowClear: true,
+        width: '100%',
         ajax: {
           url: '/ordenes_pago/api/proveedores',
           dataType: 'json',
-          delay: 250,
-          data: params => ({ term: params.term }),
-          processResults: data => ({ results: data.results })
+          delay: 300,
+          data: function (params) {
+            return {
+              term: params.term || '',
+              page: params.page || 1
+            };
+          },
+          processResults: function (data) {
+            return {
+              results: data.results || []
+            };
+          },
+          cache: true
         },
-        minimumInputLength: 1
+        minimumInputLength: 2,
+        language: {
+          inputTooShort: function () {
+            return 'Escriba al menos 2 caracteres para buscar';
+          },
+          noResults: function () {
+            return 'Sin resultados encontrados';
+          },
+          searching: function () {
+            return 'Buscando...';
+          }
+        }
+      });
+
+      // Manejar cambio en el select de proveedor
+      $('#proveedor_select').on('change', function() {
+        const proveedorSeleccionado = $(this).val();
+        if (proveedorSeleccionado) {
+          $('#cargar-btn').prop('disabled', false);
+        } else {
+          $('#cargar-btn').prop('disabled', true);
+        }
+      });
+      
+      // Verificar si ya hay un proveedor seleccionado al cargar la página
+      $(document).ready(function() {
+        const proveedorActual = $('#proveedor_select').val();
+        if (proveedorActual && proveedorActual.trim()) {
+          $('#cargar-btn').prop('disabled', false);
+        }
+      });
+
+      // Modal de buscando
+      let modalBuscando = null;
+
+      // Función para buscar proveedores
+      function buscarProveedores(termino) {
+        return new Promise((resolve, reject) => {
+          $.ajax({
+            url: '/ordenes_pago/api/proveedores',
+            dataType: 'json',
+            data: {
+              term: termino,
+              page: 1
+            },
+            success: function(data) {
+              resolve(data);
+            },
+            error: function(xhr, status, error) {
+              reject(error);
+            }
+          });
+        });
+      }
+
+      // Manejar la búsqueda de proveedores
+      $('#buscar-proveedor-btn').click(async function() {
+        const termino = $('#proveedor_busqueda').val().trim();
+        
+        if (termino.length < 2) {
+          alert('Por favor escriba al menos 2 caracteres');
+          return;
+        }
+
+        // Mostrar modal de buscando
+        if (!modalBuscando) {
+          modalBuscando = new bootstrap.Modal(document.getElementById('modalBuscando'));
+        }
+        modalBuscando.show();
+
+        try {
+          const data = await buscarProveedores(termino);
+          
+          // Limpiar opciones anteriores
+          $('#proveedor_select').empty();
+          $('#proveedor_select').append('<option value="">Seleccione un proveedor...</option>');
+          
+          if (data.results && data.results.length > 0) {
+            // Agregar opciones encontradas
+            data.results.forEach(function(proveedor) {
+              $('#proveedor_select').append(
+                '<option value="' + proveedor.text + '">' + proveedor.text + '</option>'
+              );
+            });
+            
+            // Mostrar el select
+            $('#proveedor_select').show();
+            
+            // Habilitar el botón cargar
+            $('#cargar-btn').prop('disabled', false);
+            
+            // Mostrar mensaje de éxito
+            setTimeout(() => {
+              modalBuscando.hide();
+              // Opcional: mostrar mensaje de éxito
+              const alertDiv = document.createElement('div');
+              alertDiv.className = 'alert alert-success alert-dismissible fade show';
+              alertDiv.innerHTML = `
+                <i class="bi bi-check-circle me-2"></i>
+                Se encontraron ${data.results.length} proveedor(es). Seleccione uno y presione "Cargar".
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+              `;
+              document.querySelector('.container-fluid').insertBefore(alertDiv, document.querySelector('.container-fluid').firstChild);
+              
+              // Auto-remover después de 5 segundos
+              setTimeout(() => {
+                if (alertDiv.parentNode) {
+                  alertDiv.remove();
+                }
+              }, 5000);
+            }, 500);
+          } else {
+            // No se encontraron resultados
+            $('#proveedor_select').hide();
+            $('#cargar-btn').prop('disabled', true);
+            
+            // Mostrar mensaje de sin datos
+            setTimeout(() => {
+              modalBuscando.hide();
+              
+              // Mostrar mensaje de sin datos como alerta
+              const alertDiv = document.createElement('div');
+              alertDiv.className = 'alert alert-warning alert-dismissible fade show';
+              alertDiv.innerHTML = `
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                Sin datos disponibles para el término de búsqueda: "${termino}". Intente con otro término.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+              `;
+              document.querySelector('.container-fluid').insertBefore(alertDiv, document.querySelector('.container-fluid').firstChild);
+              
+              // Auto-remover después de 5 segundos
+              setTimeout(() => {
+                if (alertDiv.parentNode) {
+                  alertDiv.remove();
+                }
+              }, 5000);
+            }, 500);
+            return;
+          }
+          
+          // Ocultar modal de buscando
+          modalBuscando.hide();
+          
+        } catch (error) {
+          console.error('Error al buscar proveedores:', error);
+          modalBuscando.hide();
+          alert('Error al buscar proveedores. Por favor intente nuevamente.');
+        }
+      });
+
+      // Permitir buscar con Enter
+      $('#proveedor_busqueda').keypress(function(e) {
+        if (e.which === 13) {
+          e.preventDefault();
+          $('#buscar-proveedor-btn').click();
+        }
+      });
+
+      // Manejar cambio en el select de proveedor
+      $('#proveedor_select').change(function() {
+        const proveedorSeleccionado = $(this).val();
+        if (proveedorSeleccionado) {
+          $('#cargar-btn').prop('disabled', false);
+        } else {
+          $('#cargar-btn').prop('disabled', true);
+        }
+      });
+      
+      // Verificar si ya hay un proveedor seleccionado al cargar la página
+      $(document).ready(function() {
+        const proveedorActual = $('#proveedor_select').val();
+        if (proveedorActual && proveedorActual.trim()) {
+          $('#proveedor_select').show();
+          $('#cargar-btn').prop('disabled', false);
+        }
       });
     });
   </script>

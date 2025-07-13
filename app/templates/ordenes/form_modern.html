@@ -709,57 +709,11 @@ $(document).ready(function() {
 
   // Generar PDF
   $('#pdf-btn').click(function() {
-    // Validar que el formulario tenga datos básicos
-    if (!$('#proveedor_id').val()) {
-      alert('Por favor seleccione un proveedor antes de generar el PDF');
-      return;
-    }
-    
-    if (!$('#proyecto_id').val()) {
-      alert('Por favor seleccione un proyecto antes de generar el PDF');
-      return;
-    }
-    
-    // Validar que haya al menos una línea con cantidad
-    let hasValidLines = false;
-    $('#lines tr').each(function() {
-      const cantidad = $(this).find('input[name="cant_linea[]"]').val();
-      const descripcion = $(this).find('select[name="desc_linea[]"]').val();
-      if (cantidad && parseFloat(cantidad) > 0 && descripcion) {
-        hasValidLines = true;
-      }
-    });
-    
-    if (!hasValidLines) {
-      alert('Por favor agregue al menos una línea con material y cantidad antes de generar el PDF');
-      return;
-    }
-    
-    // Crear formulario temporal para enviar al PDF
-    const tempForm = $('<form>', {
-      method: 'POST',
-      action: '{{ url_for("ordenes.generate_pdf") }}'
-    });
-    
-    // Copiar todos los datos del formulario
-    $('#ordenForm').find('input, select, textarea').each(function() {
-      const element = $(this);
-      const name = element.attr('name');
-      const value = element.val();
-      
-      if (name && value) {
-        tempForm.append($('<input>', {
-          type: 'hidden',
-          name: name,
-          value: value
-        }));
-      }
-    });
-    
-    // Agregar el formulario temporal al DOM, enviarlo y eliminarlo
-    $('body').append(tempForm);
-    tempForm.submit();
-    tempForm.remove();
+    const form = $('#ordenForm');
+    const originalAction = form.attr('action');
+    form.attr('action', '{{ url_for("ordenes.generate_pdf") }}');
+    form.submit();
+    form.attr('action', originalAction);
   });
 
   // Inicializar estado de botones de eliminar al cargar

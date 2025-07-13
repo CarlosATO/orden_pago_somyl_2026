@@ -1,129 +1,818 @@
 {# templates/proveedores/form.html #}
 {% extends "base.html" %}
-{% block title %}Proveedores - Apps. Adquisiciones{% endblock %}
+{% block title %}Proveedores - SOMYL{% endblock %}
 
 {% block content %}
-  <style>
-    /* Form y tabla conservan clases originales, solo ajustan fondo */
-    .form-control { background:#f1f1f1; font-size:14px; padding:6px; margin-bottom:8px; }
-    .btn-custom { width:100%; padding:10px; font-size:16px; }
-    .provider-table th { background: #f8f9fa; }
-    .error-message { color: red; display: none; }
-  </style>
-
- 
-
- <h1 class="titulo-modulo w-100 titulo-modulo-con-icono">
-   <span class="icono-modulo">S</span>
-   Proveedores
- </h1>
-  <div class="search-container mb-3">
-    <input type="text" id="searchInput" class="form-control" placeholder="Buscar proveedor por nombre...">
-  </div>
-
-  <form method="POST" action="{{ url_for('proveedores.edit_proveedor', id=proveedor['id']) if proveedor else url_for('proveedores.new_proveedor') }}">
-    <h5>Datos Empresa</h5><hr>
-    <div class="row">
-      <div class="col-md-6">
-        <label for="nombre">Nombre:</label>
-        <input type="text" name="nombre" id="nombre" value="{{ proveedor['nombre'] if proveedor else '' }}" class="form-control" required oninput="this.value=this.value.toUpperCase();">
-      </div>
-      <div class="col-md-6">
-        <label for="rut">RUT:</label>
-        <input type="text" name="rut" id="rut" value="{{ proveedor['rut'] if proveedor else '' }}" class="form-control" required onblur="validateRut(this);" placeholder="xxxxxxxx-x">
-        <small id="rut-error" class="error-message">RUT inválido. El formato debe ser xxxxxxxx-x.</small>
-      </div>
-    </div>
-
-    <div class="row">
-      <div class="col-md-4">
-        <label for="direccion">Dirección:</label>
-        <input type="text" name="direccion" id="direccion" value="{{ proveedor['direccion'] if proveedor else '' }}" class="form-control" oninput="this.value=this.value.toUpperCase();">
-      </div>
-      <div class="col-md-4">
-        <label for="comuna">Comuna:</label>
-        <input type="text" name="comuna" id="comuna" value="{{ proveedor['comuna'] if proveedor else '' }}" class="form-control" oninput="this.value=this.value.toUpperCase();">
-      </div>
-      <div class="col-md-4">
-        <label for="fono">Teléfono:</label>
-        <input type="text" name="fono" id="fono" value="{{ proveedor['fono'] if proveedor else '' }}" class="form-control" oninput="this.value=this.value.toUpperCase();">
-      </div>
-    </div>
-
-    <div class="row">
-      <div class="col-md-6">
-        <label for="contacto">Contacto:</label>
-        <input type="text" name="contacto" id="contacto" value="{{ proveedor['contacto'] if proveedor else '' }}" class="form-control" oninput="this.value=this.value.toUpperCase();">
-      </div>
-      <div class="col-md-6">
-        <label for="correo">Correo:</label>
-        <input type="email" name="correo" id="correo" value="{{ proveedor['correo'] if proveedor else '' }}" class="form-control">
-      </div>
-    </div>
-
-    <h5 class="mt-4">Datos de Banco</h5><hr>
-    <div class="row">
-      <div class="col-md-6">
-        <label for="banco">Banco:</label>
-        <input type="text" name="banco" id="banco" value="{{ proveedor['banco'] if proveedor else '' }}" class="form-control" oninput="this.value=this.value.toUpperCase();">
-      </div>
-      <div class="col-md-6">
-        <label for="cuenta">Cuenta:</label>
-        <input type="text" name="cuenta" id="cuenta" value="{{ proveedor['cuenta'] if proveedor else '' }}" class="form-control" oninput="this.value=this.value.toUpperCase();">
-      </div>
-    </div>
-
-    <div class="form-group mt-3">
-      <label for="paguese_a">Páguese a:</label>
-      <input type="text" name="paguese_a" id="paguese_a" value="{{ proveedor['paguese_a'] if proveedor else '' }}" class="form-control" oninput="this.value=this.value.toUpperCase();">
-    </div>
-
-    <button type="submit" class="btn btn-primary btn-custom mt-3">{{ 'Actualizar' if proveedor else 'Crear' }} Proveedor</button>
-  </form>
-
-  <h3 class="my-4">Proveedores Registrados</h3>
-  <table class="table table-bordered provider-table">
-    <thead>
-      <tr><th>Nombre</th><th>Teléfono</th><th>Dirección</th><th>Acciones</th></tr>
-    </thead>
-    <tbody id="providersTable">
-      {% for prov in proveedores %}
-        <tr>
-          <td>{{ prov['nombre'] }}</td>
-          <td>{{ prov['fono'] }}</td>
-          <td>{{ prov['direccion'] }}</td>
-          <td><a href="{{ url_for('proveedores.edit_proveedor', id=prov['id']) }}" class="btn btn-warning">Editar</a></td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  <script>
-    function validateRut(input) {
-      const rut = input.value.trim();
-      const pattern = /^[0-9]+-[0-9Kk]$/;
-      if (!pattern.test(rut)) {
-        document.getElementById("rut-error").style.display = 'block';
-        input.setCustomValidity('Formato de RUT incorrecto.');
-        return;
-      }
-      let [num, dv] = rut.split('-'), sum = 0, mul = 2;
-      for (let i = num.length-1; i >= 0; i--) { sum += parseInt(num[i]) * mul; mul = mul===7?2:mul+1; }
-      let res = 11 - (sum % 11);
-      if (res===11) res='0'; if (res===10) res='K';
-      if (res.toString()!== dv.toUpperCase()) {
-        document.getElementById("rut-error").style.display = 'block';
-        input.setCustomValidity('RUT inválido.');
-      } else {
-        document.getElementById("rut-error").style.display = 'none';
-        input.setCustomValidity('');
-      }
+<style>
+  /* Estilos modernos para el módulo de proveedores */
+  .modern-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    overflow: hidden;
+  }
+  
+  .modern-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  }
+  
+  .form-section {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 12px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border: 1px solid #dee2e6;
+    max-width: none;
+    width: 100%;
+  }
+  
+  .section-title {
+    color: #495057;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .form-control-modern {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    background: white;
+    width: 100%;
+    min-width: 300px;
+  }
+  
+  /* Campos específicos más anchos para nombres largos */
+  .wide-field {
+    min-width: 500px !important;
+  }
+  
+  .search-input {
+    min-width: 400px;
+  }
+  
+  .form-control-modern:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+    outline: none;
+    background: #fff;
+  }
+  
+  .form-control-modern:hover {
+    border-color: #007bff;
+  }
+  
+  .form-label-modern {
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+  }
+  
+  .btn-modern {
+    border-radius: 10px;
+    font-weight: 500;
+    padding: 0.75rem 2rem;
+    transition: all 0.2s ease;
+    border: none;
+    font-size: 1rem;
+  }
+  
+  .btn-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  }
+  
+  .btn-primary-modern {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+  }
+  
+  .btn-warning-modern {
+    background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+    color: #212529;
+  }
+  
+  .btn-success-modern {
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+    color: white;
+  }
+  
+  .search-container {
+    background: white;
+    border-radius: 10px;
+    padding: 1rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+  }
+  
+  .search-input {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    background: white;
+  }
+  
+  .search-input:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+    outline: none;
+  }
+  
+  /* Tabla moderna */
+  .modern-table {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+    border: none;
+  }
+  
+  .modern-table th {
+    background: linear-gradient(135deg, #343a40 0%, #495057 100%);
+    color: white;
+    font-weight: 600;
+    padding: 1rem;
+    border: none;
+    font-size: 0.9rem;
+  }
+  
+  .modern-table td {
+    padding: 1rem;
+    border: none;
+    border-bottom: 1px solid #f8f9fa;
+    vertical-align: middle;
+  }
+  
+  .modern-table tbody tr {
+    transition: all 0.2s ease;
+  }
+  
+  .modern-table tbody tr:hover {
+    background: linear-gradient(135deg, rgba(0,123,255,0.05) 0%, rgba(0,123,255,0.1) 100%);
+    transform: scale(1.002);
+  }
+  
+  .modern-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+  
+  /* Error messages */
+  .error-message {
+    color: #dc3545;
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    display: none;
+    font-weight: 500;
+  }
+  
+  .error-message.show {
+    display: block;
+    animation: fadeIn 0.3s ease;
+  }
+  
+  /* Stats cards */
+  .stats-card {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+  }
+  
+  .stats-number {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  
+  .stats-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+  }
+  
+  /* Responsive */
+  @media (max-width: 768px) {
+    .form-section {
+      padding: 1rem;
     }
-    document.getElementById("searchInput").addEventListener("input", function(){
-      const term = this.value.toLowerCase();
-      document.querySelectorAll("#providersTable tr").forEach(row => {
-        row.style.display = row.children[0].textContent.toLowerCase().includes(term)? '':'none';
-      });
+    
+    .modern-table {
+      font-size: 0.875rem;
+    }
+    
+    .modern-table th,
+    .modern-table td {
+      padding: 0.75rem 0.5rem;
+    }
+  }
+  
+  /* Animations */
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  .fade-in {
+    animation: fadeIn 0.5s ease;
+  }
+</style>
+
+<!-- Header con título y estadísticas -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="titulo-modulo titulo-modulo-con-icono mb-0">
+    <span class="icono-modulo">🏢</span>
+    Gestión de Proveedores
+  </h1>
+  <div class="stats-card">
+    <div class="stats-number">{{ proveedores|length }}</div>
+    <div class="stats-label">Proveedores Registrados</div>
+  </div>
+</div>
+
+<!-- Búsqueda rápida -->
+<div class="search-container fade-in">
+  <div class="row align-items-center">
+    <div class="col-md-8">
+      <div class="input-group">
+        <span class="input-group-text bg-light border-0">
+          <i class="bi bi-search text-muted"></i>
+        </span>
+        <input type="text" id="searchInput" class="search-input border-start-0" placeholder="Buscar proveedor por nombre, RUT, comuna...">
+      </div>
+    </div>
+    <div class="col-md-4 text-end">
+      <button type="button" class="btn btn-success-modern btn-modern" onclick="limpiarFormulario()">
+        <i class="bi bi-plus-circle me-2"></i>Nuevo Proveedor
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Formulario de proveedor -->
+<div class="modern-card fade-in">
+  <form method="POST" action="{{ url_for('proveedores.edit_proveedor', id=proveedor['id']) if proveedor else url_for('proveedores.new_proveedor') }}" id="proveedorForm">
+    
+    <!-- Sección: Datos de la Empresa -->
+    <div class="form-section">
+      <div class="section-title">
+        <i class="bi bi-building text-primary"></i>
+        Datos de la Empresa
+      </div>
+      
+      <div class="row">
+        <div class="col-12 mb-3">
+          <label for="nombre" class="form-label-modern">
+            <i class="bi bi-building me-1"></i>Razón Social *
+          </label>
+          <input type="text" 
+                 name="nombre" 
+                 id="nombre" 
+                 value="{{ proveedor['nombre'] if proveedor else '' }}" 
+                 class="form-control-modern wide-field" 
+                 required 
+                 oninput="this.value=this.value.toUpperCase();"
+                 placeholder="Ingrese la razón social completa del proveedor">
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label for="rut" class="form-label-modern">
+            <i class="bi bi-card-text me-1"></i>RUT *
+          </label>
+          <input type="text" 
+                 name="rut" 
+                 id="rut" 
+                 value="{{ proveedor['rut'] if proveedor else '' }}" 
+                 class="form-control-modern" 
+                 required 
+                 onblur="validateRut(this);" 
+                 placeholder="12345678-9">
+          <div id="rut-error" class="error-message">
+            <i class="bi bi-exclamation-triangle me-1"></i>RUT inválido. El formato debe ser xxxxxxxx-x.
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-4 mb-3">
+          <label for="direccion" class="form-label-modern">
+            <i class="bi bi-geo-alt me-1"></i>Dirección
+          </label>
+          <input type="text" 
+                 name="direccion" 
+                 id="direccion" 
+                 value="{{ proveedor['direccion'] if proveedor else '' }}" 
+                 class="form-control-modern" 
+                 oninput="this.value=this.value.toUpperCase();"
+                 placeholder="Ingrese la dirección">
+        </div>
+        
+        <div class="col-md-4 mb-3">
+          <label for="comuna" class="form-label-modern">
+            <i class="bi bi-pin-map me-1"></i>Comuna
+          </label>
+          <input type="text" 
+                 name="comuna" 
+                 id="comuna" 
+                 value="{{ proveedor['comuna'] if proveedor else '' }}" 
+                 class="form-control-modern" 
+                 oninput="this.value=this.value.toUpperCase();"
+                 placeholder="Ingrese la comuna">
+        </div>
+        
+        <div class="col-md-4 mb-3">
+          <label for="fono" class="form-label-modern">
+            <i class="bi bi-telephone me-1"></i>Teléfono
+          </label>
+          <input type="text" 
+                 name="fono" 
+                 id="fono" 
+                 value="{{ proveedor['fono'] if proveedor else '' }}" 
+                 class="form-control-modern" 
+                 oninput="this.value=this.value.toUpperCase();"
+                 placeholder="+56 9 1234 5678">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label for="contacto" class="form-label-modern">
+            <i class="bi bi-person me-1"></i>Persona de Contacto
+          </label>
+          <input type="text" 
+                 name="contacto" 
+                 id="contacto" 
+                 value="{{ proveedor['contacto'] if proveedor else '' }}" 
+                 class="form-control-modern" 
+                 oninput="this.value=this.value.toUpperCase();"
+                 placeholder="Nombre del contacto">
+        </div>
+        
+        <div class="col-md-6 mb-3">
+          <label for="correo" class="form-label-modern">
+            <i class="bi bi-envelope me-1"></i>Correo Electrónico
+          </label>
+          <input type="email" 
+                 name="correo" 
+                 id="correo" 
+                 value="{{ proveedor['correo'] if proveedor else '' }}" 
+                 class="form-control-modern"
+                 placeholder="contacto@empresa.cl">
+        </div>
+      </div>
+    </div>
+
+    <!-- Sección: Datos Bancarios -->
+    <div class="form-section">
+      <div class="section-title">
+        <i class="bi bi-bank text-success"></i>
+        Información Bancaria
+      </div>
+      
+      <div class="row">
+        <div class="col-md-6 mb-3">
+          <label for="banco" class="form-label-modern">
+            <i class="bi bi-bank2 me-1"></i>Banco
+          </label>
+          <input type="text" 
+                 name="banco" 
+                 id="banco" 
+                 value="{{ proveedor['banco'] if proveedor else '' }}" 
+                 class="form-control-modern" 
+                 oninput="this.value=this.value.toUpperCase();"
+                 placeholder="Nombre del banco">
+        </div>
+        
+        <div class="col-md-6 mb-3">
+          <label for="cuenta" class="form-label-modern">
+            <i class="bi bi-credit-card me-1"></i>Número de Cuenta
+          </label>
+          <input type="text" 
+                 name="cuenta" 
+                 id="cuenta" 
+                 value="{{ proveedor['cuenta'] if proveedor else '' }}" 
+                 class="form-control-modern" 
+                 oninput="this.value=this.value.toUpperCase();"
+                 placeholder="Número de cuenta">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-12 mb-3">
+          <label for="paguese_a" class="form-label-modern">
+            <i class="bi bi-cash me-1"></i>Páguese a
+          </label>
+          <input type="text" 
+                 name="paguese_a" 
+                 id="paguese_a" 
+                 value="{{ proveedor['paguese_a'] if proveedor else '' }}" 
+                 class="form-control-modern wide-field" 
+                 oninput="this.value=this.value.toUpperCase();"
+                 placeholder="Nombre para pagos">
+        </div>
+      </div>
+    </div>
+
+    <!-- Botones de acción -->
+    <div class="text-center">
+      <button type="submit" class="btn btn-primary-modern btn-modern me-2">
+        <i class="bi bi-{{ 'pencil' if proveedor else 'plus-circle' }} me-2"></i>
+        {{ 'Actualizar' if proveedor else 'Crear' }} Proveedor
+      </button>
+      
+      {% if proveedor %}
+      <button type="button" class="btn btn-warning-modern btn-modern" onclick="limpiarFormulario()">
+        <i class="bi bi-arrow-clockwise me-2"></i>Cancelar Edición
+      </button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<!-- Tabla de proveedores registrados -->
+<div class="modern-card fade-in mt-4">
+  <div class="p-3 border-bottom" style="background: linear-gradient(135deg, #343a40 0%, #495057 100%);">
+    <h3 class="mb-0 text-white">
+      <i class="bi bi-list-ul me-2"></i>
+      Proveedores Registrados
+    </h3>
+  </div>
+  
+  <div class="table-responsive">
+    <table class="table modern-table mb-0">
+      <thead>
+        <tr>
+          <th><i class="bi bi-building me-1"></i>Razón Social</th>
+          <th><i class="bi bi-card-text me-1"></i>RUT</th>
+          <th><i class="bi bi-telephone me-1"></i>Teléfono</th>
+          <th><i class="bi bi-geo-alt me-1"></i>Dirección</th>
+          <th><i class="bi bi-pin-map me-1"></i>Comuna</th>
+          <th><i class="bi bi-person me-1"></i>Contacto</th>
+          <th><i class="bi bi-envelope me-1"></i>Correo</th>
+          <th class="text-center"><i class="bi bi-gear me-1"></i>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="providersTable">
+        {% for prov in proveedores %}
+        <tr data-proveedor="{{ prov['nombre']|lower }}" 
+            data-rut="{{ prov['rut']|lower }}" 
+            data-comuna="{{ prov['comuna']|lower }}">
+          <td>
+            <div class="d-flex align-items-center">
+              <div class="bg-primary rounded-circle p-2 me-2" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                <i class="bi bi-building text-white"></i>
+              </div>
+              <div>
+                <strong>{{ prov['nombre'] }}</strong>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="badge bg-secondary">{{ prov['rut'] }}</span>
+          </td>
+          <td>
+            {% if prov['fono'] %}
+              <a href="tel:{{ prov['fono'] }}" class="text-decoration-none">
+                <i class="bi bi-telephone me-1"></i>{{ prov['fono'] }}
+              </a>
+            {% else %}
+              <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+          <td>
+            <small class="text-muted">{{ prov['direccion'] or '-' }}</small>
+          </td>
+          <td>
+            {% if prov['comuna'] %}
+              <span class="badge bg-light text-dark">{{ prov['comuna'] }}</span>
+            {% else %}
+              <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if prov['contacto'] %}
+              <div class="d-flex align-items-center">
+                <i class="bi bi-person-circle me-1 text-muted"></i>
+                <small>{{ prov['contacto'] }}</small>
+              </div>
+            {% else %}
+              <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if prov['correo'] %}
+              <a href="mailto:{{ prov['correo'] }}" class="text-decoration-none">
+                <i class="bi bi-envelope me-1"></i>
+                <small>{{ prov['correo'] }}</small>
+              </a>
+            {% else %}
+              <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+          <td class="text-center">
+            <a href="{{ url_for('proveedores.edit_proveedor', id=prov['id']) }}" 
+               class="btn btn-warning-modern btn-sm">
+              <i class="bi bi-pencil"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  
+  <!-- Footer con información de la tabla -->
+  <div class="p-3 border-top bg-light">
+    <div class="row align-items-center">
+      <div class="col-md-6">
+        <small class="text-muted">
+          <i class="bi bi-info-circle me-1"></i>
+          Total de proveedores: <strong id="totalProveedores">{{ proveedores|length }}</strong>
+        </small>
+      </div>
+      <div class="col-md-6 text-end">
+        <small class="text-muted">
+          Mostrando: <strong id="proveedoresVisibles">{{ proveedores|length }}</strong> de <strong>{{ proveedores|length }}</strong>
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- JavaScript moderno y mejorado -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Elementos del DOM
+  const searchInput = document.getElementById('searchInput');
+  const proveedorForm = document.getElementById('proveedorForm');
+  const providersTable = document.getElementById('providersTable');
+  const rutInput = document.getElementById('rut');
+  const rutError = document.getElementById('rut-error');
+  
+  // Configuración de animaciones
+  const animateElements = document.querySelectorAll('.fade-in');
+  animateElements.forEach((el, index) => {
+    el.style.animationDelay = `${index * 0.1}s`;
+  });
+
+  // Validación de RUT mejorada
+  function validateRut(input) {
+    const rut = input.value.trim().toUpperCase();
+    
+    // Limpiar formato previo
+    input.value = rut;
+    rutError.classList.remove('show');
+    input.setCustomValidity('');
+    
+    if (!rut) return;
+    
+    // Verificar formato básico
+    const pattern = /^[0-9]+-[0-9Kk]$/;
+    if (!pattern.test(rut)) {
+      showRutError('Formato de RUT incorrecto. Use: 12345678-9');
+      return;
+    }
+    
+    // Validar dígito verificador
+    let [num, dv] = rut.split('-');
+    let sum = 0;
+    let mul = 2;
+    
+    for (let i = num.length - 1; i >= 0; i--) {
+      sum += parseInt(num[i]) * mul;
+      mul = mul === 7 ? 2 : mul + 1;
+    }
+    
+    let res = 11 - (sum % 11);
+    if (res === 11) res = '0';
+    if (res === 10) res = 'K';
+    
+    if (res.toString() !== dv) {
+      showRutError('RUT inválido. Verifique el dígito verificador.');
+      return;
+    }
+    
+    // RUT válido
+    input.classList.add('is-valid');
+    setTimeout(() => input.classList.remove('is-valid'), 2000);
+  }
+  
+  function showRutError(message) {
+    rutError.textContent = message;
+    rutError.classList.add('show');
+    rutInput.setCustomValidity(message);
+    rutInput.classList.add('is-invalid');
+    setTimeout(() => rutInput.classList.remove('is-invalid'), 3000);
+  }
+  
+  // Función de búsqueda mejorada
+  function performSearch() {
+    const term = searchInput.value.toLowerCase().trim();
+    const rows = providersTable.querySelectorAll('tr');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+      if (!row.dataset.proveedor) return; // Skip if no data attributes
+      
+      const nombre = row.dataset.proveedor || '';
+      const rut = row.dataset.rut || '';
+      const comuna = row.dataset.comuna || '';
+      
+      const matches = nombre.includes(term) || 
+                     rut.includes(term) || 
+                     comuna.includes(term);
+      
+      if (matches || term === '') {
+        row.style.display = '';
+        row.style.opacity = '0';
+        setTimeout(() => {
+          row.style.opacity = '1';
+          row.style.transform = 'translateX(0)';
+        }, visibleCount * 50);
+        visibleCount++;
+      } else {
+        row.style.opacity = '0';
+        row.style.transform = 'translateX(-20px)';
+        setTimeout(() => {
+          row.style.display = 'none';
+        }, 200);
+      }
     });
-  </script>
+    
+    // Actualizar contador
+    document.getElementById('proveedoresVisibles').textContent = visibleCount;
+    
+    // Mostrar mensaje si no hay resultados
+    showNoResults(visibleCount === 0 && term !== '');
+  }
+  
+  function showNoResults(show) {
+    let noResultsRow = document.getElementById('noResultsRow');
+    
+    if (show && !noResultsRow) {
+      noResultsRow = document.createElement('tr');
+      noResultsRow.id = 'noResultsRow';
+      noResultsRow.innerHTML = `
+        <td colspan="8" class="text-center py-4">
+          <i class="bi bi-search text-muted" style="font-size: 2rem;"></i>
+          <div class="mt-2 text-muted">
+            <strong>No se encontraron proveedores</strong><br>
+            <small>Intente con otros términos de búsqueda</small>
+          </div>
+        </td>
+      `;
+      providersTable.appendChild(noResultsRow);
+    } else if (!show && noResultsRow) {
+      noResultsRow.remove();
+    }
+  }
+  
+  // Función para limpiar formulario
+  window.limpiarFormulario = function() {
+    proveedorForm.reset();
+    
+    // Limpiar errores
+    rutError.classList.remove('show');
+    rutInput.setCustomValidity('');
+    rutInput.classList.remove('is-invalid', 'is-valid');
+    
+    // Cambiar action del formulario para crear nuevo
+    proveedorForm.action = "{{ url_for('proveedores.new_proveedor') }}";
+    
+    // Enfocar primer campo
+    document.getElementById('nombre').focus();
+    
+    // Scroll suave al formulario
+    document.querySelector('.form-section').scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+    
+    // Feedback visual
+    showNotification('Formulario listo para nuevo proveedor', 'info');
+  };
+  
+  // Función para mostrar notificaciones
+  function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notification.innerHTML = `
+      <i class="bi bi-${type === 'info' ? 'info-circle' : type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(notification);
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, 5000);
+  }
+  
+  // Event listeners
+  searchInput.addEventListener('input', performSearch);
+  searchInput.addEventListener('keyup', function(e) {
+    if (e.key === 'Escape') {
+      this.value = '';
+      performSearch();
+    }
+  });
+  
+  rutInput.addEventListener('blur', function() {
+    validateRut(this);
+  });
+  
+  rutInput.addEventListener('input', function() {
+    // Limpiar errores mientras escribe
+    rutError.classList.remove('show');
+    this.setCustomValidity('');
+    this.classList.remove('is-invalid');
+  });
+  
+  // Validación del formulario
+  proveedorForm.addEventListener('submit', function(e) {
+    const requiredFields = this.querySelectorAll('[required]');
+    let isValid = true;
+    
+    requiredFields.forEach(field => {
+      if (!field.value.trim()) {
+        field.classList.add('is-invalid');
+        isValid = false;
+      } else {
+        field.classList.remove('is-invalid');
+      }
+    });
+    
+    if (!isValid) {
+      e.preventDefault();
+      showNotification('Por favor complete todos los campos requeridos', 'warning');
+      return;
+    }
+    
+    // Validar RUT antes de enviar
+    if (rutInput.value && rutInput.checkValidity() === false) {
+      e.preventDefault();
+      showNotification('Por favor corrija el RUT antes de continuar', 'warning');
+      rutInput.focus();
+      return;
+    }
+    
+    // Feedback de envío
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Procesando...';
+    submitBtn.disabled = true;
+    
+    // Re-habilitar botón después de 3 segundos (en caso de error)
+    setTimeout(() => {
+      submitBtn.innerHTML = originalText;
+      submitBtn.disabled = false;
+    }, 3000);
+  });
+  
+  // Mejorar experiencia de usuario con campos
+  const formInputs = document.querySelectorAll('.form-control-modern');
+  formInputs.forEach(input => {
+    input.addEventListener('focus', function() {
+      this.parentElement.classList.add('focused');
+    });
+    
+    input.addEventListener('blur', function() {
+      this.parentElement.classList.remove('focused');
+    });
+  });
+  
+  // Auto-completar "Páguese a" con el nombre cuando esté vacío
+  const nombreInput = document.getElementById('nombre');
+  const pagueseAInput = document.getElementById('paguese_a');
+  
+  nombreInput.addEventListener('blur', function() {
+    if (this.value && !pagueseAInput.value) {
+      pagueseAInput.value = this.value;
+    }
+  });
+  
+  // Inicialización
+  console.log('Módulo de proveedores cargado correctamente');
+  {% if proveedor %}
+  showNotification('Editando: {{ proveedor.nombre }}', 'info');
+  {% endif %}
+});
+</script>
+
 {% endblock %}

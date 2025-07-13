@@ -1,96 +1,714 @@
 {# templates/trabajadores/form.html #}
 {% extends "base.html" %}
-{% block title %}Trabajadores - Apps. Adquisiciones{% endblock %}
+{% block title %}Trabajadores - SOMYL{% endblock %}
 
 {% block content %}
-<h1 class="titulo-modulo w-100 titulo-modulo-con-icono">
-  <span class="icono-modulo">S</span>
-  Trabajadores
-</h1>
-  <style>
-    /* Neumorphism y estilos locales */
-    #searchInput {
-      width:100%; background:#fafafa; border:none; border-radius:.75rem;
-      padding:.5rem .75rem; box-shadow:inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.7);
-      margin-bottom:1.5rem; transition:box-shadow .2s;
+<style>
+  /* Estilos modernos para el módulo de trabajadores */
+  .modern-container {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 20px;
+    padding: 2rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+  }
+  
+  .header-section {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  }
+  
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  
+  .stat-card {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+    transition: transform 0.2s ease;
+  }
+  
+  .stat-card:hover {
+    transform: translateY(-2px);
+  }
+  
+  .stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+  }
+  
+  .stat-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+  }
+  
+  .search-section {
+    background: white;
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  }
+  
+  .search-input {
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    background: #f8f9fa;
+  }
+  
+  .search-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+    background: white;
+  }
+  
+  .form-section {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  }
+  
+  .form-modern {
+    margin-bottom: 0;
+  }
+  
+  .form-group-modern {
+    margin-bottom: 1.5rem;
+  }
+  
+  .form-label-modern {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+  
+  .form-control-modern {
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+    background: #f8f9fa;
+    width: 100%;
+  }
+  
+  .form-control-modern:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+    background: white;
+  }
+  
+  .form-control-modern.is-valid {
+    border-color: #28a745;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2328a745' d='m2.3 6.73.45-.45 1.47-1.47-.92-.92L2.3 5.15l-1.47-1.47-.92.92z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+  }
+  
+  .form-control-modern.is-invalid {
+    border-color: #dc3545;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3e%3cpath fill='%23dc3545' d='M6 0C2.7 0 0 2.7 0 6s2.7 6 6 6 6-2.7 6-6S9.3 0 6 0zM4.5 8.5L3 7l1.5-1.5L3 4l1.5-1.5L6 4l1.5-1.5L9 4 7.5 5.5 9 7l-1.5 1.5L6 7l-1.5 1.5z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+  }
+  
+  .btn-modern {
+    border: none;
+    border-radius: 10px;
+    padding: 0.75rem 2rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  
+  .btn-primary-modern {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+  }
+  
+  .btn-primary-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,123,255,0.4);
+  }
+  
+  .btn-success-modern {
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(40,167,69,0.3);
+  }
+  
+  .btn-success-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(40,167,69,0.4);
+  }
+  
+  .btn-warning-modern {
+    background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+    color: #212529;
+    box-shadow: 0 4px 15px rgba(255,193,7,0.3);
+  }
+  
+  .btn-warning-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255,193,7,0.4);
+  }
+  
+  .btn-secondary-modern {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(108,117,125,0.3);
+  }
+  
+  .btn-secondary-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(108,117,125,0.4);
+  }
+  
+  .table-section {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  
+  .table-modern {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0;
+  }
+  
+  .table-modern th {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: none;
+    padding: 1rem;
+    font-weight: 600;
+    color: #495057;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  
+  .table-modern td {
+    border: none;
+    padding: 1rem;
+    text-align: center;
+    vertical-align: middle;
+    border-bottom: 1px solid #f8f9fa;
+  }
+  
+  .table-modern tbody tr {
+    transition: all 0.2s ease;
+  }
+  
+  .table-modern tbody tr:hover {
+    background: linear-gradient(135deg, rgba(0,123,255,0.05) 0%, rgba(0,123,255,0.02) 100%);
+    transform: scale(1.01);
+  }
+  
+  .table-responsive-modern {
+    border-radius: 10px;
+    overflow: hidden;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  
+  .badge-modern {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 500;
+    font-size: 0.8rem;
+  }
+  
+  .loading-spinner {
+    display: none;
+    text-align: center;
+    margin: 2rem 0;
+  }
+  
+  .form-feedback {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+  }
+  
+  .feedback-valid {
+    color: #28a745;
+  }
+  
+  .feedback-invalid {
+    color: #dc3545;
+  }
+  
+  .alert-modern {
+    border: none;
+    border-radius: 10px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+  
+  .alert-success-modern {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    color: #155724;
+    border-left: 4px solid #28a745;
+  }
+  
+  .alert-danger-modern {
+    background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+  }
+  
+  .section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .section-icon {
+    width: 1.5rem;
+    height: 1.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    border-radius: 50%;
+    font-size: 0.8rem;
+  }
+  
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .modern-container {
+      padding: 1rem;
+      margin: 1rem;
     }
-    #searchInput:focus { outline:none; box-shadow:inset 2px 2px 4px rgba(0,0,0,0.05), inset -2px -2px 4px rgba(255,255,255,0.7); }
-    .form-control { background:#fafafa; border:none; border-radius:.75rem; padding:.5rem .75rem;
-      box-shadow:inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.7);
-      transition:box-shadow .2s; margin-bottom:.75rem;
+    
+    .stats-grid {
+      grid-template-columns: 1fr;
     }
-    .form-control:focus { outline:none; box-shadow:inset 2px 2px 4px rgba(0,0,0,0.05), inset -2px -2px 4px rgba(255,255,255,0.7); }
-    .btn-primary, .btn-warning { border:none; border-radius:1rem;
-      box-shadow:4px 4px 8px rgba(0,0,0,0.1), -4px -4px 8px rgba(255,255,255,0.7);
-      transition:transform .2s,box-shadow .2s; padding:.5rem 1rem;
+    
+    .form-section, .search-section, .table-section {
+      padding: 1rem;
     }
-    .btn-primary:hover, .btn-warning:hover { transform:translateY(-2px);
-      box-shadow:6px 6px 12px rgba(0,0,0,0.12), -6px -6px 12px rgba(255,255,255,0.75);
+    
+    .btn-modern {
+      width: 100%;
+      margin-bottom: 0.5rem;
     }
-    .table { border-radius:.75rem; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.05); margin-top:1.5rem; }
-    .table th, .table td { text-align:center; vertical-align:middle; padding:.75rem; }
-    .table thead { background:rgba(0,0,0,0.03); font-weight:600; }
-    .alert { border-radius:.75rem; margin-bottom:1rem; }
-    .line-separator { border:none; border-top:1px solid rgba(0,0,0,0.1); margin-bottom:1rem; }
-  </style>
+  }
+</style>
 
- 
+<!-- Header con título y estadísticas -->
+<div class="header-section">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="titulo-modulo titulo-modulo-con-icono mb-0">
+      <span class="icono-modulo">👥</span>
+      Gestión de Trabajadores
+    </h1>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-secondary-modern btn-modern btn-sm" onclick="exportarTrabajadores()">
+        <i class="bi bi-file-earmark-excel me-1"></i>Exportar
+      </button>
+      <button type="button" class="btn btn-primary-modern btn-modern btn-sm" onclick="limpiarFormulario()">
+        <i class="bi bi-plus-circle me-1"></i>Nuevo
+      </button>
+    </div>
+  </div>
+  
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-number" id="totalTrabajadores">{{ trabajadores|length }}</div>
+      <div class="stat-label">Total Trabajadores</div>
+    </div>
+    <div class="stat-card" style="background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);">
+      <div class="stat-number" id="trabajadoresActivos">{{ trabajadores|length }}</div>
+      <div class="stat-label">Trabajadores Activos</div>
+    </div>
+  </div>
+</div>
 
- 
+<!-- Sección de búsqueda avanzada -->
+<div class="search-section">
+  <div class="section-title">
+    <span class="section-icon"><i class="bi bi-search"></i></span>
+    Búsqueda y Filtros
+  </div>
+  <div class="row">
+    <div class="col-md-8">
+      <input type="text" id="searchInput" class="form-control search-input" 
+             placeholder="Buscar por nombre o correo...">
+    </div>
+    <div class="col-md-4">
+      <select id="filtroEstado" class="form-control search-input">
+        <option value="">Todos los trabajadores</option>
+        <option value="activo">Activos</option>
+      </select>
+    </div>
+  </div>
+</div>
 
-  <!-- Buscador -->
-  <input type="text" id="searchInput" placeholder="Buscar trabajador…">
-
-  <!-- Formulario -->
-  <form method="POST"
+<!-- Formulario modernizado -->
+<div class="form-section">
+  <div class="section-title">
+    <span class="section-icon"><i class="bi bi-person-plus"></i></span>
+    <span id="formTitle">{{ 'Editar Trabajador' if trabajador else 'Nuevo Trabajador' }}</span>
+  </div>
+  
+  <form method="POST" id="trabajadorForm" class="form-modern"
         action="{{ url_for('trabajadores.edit_trabajador', id=trabajador['id']) if trabajador else url_for('trabajadores.new_trabajador') }}">
-    <h5>Datos de Trabajador</h5>
-    <hr class="line-separator">
-    <div class="form-row">
-      <div class="form-group col-md-6">
-        <label for="nombre">Nombre</label>
-        <input type="text" name="nombre" id="nombre"
-               value="{{ trabajador['nombre'] if trabajador else '' }}"
-               class="form-control" required oninput="this.value=this.value.toUpperCase();">
+    
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group-modern">
+          <label for="nombre" class="form-label-modern">
+            <i class="bi bi-person me-1"></i>Nombre Completo
+          </label>
+          <input type="text" name="nombre" id="nombre"
+                 value="{{ trabajador['nombre'] if trabajador else '' }}"
+                 class="form-control-modern" 
+                 placeholder="Ingrese el nombre completo"
+                 required>
+          <div class="form-feedback" id="nombreFeedback"></div>
+        </div>
       </div>
-      <div class="form-group col-md-6">
-        <label for="correo">Correo</label>
-        <input type="email" name="correo" id="correo"
-               value="{{ trabajador['correo'] if trabajador else '' }}"
-               class="form-control" required>
+      <div class="col-md-6">
+        <div class="form-group-modern">
+          <label for="correo" class="form-label-modern">
+            <i class="bi bi-envelope me-1"></i>Correo Electrónico
+          </label>
+          <input type="email" name="correo" id="correo"
+                 value="{{ trabajador['correo'] if trabajador else '' }}"
+                 class="form-control-modern" 
+                 placeholder="ejemplo@empresa.com"
+                 required>
+          <div class="form-feedback" id="correoFeedback"></div>
+        </div>
       </div>
     </div>
-    <button type="submit" class="btn btn-primary btn-warning btn-custom">
-      {{ 'Actualizar' if trabajador else 'Crear' }} Trabajador
-    </button>
+    
+    <div class="d-flex gap-2 mt-4">
+      <button type="submit" class="btn btn-primary-modern btn-modern" id="submitBtn">
+        <i class="bi bi-check-circle me-1"></i>
+        <span id="submitText">{{ 'Actualizar' if trabajador else 'Crear' }} Trabajador</span>
+      </button>
+      <button type="button" class="btn btn-secondary-modern btn-modern" onclick="limpiarFormulario()">
+        <i class="bi bi-x-circle me-1"></i>Cancelar
+      </button>
+    </div>
   </form>
+</div>
 
-  <!-- Tabla de registros -->
-  <h5 class="mt-4">Trabajadores Registrados</h5>
-  <hr class="line-separator">
-  <table class="table table-bordered" id="tableBody">
-    <thead>
-      <tr><th>Nombre</th><th>Correo</th><th>Acciones</th></tr>
-    </thead>
-    <tbody>
-      {% for t in trabajadores %}
+<!-- Tabla de trabajadores modernizada -->
+<div class="table-section">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="section-title">
+      <span class="section-icon"><i class="bi bi-table"></i></span>
+      Trabajadores Registrados
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <span class="badge badge-modern bg-primary">
+        <span id="countVisible">{{ trabajadores|length }}</span> de <span id="countTotal">{{ trabajadores|length }}</span>
+      </span>
+    </div>
+  </div>
+  
+  <div class="loading-spinner" id="loadingSpinner">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+  </div>
+  
+  <div class="table-responsive-modern">
+    <table class="table-modern" id="trabajadoresTable">
+      <thead>
         <tr>
-          <td>{{ t['nombre'] }}</td>
-          <td>{{ t['correo'] }}</td>
+          <th style="width: 40%;">
+            <i class="bi bi-person me-1"></i>Nombre
+          </th>
+          <th style="width: 40%;">
+            <i class="bi bi-envelope me-1"></i>Correo Electrónico
+          </th>
+          <th style="width: 20%;">
+            <i class="bi bi-gear me-1"></i>Acciones
+          </th>
+        </tr>
+      </thead>
+      <tbody id="trabajadoresTableBody">
+        {% for t in trabajadores %}
+        <tr data-trabajador-id="{{ t['id'] }}" 
+            data-nombre="{{ t['nombre']|lower }}" 
+            data-correo="{{ t['correo']|lower }}">
           <td>
-            <a href="{{ url_for('trabajadores.edit_trabajador', id=t['id']) }}" class="btn btn-warning btn-sm">Editar</a>
+            <div class="d-flex align-items-center">
+              <div class="me-2">
+                <div style="width: 35px; height: 35px; background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">
+                  {{ t['nombre'][:1] }}
+                </div>
+              </div>
+              <div>
+                <div class="fw-semibold">{{ t['nombre'] }}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            <div class="d-flex align-items-center">
+              <i class="bi bi-envelope-fill text-muted me-2"></i>
+              <a href="mailto:{{ t['correo'] }}" class="text-decoration-none">{{ t['correo'] }}</a>
+            </div>
+          </td>
+          <td>
+            <div class="d-flex gap-1 justify-content-center">
+              <button type="button" class="btn btn-warning-modern btn-modern btn-sm" 
+                      onclick="editarTrabajador({{ t['id'] }}, '{{ t['nombre'] }}', '{{ t['correo'] }}')"
+                      title="Editar trabajador">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <a href="mailto:{{ t['correo'] }}" class="btn btn-secondary-modern btn-modern btn-sm" 
+                 title="Enviar correo">
+                <i class="bi bi-envelope"></i>
+              </a>
+            </div>
           </td>
         </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+        {% endfor %}
+        {% if not trabajadores %}
+        <tr id="noResultsRow">
+          <td colspan="3" class="text-center text-muted py-4">
+            <i class="bi bi-inbox display-1 d-block mb-2 opacity-50"></i>
+            <p class="mb-0">No hay trabajadores registrados</p>
+            <small>Agregue el primer trabajador usando el formulario arriba</small>
+          </td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
 
-  <script>
-    document.getElementById('searchInput').addEventListener('input', function() {
-      const term = this.value.toLowerCase();
-      document.querySelectorAll('#tableBody tr').forEach(row => {
-        row.style.display = row.children[0].textContent.toLowerCase().includes(term) ? '' : 'none';
-      });
+<!-- JavaScript modernizado -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Variables globales
+    const searchInput = document.getElementById('searchInput');
+    const filtroEstado = document.getElementById('filtroEstado');
+    const tableBody = document.getElementById('trabajadoresTableBody');
+    const countVisible = document.getElementById('countVisible');
+    const countTotal = document.getElementById('countTotal');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const form = document.getElementById('trabajadorForm');
+    const nombreInput = document.getElementById('nombre');
+    const correoInput = document.getElementById('correo');
+    
+    // Búsqueda en tiempo real
+    function filtrarTrabajadores() {
+        const searchTerm = searchInput.value.toLowerCase();
+        const estadoFilter = filtroEstado.value;
+        const rows = tableBody.querySelectorAll('tr[data-trabajador-id]');
+        let visibleCount = 0;
+        
+        rows.forEach(row => {
+            const nombre = row.dataset.nombre || '';
+            const correo = row.dataset.correo || '';
+            const matchesSearch = nombre.includes(searchTerm) || correo.includes(searchTerm);
+            const matchesEstado = !estadoFilter || estadoFilter === 'activo'; // Todos son activos por ahora
+            
+            if (matchesSearch && matchesEstado) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        countVisible.textContent = visibleCount;
+        
+        // Mostrar mensaje si no hay resultados
+        const noResultsRow = document.getElementById('noResultsRow');
+        if (noResultsRow) {
+            noResultsRow.style.display = visibleCount === 0 ? '' : 'none';
+        }
+    }
+    
+    // Event listeners para búsqueda
+    searchInput.addEventListener('input', filtrarTrabajadores);
+    filtroEstado.addEventListener('change', filtrarTrabajadores);
+    
+    // Validación en tiempo real
+    function validarNombre() {
+        const valor = nombreInput.value.trim();
+        const feedback = document.getElementById('nombreFeedback');
+        
+        if (valor.length === 0) {
+            nombreInput.classList.remove('is-valid', 'is-invalid');
+            feedback.textContent = '';
+        } else if (valor.length < 2) {
+            nombreInput.classList.remove('is-valid');
+            nombreInput.classList.add('is-invalid');
+            feedback.textContent = 'El nombre debe tener al menos 2 caracteres';
+            feedback.className = 'form-feedback feedback-invalid';
+        } else {
+            nombreInput.classList.remove('is-invalid');
+            nombreInput.classList.add('is-valid');
+            feedback.textContent = 'Nombre válido';
+            feedback.className = 'form-feedback feedback-valid';
+        }
+    }
+    
+    function validarCorreo() {
+        const valor = correoInput.value.trim();
+        const feedback = document.getElementById('correoFeedback');
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        
+        if (valor.length === 0) {
+            correoInput.classList.remove('is-valid', 'is-invalid');
+            feedback.textContent = '';
+        } else if (!emailRegex.test(valor)) {
+            correoInput.classList.remove('is-valid');
+            correoInput.classList.add('is-invalid');
+            feedback.textContent = 'Ingrese un correo electrónico válido';
+            feedback.className = 'form-feedback feedback-invalid';
+        } else {
+            correoInput.classList.remove('is-invalid');
+            correoInput.classList.add('is-valid');
+            feedback.textContent = 'Correo válido';
+            feedback.className = 'form-feedback feedback-valid';
+        }
+    }
+    
+    // Event listeners para validación
+    nombreInput.addEventListener('input', function() {
+        // Convertir a mayúsculas
+        this.value = this.value.toUpperCase();
+        validarNombre();
     });
-  </script>
+    
+    correoInput.addEventListener('input', function() {
+        // Convertir a minúsculas
+        this.value = this.value.toLowerCase();
+        validarCorreo();
+    });
+    
+    // Validación del formulario antes de enviar
+    form.addEventListener('submit', function(e) {
+        validarNombre();
+        validarCorreo();
+        
+        const hasErrors = document.querySelectorAll('.is-invalid').length > 0;
+        const hasEmptyFields = !nombreInput.value.trim() || !correoInput.value.trim();
+        
+        if (hasErrors || hasEmptyFields) {
+            e.preventDefault();
+            alert('Por favor, corrija los errores en el formulario antes de continuar.');
+            return false;
+        }
+        
+        // Mostrar spinner de carga
+        const submitBtn = document.getElementById('submitBtn');
+        const submitText = document.getElementById('submitText');
+        const originalText = submitText.textContent;
+        
+        submitBtn.disabled = true;
+        submitText.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Guardando...';
+        
+        // Restaurar después de un tiempo (por si hay error)
+        setTimeout(() => {
+            submitBtn.disabled = false;
+            submitText.textContent = originalText;
+        }, 5000);
+    });
+});
+
+// Funciones globales
+function editarTrabajador(id, nombre, correo) {
+    // Actualizar el formulario
+    document.getElementById('nombre').value = nombre;
+    document.getElementById('correo').value = correo;
+    
+    // Cambiar la acción del formulario
+    const form = document.getElementById('trabajadorForm');
+    form.action = `/trabajadores/edit/${id}`;
+    
+    // Actualizar títulos
+    document.getElementById('formTitle').innerHTML = '<span class="section-icon"><i class="bi bi-pencil"></i></span>Editar Trabajador';
+    document.getElementById('submitText').textContent = 'Actualizar Trabajador';
+    
+    // Scroll al formulario
+    document.querySelector('.form-section').scrollIntoView({ behavior: 'smooth' });
+    
+    // Focus en el primer campo
+    document.getElementById('nombre').focus();
+}
+
+function limpiarFormulario() {
+    // Limpiar campos
+    document.getElementById('nombre').value = '';
+    document.getElementById('correo').value = '';
+    
+    // Remover clases de validación
+    document.querySelectorAll('.is-valid, .is-invalid').forEach(el => {
+        el.classList.remove('is-valid', 'is-invalid');
+    });
+    
+    // Limpiar feedback
+    document.querySelectorAll('.form-feedback').forEach(el => {
+        el.textContent = '';
+    });
+    
+    // Cambiar la acción del formulario a nuevo
+    const form = document.getElementById('trabajadorForm');
+    form.action = '/trabajadores/new';
+    
+    // Actualizar títulos
+    document.getElementById('formTitle').innerHTML = '<span class="section-icon"><i class="bi bi-person-plus"></i></span>Nuevo Trabajador';
+    document.getElementById('submitText').textContent = 'Crear Trabajador';
+    
+    // Focus en el primer campo
+    document.getElementById('nombre').focus();
+}
+
+function exportarTrabajadores() {
+    // Simular exportación (aquí podrías implementar exportación real)
+    alert('Funcionalidad de exportación próximamente disponible');
+}
+
+// Inicialización
+document.addEventListener('DOMContentLoaded', function() {
+    // Ocultar spinner de carga
+    setTimeout(() => {
+        const spinner = document.getElementById('loadingSpinner');
+        if (spinner) spinner.style.display = 'none';
+    }, 500);
+});
+</script>
+
 {% endblock %}

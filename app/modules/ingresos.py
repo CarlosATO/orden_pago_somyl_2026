@@ -23,15 +23,17 @@ def list_ingresos():
     oc_raw = (
         supabase.table("orden_de_compra")
                  .select("orden_compra")
-                 .order("orden_compra")
+                 .order("orden_compra", desc=True)  # Ordenar descendente para obtener la última primero
                  .execute().data or []
     )
-    oc_nums = sorted(set(int(oc["orden_compra"]) for oc in oc_raw if oc["orden_compra"] is not None))
-    max_oc = max(oc_nums) if oc_nums else ""
+    oc_nums = sorted(set(int(oc["orden_compra"]) for oc in oc_raw if oc["orden_compra"] is not None), reverse=True)
+    max_oc = oc_nums[0] if oc_nums else None
 
-    # Si no viene por querystring, usar el mayor por defecto
-    if not oc:
+    # Si no viene por querystring, usar la OC más reciente por defecto
+    if not oc and max_oc:
         oc = max_oc
+        # Redirigir para que la URL muestre la OC seleccionada
+        return redirect(url_for("ingresos.list_ingresos", oc=oc))
 
     header = {}
     lines = []
@@ -48,10 +50,24 @@ def list_ingresos():
         od = oc_res[0] if oc_res else None
 
         if od:
+            # Obtener el nombre del solicitante si viene como ID
+            solicita_nombre = od["solicita"]
+            if solicita_nombre and solicita_nombre.isdigit():
+                # Si es un número, buscar el nombre en la tabla trabajadores
+                trabajador = (
+                    supabase.table("trabajadores")
+                             .select("nombre")
+                             .eq("id", int(solicita_nombre))
+                             .limit(1)
+                             .execute().data or []
+                )
+                if trabajador:
+                    solicita_nombre = trabajador[0]["nombre"]
+            
             header = {
                 "orden_compra": od["orden_compra"],
                 "fecha":        od["fecha"],
-                "solicita":     od["solicita"],
+                "solicita":     solicita_nombre,
                 "fac_sin_iva":  bool(od["fac_sin_iva"]),
                 "proveedor_id": od["proveedor"],
             }
@@ -173,13 +189,12 @@ def save_ingresos():
 
     # 3) Leer datos del formulario
     proveedor_id = int(f.get("proveedor_id", 0))
-    guia         = f.get("guia_recepcion", "")
-    # Ahora opcional: factura puede estar en form o no
-    factura_val  = f.get("factura", None) or None
-
+    factura      = f.get("factura", "")  # Documento principal (factura)
+    guia         = f.get("guia_recepcion", "")  # Guía de recepción (opcional)
+    
     # ADVERTENCIA si no hay número de documento
-    if not guia:
-        flash("Acaba de registrar un ingreso sin documento. Quedará pendiente en el módulo Doc Pendientes.", "warning")
+    if not factura:
+        flash("Acaba de registrar un ingreso sin número de factura. Quedará pendiente en el módulo Doc Pendientes.", "warning")
 
     descs        = f.getlist("desc_linea[]")
     mat_ids      = f.getlist("material_id[]")
@@ -245,8 +260,8 @@ def save_ingresos():
             "orden_compra":    oc_val,
             "id_or_compra":    orden_id,
             "fecha":           hoy,
-            "factura":         factura_val,
-            "guia_recepcion":  guia,
+            "factura":         factura,  # Documento principal
+            "guia_recepcion":  guia,     # Guía de recepción (opcional)
             "material":        mat_id,
             "recepcion":       rec,
             "neto_unitario":   neto,

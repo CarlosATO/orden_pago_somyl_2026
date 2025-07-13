@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+{% block title %}Dashboard de Usuarios - SOMYL{% endblock %}
+
+{% block content %}
+<style>
+  .stats-card {
+    transition: transform 0.2s ease;
+  }
+  
+  .stats-card:hover {
+    transform: translateY(-2px);
+  }
+  
+  .chart-container {
+    position: relative;
+    height: 300px;
+  }
+  
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    font-size: 12px;
+  }
+  
+  .risk-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  
+  .card {
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+  
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+  }
+</style>
+
+<h1 class="titulo-modulo w-100 titulo-modulo-con-icono">
+  <span class="icono-modulo">📊</span>
+  Dashboard de Usuarios
+</h1>
+
+<div class="row mb-4">
+  <div class="col-md-12">
+    <div class="d-flex justify-content-between align-items-center">
+      <h2 class="mb-0">Resumen General</h2>
+      <div>
+        <a href="{{ url_for('usuarios.list_usuarios') }}" class="btn btn-outline-primary">
+          <i class="bi bi-people me-1"></i>Ver Lista
+        </a>
+        <a href="{{ url_for('usuarios.nuevo_usuario') }}" class="btn btn-success">
+          <i class="bi bi-person-plus me-1"></i>Nuevo Usuario
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Estadísticas principales -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm stats-card">
+      <div class="card-body text-center">
+        <div class="d-flex align-items-center justify-content-center mb-3">
+          <div class="bg-primary rounded-circle p-3">
+            <i class="bi bi-people text-white fs-2"></i>
+          </div>
+        </div>
+        <h2 class="fw-bold text-primary mb-1">{{ stats.total_usuarios }}</h2>
+        <p class="text-muted mb-0">Total de Usuarios</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm stats-card">
+      <div class="card-body text-center">
+        <div class="d-flex align-items-center justify-content-center mb-3">
+          <div class="bg-success rounded-circle p-3">
+            <i class="bi bi-person-check text-white fs-2"></i>
+          </div>
+        </div>
+        <h2 class="fw-bold text-success mb-1">{{ stats.activos }}</h2>
+        <p class="text-muted mb-0">Usuarios Activos</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm stats-card">
+      <div class="card-body text-center">
+        <div class="d-flex align-items-center justify-content-center mb-3">
+          <div class="bg-danger rounded-circle p-3">
+            <i class="bi bi-person-x text-white fs-2"></i>
+          </div>
+        </div>
+        <h2 class="fw-bold text-danger mb-1">{{ stats.bloqueados }}</h2>
+        <p class="text-muted mb-0">Usuarios Bloqueados</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm stats-card">
+      <div class="card-body text-center">
+        <div class="d-flex align-items-center justify-content-center mb-3">
+          <div class="bg-warning rounded-circle p-3">
+            <i class="bi bi-exclamation-triangle text-white fs-2"></i>
+          </div>
+        </div>
+        <h2 class="fw-bold text-warning mb-1">{{ stats.con_intentos_fallidos }}</h2>
+        <p class="text-muted mb-0">Con Intentos Fallidos</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Gráfico de distribución -->
+<div class="row mb-4">
+  <div class="col-md-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-light border-0 py-3">
+        <h5 class="mb-0 fw-bold">
+          <i class="bi bi-pie-chart me-2"></i>Distribución de Estados
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="chart-container">
+          <canvas id="userStatusChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-light border-0 py-3">
+        <h5 class="mb-0 fw-bold">
+          <i class="bi bi-info-circle me-2"></i>Información Rápida
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-light rounded">
+          <div>
+            <h6 class="mb-0">Porcentaje Activo</h6>
+            <small class="text-muted">Usuarios activos del total</small>
+          </div>
+          <div class="text-end">
+            <h5 class="mb-0 text-success">
+              {% if stats.total_usuarios > 0 %}
+                {{ "%.1f"|format((stats.activos / stats.total_usuarios) * 100) }}%
+              {% else %}
+                0%
+              {% endif %}
+            </h5>
+          </div>
+        </div>
+        
+        <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-light rounded">
+          <div>
+            <h6 class="mb-0">Usuarios en Riesgo</h6>
+            <small class="text-muted">Con intentos fallidos</small>
+          </div>
+          <div class="text-end">
+            <h5 class="mb-0 text-warning">{{ stats.con_intentos_fallidos }}</h5>
+          </div>
+        </div>
+        
+        <div class="d-flex justify-content-between align-items-center p-3 bg-light rounded">
+          <div>
+            <h6 class="mb-0">Usuarios Inactivos</h6>
+            <small class="text-muted">Sin último acceso</small>
+          </div>
+          <div class="text-end">
+            <h5 class="mb-0 text-secondary">{{ usuarios_inactivos | length }}</h5>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Usuarios en riesgo -->
+{% if usuarios_riesgo %}
+<div class="row mb-4">
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-light border-0 py-3">
+        <h5 class="mb-0 fw-bold text-warning">
+          <i class="bi bi-exclamation-triangle me-2"></i>Usuarios con Intentos Fallidos
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="list-group list-group-flush">
+          {% for usuario in usuarios_riesgo %}
+          <div class="list-group-item d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+              <div class="user-avatar bg-warning me-3">
+                {{ usuario.nombre[0].upper() }}
+              </div>
+              <div>
+                <h6 class="mb-0">{{ usuario.nombre }}</h6>
+                <small class="text-muted">{{ usuario.email }}</small>
+              </div>
+            </div>
+            <div class="text-end">
+              <span class="badge bg-warning">
+                {{ usuario.intentos_fallidos }} intentos
+              </span>
+              <br>
+              <small class="text-muted">
+                {% if usuario.get('bloqueado', False) %}
+                  <i class="bi bi-lock text-danger"></i> Bloqueado
+                {% else %}
+                  <i class="bi bi-unlock text-success"></i> Activo
+                {% endif %}
+              </small>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-light border-0 py-3">
+        <h5 class="mb-0 fw-bold text-info">
+          <i class="bi bi-clock me-2"></i>Usuarios Sin Acceso Reciente
+        </h5>
+      </div>
+      <div class="card-body">
+        {% if usuarios_inactivos %}
+        <div class="list-group list-group-flush">
+          {% for usuario in usuarios_inactivos[:5] %}
+          <div class="list-group-item d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+              <div class="user-avatar bg-secondary me-3">
+                {{ usuario.nombre[0].upper() }}
+              </div>
+              <div>
+                <h6 class="mb-0">{{ usuario.nombre }}</h6>
+                <small class="text-muted">{{ usuario.email }}</small>
+              </div>
+            </div>
+            <div class="text-end">
+              <small class="text-muted">
+                <i class="bi bi-clock"></i> Sin acceso
+              </small>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+          <i class="bi bi-check-circle text-success fs-1"></i>
+          <p class="text-muted mt-2">Todos los usuarios han accedido recientemente</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Acciones rápidas -->
+<div class="row">
+  <div class="col-md-12">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-light border-0 py-3">
+        <h5 class="mb-0 fw-bold">
+          <i class="bi bi-lightning me-2"></i>Acciones Rápidas
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-3">
+            <div class="d-grid">
+              <a href="{{ url_for('usuarios.nuevo_usuario') }}" class="btn btn-success btn-lg">
+                <i class="bi bi-person-plus mb-2 d-block fs-3"></i>
+                Crear Usuario
+              </a>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="d-grid">
+              <a href="{{ url_for('usuarios.list_usuarios', estado='bloqueados') }}" class="btn btn-danger btn-lg">
+                <i class="bi bi-person-x mb-2 d-block fs-3"></i>
+                Ver Bloqueados
+              </a>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="d-grid">
+              <a href="{{ url_for('usuarios.list_usuarios', estado='inactivos') }}" class="btn btn-secondary btn-lg">
+                <i class="bi bi-person-dash mb-2 d-block fs-3"></i>
+                Ver Inactivos
+              </a>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="d-grid">
+              <button class="btn btn-info btn-lg" onclick="exportarDatos()">
+                <i class="bi bi-download mb-2 d-block fs-3"></i>
+                Exportar Datos
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Gráfico de distribución de usuarios
+  const ctx = document.getElementById('userStatusChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Activos', 'Inactivos', 'Bloqueados'],
+      datasets: [{
+        data: [{{ stats.activos }}, {{ stats.inactivos }}, {{ stats.bloqueados }}],
+        backgroundColor: ['#28a745', '#6c757d', '#dc3545'],
+        borderWidth: 0
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            padding: 20,
+            usePointStyle: true
+          }
+        }
+      }
+    }
+  });
+});
+
+function exportarDatos() {
+  // Implementar exportación si es necesario
+  alert('Función de exportación en desarrollo');
+}
+</script>
+{% endblock %}

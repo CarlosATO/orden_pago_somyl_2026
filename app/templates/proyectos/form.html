@@ -1,94 +1,630 @@
-{# templates/proyectos/form.html #}
 {% extends "base.html" %}
-{% block title %}Proyectos - Apps. Adquisiciones{% endblock %}
+
+{% block title %}Proyectos - SOMYL{% endblock %}
 
 {% block content %}
-  <style>
-    /* Neumorphism y estilos locales */
-    #searchInput {
-      width:100%; background:#fafafa; border:none; border-radius:.75rem;
-      padding:.5rem .75rem; box-shadow:inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.7);
-      margin-bottom:1.5rem; font-size:.9rem; transition:box-shadow .2s;
-    }
-    #searchInput:focus { outline:none; box-shadow:inset 2px 2px 4px rgba(0,0,0,0.05), inset -2px -2px 4px rgba(255,255,255,0.7); }
-    .form-control { background:#fafafa; border:none; border-radius:.75rem; padding:.5rem .75rem; box-shadow:inset 4px 4px 8px rgba(0,0,0,0.05), inset -4px -4px 8px rgba(255,255,255,0.7); margin-bottom:.75rem; transition:box-shadow .2s; }
-    .form-control:focus { outline:none; box-shadow:inset 2px 2px 4px rgba(0,0,0,0.05), inset -2px -2px 4px rgba(255,255,255,0.7); }
-    .btn-custom, .btn-primary, .btn-warning, .btn-secondary { border:none; border-radius:1rem; padding:.5rem 1rem; box-shadow:4px 4px 8px rgba(0,0,0,0.1),-4px -4px 8px rgba(255,255,255,0.7); transition:transform .2s,box-shadow .2s; }
-    .btn-custom:hover, .btn-primary:hover, .btn-warning:hover, .btn-secondary:hover { transform:translateY(-2px); box-shadow:6px 6px 12px rgba(0,0,0,0.12),-6px -6px 12px rgba(255,255,255,0.75); }
-    .line-separator { border:none; border-top:1px solid rgba(0,0,0,0.1); margin-bottom:1rem; }
-    .table { border-radius:.75rem; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,0.05); margin-top:1.5rem; font-size:.9rem; }
-    .table th, .table td { text-align:center; vertical-align:middle; padding:.75rem; }
-    .table thead { background:rgba(0,0,0,0.03); font-weight:600; }
-    .alert { border-radius:.75rem; margin-bottom:1rem; font-size:.9rem; }
-  </style>
-
+<style>
+  /* Estilos modernos para el módulo de proyectos */
+  .modern-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    overflow: hidden;
+  }
   
- <h1 class="titulo-modulo w-100 titulo-modulo-con-icono">
-   <span class="icono-modulo">S</span>
-   Proyectos
- </h1>
+  .modern-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  }
+  
+  .form-control-modern {
+    border: 2px solid #e9ecef;
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+    background: #ffffff;
+    font-size: 0.95rem;
+  }
+  
+  .form-control-modern:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+    outline: none;
+    background: #ffffff;
+  }
+  
+  .form-control-modern.is-valid {
+    border-color: #28a745;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3e%3cpath fill='%2328a745' d='m2.3 6.73.94-.94 2.94 2.94L8.5 6.4l.94.94L8.5 8.27 4.27 4.04z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+  }
+  
+  .form-control-modern.is-invalid {
+    border-color: #dc3545;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%23dc3545' viewBox='0 0 12 12'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath d='m5.8 4.6 1.4 1.4M7.2 4.6l-1.4 1.4'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right calc(0.375em + 0.1875rem) center;
+    background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+  }
+  
+  .btn-modern {
+    border-radius: 10px;
+    font-weight: 500;
+    padding: 0.7rem 1.5rem;
+    transition: all 0.3s ease;
+    border: none;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.85rem;
+  }
+  
+  .btn-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+  }
+  
+  .btn-primary-modern {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+  }
+  
+  .btn-success-modern {
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+    color: white;
+  }
+  
+  .btn-warning-modern {
+    background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+    color: #212529;
+  }
+  
+  .btn-secondary-modern {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    color: white;
+  }
+  
+  .search-container {
+    position: relative;
+    margin-bottom: 1.5rem;
+  }
+  
+  .search-input {
+    background: #ffffff;
+    border: 2px solid #e9ecef;
+    border-radius: 25px;
+    padding: 0.8rem 1rem 0.8rem 3rem;
+    font-size: 0.95rem;
+    transition: all 0.3s ease;
+    width: 100%;
+  }
+  
+  .search-input:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+    outline: none;
+  }
+  
+  .search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+    pointer-events: none;
+  }
+  
+  .table-modern {
+    background: white;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    border: none;
+    font-size: 0.9rem;
+  }
+  
+  .table-modern thead th {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: none;
+    font-weight: 600;
+    color: #495057;
+    padding: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.8rem;
+  }
+  
+  .table-modern tbody td {
+    border: none;
+    padding: 0.8rem 1rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #f8f9fa;
+  }
+  
+  .table-modern tbody tr {
+    transition: all 0.2s ease;
+  }
+  
+  .table-modern tbody tr:hover {
+    background: linear-gradient(135deg, rgba(0,123,255,0.05) 0%, rgba(0,123,255,0.02) 100%);
+    transform: scale(1.001);
+  }
+  
+  .stats-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border: none;
+    border-radius: 15px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+  }
+  
+  .stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+  }
+  
+  .stats-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.5rem;
+  }
+  
+  .stats-label {
+    color: #6c757d;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 0.8rem;
+  }
+  
+  .form-floating-modern {
+    position: relative;
+    margin-bottom: 1rem;
+  }
+  
+  .form-floating-modern label {
+    position: absolute;
+    top: 0;
+    left: 1rem;
+    background: white;
+    padding: 0 0.5rem;
+    color: #6c757d;
+    font-size: 0.8rem;
+    font-weight: 500;
+    transform: translateY(-50%);
+    z-index: 2;
+  }
+  
+  .validation-feedback {
+    font-size: 0.8rem;
+    margin-top: 0.25rem;
+    font-weight: 500;
+  }
+  
+  .validation-feedback.valid {
+    color: #28a745;
+  }
+  
+  .validation-feedback.invalid {
+    color: #dc3545;
+  }
+  
+  .no-results {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: #6c757d;
+  }
+  
+  .no-results i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+  
+  @media (max-width: 768px) {
+    .table-responsive {
+      border-radius: 15px;
+    }
+    
+    .modern-card {
+      margin-bottom: 1rem;
+    }
+    
+    .btn-modern {
+      width: 100%;
+      margin-bottom: 0.5rem;
+    }
+  }
+</style>
 
-  <!-- Buscador -->
-  <input type="text" id="searchInput" placeholder="Buscar proyecto…">
+<!-- Header con título y controles -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="titulo-modulo titulo-modulo-con-icono mb-0">
+    <span class="icono-modulo">🏗️</span>
+    Gestión de Proyectos
+  </h1>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-outline-primary btn-sm" onclick="exportarDatos()">
+      <i class="bi bi-download me-1"></i>Exportar
+    </button>
+    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="limpiarFormulario()">
+      <i class="bi bi-arrow-clockwise me-1"></i>Limpiar
+    </button>
+  </div>
+</div>
 
-  <!-- Formulario -->
-  <form method="POST"
-        action="{{ url_for('proyectos.edit_proyecto', id=proyecto['id']) if proyecto else url_for('proyectos.new_proyecto') }}">
-    <h5>Datos de Proyecto</h5>
-    <hr class="line-separator">
-    <div class="form-row">
-      <div class="form-group col-md-4">
-        <label for="proyecto">Proyecto</label>
-        <input type="text" name="proyecto" id="proyecto"
-               value="{{ proyecto['proyecto'] if proyecto else '' }}"
-               class="form-control" required oninput="this.value=this.value.toUpperCase();">
+<!-- Cards de estadísticas -->
+<div class="row mb-4">
+  <div class="col-md-4">
+    <div class="stats-card">
+      <div class="stats-number" id="totalProyectos">{{ proyectos|length }}</div>
+      <div class="stats-label">Total Proyectos</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stats-card">
+      <div class="stats-number" id="proyectosConVenta">{{ proyectos|selectattr('venta')|list|length }}</div>
+      <div class="stats-label">Con Venta</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stats-card">
+      <div class="stats-number" id="proyectosSinVenta">{{ (proyectos|length) - (proyectos|selectattr('venta')|list|length) }}</div>
+      <div class="stats-label">Sin Venta</div>
+    </div>
+  </div>
+</div>
+
+<!-- Búsqueda y filtros -->
+<div class="row mb-4">
+  <div class="col-md-8">
+    <div class="search-container">
+      <i class="bi bi-search search-icon"></i>
+      <input type="text" id="searchInput" class="search-input" placeholder="Buscar por proyecto, venta u observación...">
+    </div>
+  </div>
+  <div class="col-md-4">
+    <select id="ventaFilter" class="form-select form-control-modern">
+      <option value="">Todos los proyectos</option>
+      <option value="con_venta">Con venta</option>
+      <option value="sin_venta">Sin venta</option>
+    </select>
+  </div>
+</div>
+
+<!-- Formulario de creación/edición -->
+<div class="modern-card mb-4">
+  <div class="card-header" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border: none; padding: 1.5rem;">
+    <h5 class="mb-0">
+      <i class="bi bi-{{ 'pencil-square' if proyecto else 'plus-circle' }} me-2"></i>
+      {{ 'Editar Proyecto' if proyecto else 'Nuevo Proyecto' }}
+    </h5>
+  </div>
+  
+  <div class="card-body" style="padding: 2rem;">
+    <form method="POST" id="proyectoForm" 
+          action="{{ url_for('proyectos.edit_proyecto', id=proyecto['id']) if proyecto else url_for('proyectos.new_proyecto') }}">
+      
+      <div class="row">
+        <div class="col-md-4">
+          <div class="form-floating-modern">
+            <label for="proyecto">Nombre del Proyecto *</label>
+            <input type="text" 
+                   name="proyecto" 
+                   id="proyecto"
+                   value="{{ proyecto['proyecto'] if proyecto else '' }}"
+                   class="form-control form-control-modern" 
+                   required 
+                   maxlength="100"
+                   style="text-transform: uppercase;">
+            <div class="validation-feedback" id="proyecto-feedback"></div>
+          </div>
+        </div>
+        
+        <div class="col-md-4">
+          <div class="form-floating-modern">
+            <label for="venta">Valor de Venta</label>
+            <input type="text" 
+                   name="venta" 
+                   id="venta"
+                   value="{{ proyecto['venta'] if proyecto else '' }}"
+                   class="form-control form-control-modern" 
+                   maxlength="50"
+                   style="text-transform: uppercase;">
+            <div class="validation-feedback" id="venta-feedback"></div>
+          </div>
+        </div>
+        
+        <div class="col-md-4">
+          <div class="form-floating-modern">
+            <label for="observacion">Observaciones</label>
+            <input type="text" 
+                   name="observacion" 
+                   id="observacion"
+                   value="{{ proyecto['observacion'] if proyecto else '' }}"
+                   class="form-control form-control-modern" 
+                   maxlength="200"
+                   style="text-transform: uppercase;">
+            <div class="validation-feedback" id="observacion-feedback"></div>
+          </div>
+        </div>
       </div>
-      <div class="form-group col-md-4">
-        <label for="venta">Venta</label>
-        <input type="text" name="venta" id="venta"
-               value="{{ proyecto['venta'] if proyecto else '' }}"
-               class="form-control" oninput="this.value=this.value.toUpperCase();">
+      
+      <div class="d-flex gap-2 mt-3">
+        <button type="submit" class="btn btn-primary-modern btn-modern" id="submitBtn">
+          <i class="bi bi-{{ 'check-circle' if proyecto else 'plus-circle' }} me-2"></i>
+          <span class="btn-text">{{ 'Actualizar Proyecto' if proyecto else 'Crear Proyecto' }}</span>
+        </button>
+        
+        {% if proyecto %}
+        <a href="{{ url_for('proyectos.list_proyectos') }}" class="btn btn-secondary-modern btn-modern">
+          <i class="bi bi-arrow-left me-2"></i>
+          Volver al Listado
+        </a>
+        {% endif %}
       </div>
-      <div class="form-group col-md-4">
-        <label for="observacion">Observación</label>
-        <input type="text" name="observacion" id="observacion"
-               value="{{ proyecto['observacion'] if proyecto else '' }}"
-               class="form-control" oninput="this.value=this.value.toUpperCase();">
+    </form>
+  </div>
+</div>
+
+<!-- Tabla de proyectos -->
+<div class="modern-card">
+  <div class="card-header" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border: none; padding: 1.5rem;">
+    <div class="d-flex justify-content-between align-items-center">
+      <h5 class="mb-0">
+        <i class="bi bi-list-ul me-2"></i>
+        Proyectos Registrados
+      </h5>
+      <span class="badge bg-primary" id="resultCount">{{ proyectos|length }} proyectos</span>
+    </div>
+  </div>
+  
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-modern" id="proyectosTable">
+        <thead>
+          <tr>
+            <th style="width: 30%;">
+              <i class="bi bi-building me-1"></i>Proyecto
+            </th>
+            <th style="width: 25%;">
+              <i class="bi bi-currency-dollar me-1"></i>Venta
+            </th>
+            <th style="width: 30%;">
+              <i class="bi bi-chat-text me-1"></i>Observación
+            </th>
+            <th style="width: 15%;">
+              <i class="bi bi-gear me-1"></i>Acciones
+            </th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          {% for p in proyectos %}
+          <tr class="proyecto-row" data-proyecto="{{ p.proyecto|lower }}" data-venta="{{ p.venta|lower if p.venta else '' }}" data-observacion="{{ p.observacion|lower if p.observacion else '' }}">
+            <td>
+              <strong>{{ p.proyecto }}</strong>
+            </td>
+            <td>
+              {% if p.venta %}
+                <span class="badge bg-success">{{ p.venta }}</span>
+              {% else %}
+                <span class="text-muted">Sin especificar</span>
+              {% endif %}
+            </td>
+            <td>
+              <small class="text-muted">{{ p.observacion if p.observacion else '-' }}</small>
+            </td>
+            <td>
+              <a href="{{ url_for('proyectos.edit_proyecto', id=p.id) }}" 
+                 class="btn btn-warning-modern btn-sm">
+                <i class="bi bi-pencil me-1"></i>Editar
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      
+      <div class="no-results" id="noResults" style="display: none;">
+        <i class="bi bi-search"></i>
+        <h5>No se encontraron resultados</h5>
+        <p>Intenta ajustar los filtros de búsqueda</p>
       </div>
     </div>
-    <button type="submit" class="btn btn-primary btn-custom">
-      {{ 'Actualizar' if proyecto else 'Crear' }} Proyecto
-    </button>
-  </form>
+  </div>
+</div>
 
-  <!-- Tabla de registros -->
-  <h5 class="mt-4">Proyectos Registrados</h5>
-  <hr class="line-separator">
-  <table class="table table-bordered" id="tableBody">
-    <thead>
-      <tr><th>Proyecto</th><th>Venta</th><th>Observación</th><th>Acciones</th></tr>
-    </thead>
-    <tbody>
-      {% for p in proyectos %}
-        <tr>
-          <td>{{ p['proyecto'] }}</td>
-          <td>{{ p['venta']|clp }}</td>
-          <td>{{ p['observacion'] }}</td>
-          <td>
-            <a href="{{ url_for('proyectos.edit_proyecto', id=p['id']) }}" class="btn btn-warning btn-sm">Editar</a>
-          </td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  <!-- Script de búsqueda -->
-  <script>
-    document.getElementById('searchInput').addEventListener('input', function() {
-      const term = this.value.toLowerCase();
-      document.querySelectorAll('#tableBody tbody tr').forEach(row => {
-        row.style.display = row.children[0].textContent.toLowerCase().includes(term) ? '' : 'none';
-      });
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Referencias a elementos
+  const searchInput = document.getElementById('searchInput');
+  const ventaFilter = document.getElementById('ventaFilter');
+  const proyectoForm = document.getElementById('proyectoForm');
+  const tableBody = document.getElementById('tableBody');
+  const resultCount = document.getElementById('resultCount');
+  const noResults = document.getElementById('noResults');
+  const submitBtn = document.getElementById('submitBtn');
+  
+  // Validación en tiempo real
+  const proyectoInput = document.getElementById('proyecto');
+  const ventaInput = document.getElementById('venta');
+  const observacionInput = document.getElementById('observacion');
+  
+  // Validar campo proyecto
+  proyectoInput.addEventListener('input', function() {
+    const valor = this.value.trim();
+    const feedback = document.getElementById('proyecto-feedback');
+    
+    if (valor.length === 0) {
+      this.classList.remove('is-valid', 'is-invalid');
+      feedback.textContent = '';
+    } else if (valor.length < 3) {
+      this.classList.remove('is-valid');
+      this.classList.add('is-invalid');
+      feedback.textContent = 'El proyecto debe tener al menos 3 caracteres';
+      feedback.className = 'validation-feedback invalid';
+    } else {
+      this.classList.remove('is-invalid');
+      this.classList.add('is-valid');
+      feedback.textContent = 'Proyecto válido';
+      feedback.className = 'validation-feedback valid';
+    }
+    
+    // Convertir a mayúsculas
+    this.value = this.value.toUpperCase();
+    validarFormulario();
+  });
+  
+  // Validar campo venta
+  ventaInput.addEventListener('input', function() {
+    this.value = this.value.toUpperCase();
+    const feedback = document.getElementById('venta-feedback');
+    
+    if (this.value.trim()) {
+      this.classList.add('is-valid');
+      feedback.textContent = 'Valor registrado';
+      feedback.className = 'validation-feedback valid';
+    } else {
+      this.classList.remove('is-valid', 'is-invalid');
+      feedback.textContent = '';
+    }
+  });
+  
+  // Validar campo observación
+  observacionInput.addEventListener('input', function() {
+    this.value = this.value.toUpperCase();
+    const feedback = document.getElementById('observacion-feedback');
+    
+    if (this.value.trim()) {
+      this.classList.add('is-valid');
+      feedback.textContent = 'Observación registrada';
+      feedback.className = 'validation-feedback valid';
+    } else {
+      this.classList.remove('is-valid', 'is-invalid');
+      feedback.textContent = '';
+    }
+  });
+  
+  // Función para validar formulario completo
+  function validarFormulario() {
+    const proyectoValido = proyectoInput.value.trim().length >= 3;
+    submitBtn.disabled = !proyectoValido;
+    
+    if (proyectoValido) {
+      submitBtn.classList.remove('btn-secondary-modern');
+      submitBtn.classList.add('btn-primary-modern');
+    } else {
+      submitBtn.classList.remove('btn-primary-modern');
+      submitBtn.classList.add('btn-secondary-modern');
+    }
+  }
+  
+  // Función de búsqueda y filtrado
+  function filtrarTabla() {
+    const searchTerm = searchInput.value.toLowerCase().trim();
+    const ventaFilterValue = ventaFilter.value;
+    const rows = tableBody.querySelectorAll('.proyecto-row');
+    let visibleCount = 0;
+    
+    rows.forEach(row => {
+      const proyecto = row.dataset.proyecto;
+      const venta = row.dataset.venta;
+      const observacion = row.dataset.observacion;
+      
+      // Filtro de búsqueda
+      const matchesSearch = !searchTerm || 
+        proyecto.includes(searchTerm) || 
+        venta.includes(searchTerm) || 
+        observacion.includes(searchTerm);
+      
+      // Filtro de venta
+      let matchesVenta = true;
+      if (ventaFilterValue === 'con_venta') {
+        matchesVenta = venta.trim() !== '';
+      } else if (ventaFilterValue === 'sin_venta') {
+        matchesVenta = venta.trim() === '';
+      }
+      
+      // Mostrar/ocultar fila
+      const shouldShow = matchesSearch && matchesVenta;
+      row.style.display = shouldShow ? '' : 'none';
+      
+      if (shouldShow) visibleCount++;
     });
-  </script>
+    
+    // Actualizar contador
+    resultCount.textContent = `${visibleCount} proyecto${visibleCount !== 1 ? 's' : ''}`;
+    
+    // Mostrar/ocultar mensaje de no resultados
+    noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+    tableBody.style.display = visibleCount === 0 ? 'none' : '';
+  }
+  
+  // Event listeners para filtros
+  searchInput.addEventListener('input', filtrarTabla);
+  ventaFilter.addEventListener('change', filtrarTabla);
+  
+  // Envío del formulario con animación
+  proyectoForm.addEventListener('submit', function(e) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
+  });
+  
+  // Validación inicial
+  validarFormulario();
+});
+
+// Función para limpiar formulario
+function limpiarFormulario() {
+  document.getElementById('proyectoForm').reset();
+  document.querySelectorAll('.form-control-modern').forEach(input => {
+    input.classList.remove('is-valid', 'is-invalid');
+  });
+  document.querySelectorAll('.validation-feedback').forEach(feedback => {
+    feedback.textContent = '';
+  });
+  
+  // Redirigir al listado si estamos en edición
+  if (window.location.pathname.includes('/edit/')) {
+    window.location.href = "{{ url_for('proyectos.list_proyectos') }}";
+  }
+}
+
+// Función para exportar datos
+function exportarDatos() {
+  const tabla = document.getElementById('proyectosTable');
+  const filas = tabla.querySelectorAll('tbody tr:not([style*="display: none"])');
+  
+  let csv = 'Proyecto,Venta,Observación\n';
+  
+  filas.forEach(fila => {
+    const celdas = fila.querySelectorAll('td');
+    const proyecto = celdas[0].textContent.trim();
+    const venta = celdas[1].textContent.trim();
+    const observacion = celdas[2].textContent.trim();
+    
+    csv += `"${proyecto}","${venta}","${observacion}"\n`;
+  });
+  
+  // Crear y descargar archivo
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', `proyectos_${new Date().toISOString().split('T')[0]}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+</script>
+
 {% endblock %}

@@ -1,0 +1,601 @@
+{# templates/materiales/form.html #}
+{% extends "base.html" %}
+{% block title %}Materiales - SOMYL{% endblock %}
+
+{% block content %}
+<style>
+  /* Estilos modernos para el módulo de materiales */
+  .materials-container {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  }
+  
+  .form-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+    border: none;
+  }
+  
+  .form-card-header {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    padding: 1rem 1.5rem;
+    margin: -1.5rem -1.5rem 1.5rem -1.5rem;
+    border-radius: 12px 12px 0 0;
+    font-weight: 600;
+  }
+  
+  .form-control-modern {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    transition: all 0.3s ease;
+    font-size: 0.95rem;
+  }
+  
+  .form-control-modern:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+    transform: translateY(-1px);
+  }
+  
+  .form-control-modern.is-valid {
+    border-color: #28a745;
+    background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEzLjg1NDMgNC4xNDU3TDYuNjY2NjcgMTEuMzMzM0wyLjE0NTk5IDYuODEyNjVMMy4yODc5NyA1LjY3MDY3TDYuNjY2NjcgOS4wNDkzN0wxMi43MTIzIDMuMDAzNzFMMTMuODU0MyA0LjE0NTdaIiBmaWxsPSIjMjhhNzQ1Ii8+Cjwvc3ZnPgo=");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+  }
+  
+  .form-control-modern.is-invalid {
+    border-color: #dc3545;
+  }
+  
+  .btn-modern {
+    border-radius: 8px;
+    padding: 0.6rem 1.5rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: none;
+  }
+  
+  .btn-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  }
+  
+  .btn-primary-modern {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+  }
+  
+  .btn-success-modern {
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+    color: white;
+  }
+  
+  .btn-warning-modern {
+    background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+    color: white;
+  }
+  
+  .btn-secondary-modern {
+    background: linear-gradient(135deg, #6c757d 0%, #545b62 100%);
+    color: white;
+  }
+  
+  /* Tabla moderna */
+  .table-modern {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border: none;
+  }
+  
+  .table-modern thead th {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: none;
+    padding: 1rem;
+    font-weight: 600;
+    color: #495057;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+  }
+  
+  .table-modern tbody td {
+    padding: 1rem;
+    border: none;
+    border-bottom: 1px solid #f8f9fa;
+    vertical-align: middle;
+  }
+  
+  .table-modern tbody tr {
+    transition: all 0.2s ease;
+  }
+  
+  .table-modern tbody tr:hover {
+    background-color: rgba(0,123,255,0.05);
+    transform: scale(1.001);
+  }
+  
+  /* Búsqueda moderna */
+  .search-container {
+    position: relative;
+    margin-bottom: 2rem;
+  }
+  
+  .search-input {
+    border: 2px solid #e9ecef;
+    border-radius: 25px;
+    padding: 0.8rem 1.5rem 0.8rem 3rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+  }
+  
+  .search-input:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+  }
+  
+  .search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+    font-size: 1.2rem;
+  }
+  
+  /* Indicadores de estado */
+  .status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+  }
+  
+  .status-active { background-color: #28a745; }
+  .status-editing { background-color: #ffc107; }
+  
+  /* Animaciones de entrada */
+  .fade-in {
+    animation: fadeIn 0.5s ease-in;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  /* Responsive mejoras */
+  @media (max-width: 768px) {
+    .materials-container {
+      padding: 1rem;
+    }
+    
+    .form-card {
+      padding: 1rem;
+    }
+    
+    .btn-modern {
+      width: 100%;
+      margin-top: 1rem;
+    }
+  }
+  
+  /* Tooltips y ayudas */
+  .field-help {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+  }
+  
+  .required-indicator {
+    color: #dc3545;
+    font-weight: bold;
+  }
+</style>
+
+<!-- Header principal -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="titulo-modulo titulo-modulo-con-icono mb-0">
+    <span class="icono-modulo">📦</span>
+    Gestión de Materiales
+  </h1>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-secondary-modern btn-modern btn-sm" onclick="exportarMateriales()">
+      <i class="bi bi-file-earmark-excel me-1"></i>Exportar
+    </button>
+    <button type="button" class="btn btn-outline-primary btn-sm" onclick="limpiarFormulario()">
+      <i class="bi bi-plus-circle me-1"></i>Nuevo Material
+    </button>
+  </div>
+</div>
+
+<!-- Contenedor principal -->
+<div class="materials-container fade-in">
+  
+  <!-- Búsqueda avanzada -->
+  <div class="search-container">
+    <div class="position-relative">
+      <i class="bi bi-search search-icon"></i>
+      <input type="text" id="searchInput" class="form-control search-input" 
+             placeholder="Buscar por código, material, tipo o item...">
+    </div>
+    <div class="row mt-3">
+      <div class="col-md-3">
+        <select id="tipoFilter" class="form-select">
+          <option value="">Todos los tipos</option>
+        </select>
+      </div>
+      <div class="col-md-3">
+        <select id="itemFilter" class="form-select">
+          <option value="">Todos los items</option>
+        </select>
+      </div>
+      <div class="col-md-6 text-end">
+        <span class="badge bg-primary me-2" id="totalMateriales">
+          Total: {{ materiales|length }} materiales
+        </span>
+        <span class="badge bg-secondary" id="resultadosFiltrados">
+          Mostrando: {{ materiales|length }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formulario de material -->
+  <div class="form-card">
+    <div class="form-card-header">
+      <i class="bi bi-box me-2"></i>
+      <span id="formTitle">{{ 'Editar Material' if material else 'Nuevo Material' }}</span>
+      {% if material %}
+        <span class="status-indicator status-editing"></span>
+        <small>Editando</small>
+      {% else %}
+        <span class="status-indicator status-active"></span>
+        <small>Creando</small>
+      {% endif %}
+    </div>
+    
+    <form method="POST" id="materialForm"
+          action="{{ url_for('materiales.edit_material', id=material['id']) if material else url_for('materiales.new_material') }}">
+
+      <div class="row gx-3 gy-3">
+        <div class="col-md-3">
+          <label for="cod" class="form-label">
+            Código <span class="required-indicator">*</span>
+          </label>
+          <input type="text" name="cod" id="cod"
+                 value="{{ material['cod'] if material else '' }}"
+                 class="form-control form-control-modern"
+                 required
+                 oninput="this.value=this.value.toUpperCase(); validateField(this);"
+                 placeholder="Ej: MAT001">
+          <div class="field-help">Código único del material</div>
+          <div class="invalid-feedback">El código es requerido y debe ser único</div>
+        </div>
+
+        <div class="col-md-6">
+          <label for="material" class="form-label">
+            Material <span class="required-indicator">*</span>
+          </label>
+          <input type="text" name="material" id="material"
+                 value="{{ material['material'] if material else '' }}"
+                 class="form-control form-control-modern"
+                 required
+                 oninput="this.value=this.value.toUpperCase(); validateField(this);"
+                 placeholder="Descripción del material">
+          <div class="field-help">Descripción detallada del material</div>
+          <div class="invalid-feedback">La descripción del material es requerida</div>
+        </div>
+
+        <div class="col-md-3">
+          <label for="item" class="form-label">
+            Item <span class="required-indicator">*</span>
+          </label>
+          <select name="item" id="item" class="form-select form-control-modern" required onchange="validateField(this);">
+            <option value="" disabled {{ 'selected' if not material }} hidden>— Seleccione item —</option>
+            {% for it in items %}
+              <option value="{{ it['tipo'] }}"
+                {% if material and material['item'] == it['tipo'] %} selected {% endif %}>
+                {{ it['tipo'] }}
+              </option>
+            {% endfor %}
+          </select>
+          <div class="field-help">Categoría del material</div>
+          <div class="invalid-feedback">Debe seleccionar un item</div>
+        </div>
+      </div>
+
+      <div class="row gx-3 gy-3 mt-2">
+        <div class="col-md-6">
+          <label for="tipo" class="form-label">Tipo</label>
+          <input type="text" name="tipo" id="tipo"
+                 value="{{ material['tipo'] if material else '' }}"
+                 class="form-control form-control-modern"
+                 oninput="this.value=this.value.toUpperCase();"
+                 placeholder="Tipo específico del material">
+          <div class="field-help">Clasificación específica (opcional)</div>
+        </div>
+
+        <div class="col-md-6 d-flex align-items-end">
+          <div class="d-flex gap-2 w-100">
+            <button type="submit" class="btn btn-primary-modern btn-modern flex-fill">
+              <i class="bi bi-floppy me-2"></i>
+              {{ 'Actualizar Material' if material else 'Crear Material' }}
+            </button>
+            {% if material %}
+              <a href="{{ url_for('materiales.list_materiales') }}" 
+                 class="btn btn-secondary-modern btn-modern">
+                <i class="bi bi-x-circle me-1"></i>Cancelar
+              </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Tabla de materiales -->
+<div class="table-modern">
+  <div class="table-responsive">
+    <table class="table mb-0">
+      <thead>
+        <tr>
+          <th><i class="bi bi-hash me-1"></i>Código</th>
+          <th><i class="bi bi-box me-1"></i>Material</th>
+          <th><i class="bi bi-tag me-1"></i>Tipo</th>
+          <th><i class="bi bi-collection me-1"></i>Item</th>
+          <th class="text-center"><i class="bi bi-gear me-1"></i>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        {% for m in materiales %}
+          <tr data-codigo="{{ m['cod'] }}" data-material="{{ m['material'] }}" 
+              data-tipo="{{ m['tipo'] }}" data-item="{{ m['item'] }}">
+            <td>
+              <span class="badge bg-primary">{{ m['cod'] }}</span>
+            </td>
+            <td>
+              <strong>{{ m['material'] }}</strong>
+            </td>
+            <td>
+              {% if m['tipo'] %}
+                <span class="badge bg-secondary">{{ m['tipo'] }}</span>
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge bg-info">{{ m['item'] }}</span>
+            </td>
+            <td class="text-center">
+              <a href="{{ url_for('materiales.edit_material', id=m['id']) }}"
+                 class="btn btn-warning-modern btn-modern btn-sm">
+                <i class="bi bi-pencil me-1"></i>Editar
+              </a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- JavaScript mejorado -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Variables globales
+  const searchInput = document.getElementById('searchInput');
+  const tipoFilter = document.getElementById('tipoFilter');
+  const itemFilter = document.getElementById('itemFilter');
+  const tableBody = document.getElementById('tableBody');
+  const totalMateriales = document.getElementById('totalMateriales');
+  const resultadosFiltrados = document.getElementById('resultadosFiltrados');
+  
+  // Inicializar filtros
+  initializeFilters();
+  
+  // Event listeners
+  searchInput.addEventListener('input', filterTable);
+  tipoFilter.addEventListener('change', filterTable);
+  itemFilter.addEventListener('change', filterTable);
+  
+  // Inicializar validación de formulario
+  initializeFormValidation();
+  
+  function initializeFilters() {
+    // Poblar filtro de tipos
+    const tipos = new Set();
+    const items = new Set();
+    
+    document.querySelectorAll('#tableBody tr').forEach(row => {
+      const tipo = row.dataset.tipo;
+      const item = row.dataset.item;
+      
+      if (tipo && tipo.trim() !== '') tipos.add(tipo);
+      if (item && item.trim() !== '') items.add(item);
+    });
+    
+    // Llenar select de tipos
+    tipos.forEach(tipo => {
+      const option = document.createElement('option');
+      option.value = tipo;
+      option.textContent = tipo;
+      tipoFilter.appendChild(option);
+    });
+    
+    // Llenar select de items
+    items.forEach(item => {
+      const option = document.createElement('option');
+      option.value = item;
+      option.textContent = item;
+      itemFilter.appendChild(option);
+    });
+  }
+  
+  function filterTable() {
+    const searchTerm = searchInput.value.toLowerCase();
+    const tipoSelected = tipoFilter.value;
+    const itemSelected = itemFilter.value;
+    
+    let visibleCount = 0;
+    
+    document.querySelectorAll('#tableBody tr').forEach(row => {
+      const codigo = row.dataset.codigo.toLowerCase();
+      const material = row.dataset.material.toLowerCase();
+      const tipo = row.dataset.tipo;
+      const item = row.dataset.item;
+      
+      const matchesSearch = codigo.includes(searchTerm) || 
+                           material.includes(searchTerm) ||
+                           tipo.toLowerCase().includes(searchTerm) ||
+                           item.toLowerCase().includes(searchTerm);
+      
+      const matchesTipo = !tipoSelected || tipo === tipoSelected;
+      const matchesItem = !itemSelected || item === itemSelected;
+      
+      if (matchesSearch && matchesTipo && matchesItem) {
+        row.style.display = '';
+        visibleCount++;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+    
+    // Actualizar contador
+    resultadosFiltrados.textContent = `Mostrando: ${visibleCount}`;
+  }
+  
+  function initializeFormValidation() {
+    const form = document.getElementById('materialForm');
+    if (!form) return;
+    
+    form.addEventListener('submit', function(e) {
+      let isValid = true;
+      
+      // Validar campos requeridos
+      const requiredFields = form.querySelectorAll('[required]');
+      requiredFields.forEach(field => {
+        if (!field.value.trim()) {
+          field.classList.add('is-invalid');
+          isValid = false;
+        } else {
+          field.classList.remove('is-invalid');
+          field.classList.add('is-valid');
+        }
+      });
+      
+      if (!isValid) {
+        e.preventDefault();
+        showAlert('Por favor complete todos los campos requeridos.', 'warning');
+      }
+    });
+  }
+});
+
+// Funciones globales
+function validateField(field) {
+  if (field.hasAttribute('required')) {
+    if (field.value.trim()) {
+      field.classList.remove('is-invalid');
+      field.classList.add('is-valid');
+    } else {
+      field.classList.remove('is-valid');
+      field.classList.add('is-invalid');
+    }
+  }
+}
+
+function limpiarFormulario() {
+  const form = document.getElementById('materialForm');
+  if (form) {
+    form.reset();
+    form.querySelectorAll('.form-control-modern').forEach(field => {
+      field.classList.remove('is-valid', 'is-invalid');
+    });
+    
+    // Cambiar título del formulario
+    const formTitle = document.getElementById('formTitle');
+    if (formTitle) {
+      formTitle.textContent = 'Nuevo Material';
+    }
+    
+    // Cambiar acción del formulario
+    form.action = "{{ url_for('materiales.new_material') }}";
+  }
+}
+
+function exportarMateriales() {
+  // Crear datos para exportar
+  const materiales = [];
+  document.querySelectorAll('#tableBody tr').forEach(row => {
+    if (row.style.display !== 'none') {
+      materiales.push({
+        codigo: row.dataset.codigo,
+        material: row.dataset.material,
+        tipo: row.dataset.tipo || '',
+        item: row.dataset.item
+      });
+    }
+  });
+  
+  if (materiales.length === 0) {
+    showAlert('No hay materiales para exportar.', 'warning');
+    return;
+  }
+  
+  // Crear CSV
+  const headers = ['Código', 'Material', 'Tipo', 'Item'];
+  const csvContent = [
+    headers.join(','),
+    ...materiales.map(m => [m.codigo, m.material, m.tipo, m.item].join(','))
+  ].join('\\n');
+  
+  // Descargar archivo
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  link.setAttribute('href', url);
+  link.setAttribute('download', `materiales_${new Date().toISOString().split('T')[0]}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  
+  showAlert('Materiales exportados exitosamente.', 'success');
+}
+
+function showAlert(message, type = 'info') {
+  // Crear alerta temporal
+  const alertDiv = document.createElement('div');
+  alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+  alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+  alertDiv.innerHTML = `
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  `;
+  
+  document.body.appendChild(alertDiv);
+  
+  // Auto-remover después de 5 segundos
+  setTimeout(() => {
+    if (alertDiv.parentNode) {
+      alertDiv.parentNode.removeChild(alertDiv);
+    }
+  }, 5000);
+}
+</script>
+
+{% endblock %}

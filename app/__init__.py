@@ -47,7 +47,7 @@ def create_app():
     from .modules.ordenes_pago import bp as bp_op
     app.register_blueprint(bp_op, url_prefix='/ordenes_pago')
     from .modules.ordenes_pago_pdf import bp_pdf
-    app.register_blueprint(bp_pdf, url_prefix='/ordenes_pago/pdf')
+    app.register_blueprint(bp_pdf)
     from .modules.ordenes_pago_pendientes import bp_pending
     app.register_blueprint(bp_pending, url_prefix='/ordenes_pago/pendientes')
     from .modules.ingresos import bp as bp_ing

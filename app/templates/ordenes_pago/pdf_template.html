@@ -85,7 +85,7 @@
           <td class="right">$ {{ "{:,.0f}".format(total_neto) }}</td>
         </tr>
         <tr>
-          <th class="right">Total IVA (19%):</th>
+          <th class="right">Total IVA (19%){% if sin_iva %} - EXENTO{% endif %}:</th>
           <td class="right">$ {{ "{:,.0f}".format(total_iva) }}</td>
         </tr>
         <tr>

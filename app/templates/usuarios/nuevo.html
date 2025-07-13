@@ -1,29 +1,519 @@
 {% extends "base.html" %}
-{% block title %}Nuevo Usuario{% endblock %}
+{% block title %}Nuevo Usuario - SOMYL{% endblock %}
+
 {% block content %}
-<h2>Crear nuevo usuario</h2>
-<form method="post">
-  <div class="mb-3">
-    <label for="nombre" class="form-label">Nombre</label>
-    <input type="text" class="form-control" id="nombre" name="nombre" required>
+<style>
+  .password-strength {
+    height: 5px;
+    border-radius: 3px;
+    margin-top: 5px;
+    transition: all 0.3s ease;
+  }
+  
+  .strength-weak { background-color: #dc3545; }
+  .strength-medium { background-color: #ffc107; }
+  .strength-strong { background-color: #28a745; }
+  
+  .card {
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+  
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+  }
+  
+  .form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+  }
+  
+  .btn {
+    transition: all 0.2s ease;
+  }
+  
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+  
+  .module-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 10px;
+    transition: all 0.2s ease;
+  }
+  
+  .module-card:hover {
+    border-color: #007bff;
+    background-color: #f8f9fa;
+  }
+  
+  .module-card.selected {
+    border-color: #007bff;
+    background-color: #e3f2fd;
+  }
+</style>
+
+<!-- Mostrar mensajes flash -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+        <i class="bi bi-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' }} me-2"></i>{{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+<div class="row">
+  <div class="col-md-8 mx-auto">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-light border-0 py-3">
+        <div class="d-flex align-items-center">
+          <div class="bg-success rounded-circle p-2 me-3">
+            <i class="bi bi-person-plus text-white fs-5"></i>
+          </div>
+          <div>
+            <h4 class="mb-0 fw-bold">Crear Nuevo Usuario</h4>
+            <small class="text-muted">Completa la información para crear un nuevo usuario</small>
+          </div>
+        </div>
+      </div>
+      
+      <div class="card-body">
+        <form method="POST" id="userForm">
+          <!-- Información básica -->
+          <div class="row mb-4">
+            <div class="col-md-12">
+              <h5 class="fw-bold mb-3">
+                <i class="bi bi-person me-2"></i>Información Personal
+              </h5>
+            </div>
+            
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="nombre" class="form-label fw-medium">
+                  <i class="bi bi-person me-1"></i>Nombre Completo
+                </label>
+                <input type="text" class="form-control" id="nombre" name="nombre" required 
+                       placeholder="Ingresa el nombre completo">
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="email" class="form-label fw-medium">
+                  <i class="bi bi-envelope me-1"></i>Correo Electrónico
+                </label>
+                <input type="email" class="form-control" id="email" name="email" required 
+                       placeholder="usuario@ejemplo.com">
+              </div>
+            </div>
+          </div>
+          
+          <!-- Contraseña -->
+          <div class="row mb-4">
+            <div class="col-md-12">
+              <h5 class="fw-bold mb-3">
+                <i class="bi bi-lock me-2"></i>Seguridad
+              </h5>
+            </div>
+            
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="password" class="form-label fw-medium">
+                  <i class="bi bi-key me-1"></i>Contraseña
+                </label>
+                <div class="input-group">
+                  <input type="password" class="form-control" id="password" name="password" required 
+                         placeholder="Mínimo 8 caracteres">
+                  <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                </div>
+                <div class="password-strength mt-2" id="passwordStrength"></div>
+                <small class="text-muted">
+                  La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número.
+                </small>
+              </div>
+            </div>
+            
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="confirmPassword" class="form-label fw-medium">
+                  <i class="bi bi-shield-check me-1"></i>Confirmar Contraseña
+                </label>
+                <input type="password" class="form-control" id="confirmPassword" required 
+                       placeholder="Repite la contraseña">
+                <small class="text-muted" id="passwordMatch"></small>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Estado inicial -->
+          <div class="row mb-4">
+            <div class="col-md-12">
+              <h5 class="fw-bold mb-3">
+                <i class="bi bi-toggle-on me-2"></i>Estado Inicial
+              </h5>
+            </div>
+            
+            <div class="col-md-6">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="activo" name="activo" checked>
+                <label class="form-check-label fw-medium" for="activo">
+                  <i class="bi bi-person-check me-1"></i>Usuario Activo
+                </label>
+                <small class="d-block text-muted">El usuario podrá iniciar sesión inmediatamente</small>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Módulos -->
+          <div class="row mb-4">
+            <div class="col-md-12">
+              <h5 class="fw-bold mb-3">
+                <i class="bi bi-grid me-2"></i>Acceso a Módulos
+              </h5>
+              <p class="text-muted">Selecciona los módulos a los que tendrá acceso este usuario:</p>
+              
+              {% if modulos %}
+              <div class="row">
+                {% for modulo in modulos %}
+                <div class="col-md-4 mb-3">
+                  <div class="module-card">
+                    <div class="form-check">
+                      <input class="form-check-input module-checkbox" type="checkbox" 
+                             value="{{ modulo.id }}" id="modulo{{ modulo.id }}" name="modulos">
+                      <label class="form-check-label fw-medium" for="modulo{{ modulo.id }}">
+                        <i class="bi bi-app me-1"></i>{{ modulo.nombre_modulo }}
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                No se encontraron módulos disponibles. Contacte al administrador.
+              </div>
+              {% endif %}
+              
+              <div class="mt-3">
+                <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllModules()">
+                  <i class="bi bi-check-all me-1"></i>Seleccionar Todos
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAllModules()">
+                  <i class="bi bi-x-circle me-1"></i>Deseleccionar Todos
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Botones -->
+          <div class="row">
+            <div class="col-md-12">
+              <hr>
+              <div class="d-flex justify-content-between">
+                <a href="{{ url_for('usuarios.list_usuarios') }}" class="btn btn-outline-secondary">
+                  <i class="bi bi-arrow-left me-1"></i>Volver a la Lista
+                </a>
+                <div>
+                  <button type="reset" class="btn btn-outline-warning me-2">
+                    <i class="bi bi-arrow-clockwise me-1"></i>Limpiar
+                  </button>
+                  <button type="submit" class="btn btn-success" id="submitBtn">
+                    <i class="bi bi-person-plus me-1"></i><span class="btn-text">Crear Usuario</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
-  <div class="mb-3">
-    <label for="email" class="form-label">Correo electrónico</label>
-    <input type="email" class="form-control" id="email" name="email" required>
+</div>
+
+<!-- Modal de confirmación - TEMPORALMENTE DESHABILITADO
+<div class="modal fade" id="confirmModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-person-plus me-2"></i>Confirmar Creación
+        </h5>
+        <button type="button" class="btn-close" onclick="cancelForm()" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="text-center mb-3">
+          <i class="bi bi-question-circle-fill text-primary fs-1"></i>
+        </div>
+        <h6 class="text-center mb-3">¿Estás seguro de que quieres crear este usuario?</h6>
+        <div class="alert alert-info">
+          <div class="row">
+            <div class="col-sm-3"><strong>Nombre:</strong></div>
+            <div class="col-sm-9"><span id="confirmNombre"></span></div>
+          </div>
+          <div class="row">
+            <div class="col-sm-3"><strong>Email:</strong></div>
+            <div class="col-sm-9"><span id="confirmEmail"></span></div>
+          </div>
+          <div class="row">
+            <div class="col-sm-3"><strong>Módulos:</strong></div>
+            <div class="col-sm-9"><span id="confirmModulos"></span></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="cancelBtn" onclick="cancelForm()">
+          <i class="bi bi-x-circle me-1"></i>Cancelar
+        </button>
+        <button type="button" class="btn btn-success" id="confirmBtn" onclick="submitForm()">
+          <i class="bi bi-check-circle me-1"></i>Crear Usuario
+        </button>
+      </div>
+    </div>
   </div>
-  <div class="mb-3">
-    <label for="password" class="form-label">Contraseña</label>
-    <input type="password" class="form-control" id="password" name="password" required>
-  </div>
-  <div class="mb-3">
-    <label for="modulos" class="form-label">Acceso a módulos</label>
-    <select class="form-select" id="modulos" name="modulos" multiple required>
-      {% for modulo in modulos %}
-        <option value="{{ modulo.id }}">{{ modulo.nombre_modulo }}</option>
-      {% endfor %}
-    </select>
-    <small class="form-text text-muted">Mantén presionada Ctrl (Cmd en Mac) para seleccionar varios.</small>
-  </div>
-  <button type="submit" class="btn btn-primary">Crear usuario</button>
-</form>
+</div>
+-->
+
+<script>
+// Variables globales
+let modalInstance = null;
+let isSubmitting = false;
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Elementos del formulario
+  const passwordInput = document.getElementById('password');
+  const confirmPasswordInput = document.getElementById('confirmPassword');
+  const passwordStrength = document.getElementById('passwordStrength');
+  const passwordMatch = document.getElementById('passwordMatch');
+  const togglePassword = document.getElementById('togglePassword');
+  const form = document.getElementById('userForm');
+
+  // Toggle password visibility
+  if (togglePassword) {
+    togglePassword.addEventListener('click', function(e) {
+      e.preventDefault();
+      const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordInput.setAttribute('type', type);
+      this.innerHTML = type === 'password' ? '<i class="bi bi-eye"></i>' : '<i class="bi bi-eye-slash"></i>';
+    });
+  }
+
+  // Password strength checker
+  if (passwordInput) {
+    passwordInput.addEventListener('input', function() {
+      const password = this.value;
+      let strength = 0;
+      
+      if (password.length >= 8) strength++;
+      if (/[A-Z]/.test(password)) strength++;
+      if (/[a-z]/.test(password)) strength++;
+      if (/\d/.test(password)) strength++;
+      if (/[^A-Za-z0-9]/.test(password)) strength++;
+      
+      if (passwordStrength) {
+        passwordStrength.style.width = (strength * 20) + '%';
+        
+        if (strength < 3) {
+          passwordStrength.className = 'password-strength strength-weak';
+        } else if (strength < 4) {
+          passwordStrength.className = 'password-strength strength-medium';
+        } else {
+          passwordStrength.className = 'password-strength strength-strong';
+        }
+      }
+    });
+  }
+
+  // Password confirmation
+  if (confirmPasswordInput) {
+    confirmPasswordInput.addEventListener('input', function() {
+      const password = passwordInput.value;
+      const confirm = this.value;
+      
+      if (confirm === '') {
+        if (passwordMatch) passwordMatch.textContent = '';
+        return;
+      }
+      
+      if (passwordMatch) {
+        if (password === confirm) {
+          passwordMatch.textContent = '✓ Las contraseñas coinciden';
+          passwordMatch.className = 'text-success';
+        } else {
+          passwordMatch.textContent = '✗ Las contraseñas no coinciden';
+          passwordMatch.className = 'text-danger';
+        }
+      }
+    });
+  }
+
+  // Module selection visual feedback
+  document.querySelectorAll('.module-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+      const card = this.closest('.module-card');
+      if (this.checked) {
+        card.classList.add('selected');
+      } else {
+        card.classList.remove('selected');
+      }
+    });
+  });
+
+  // Form submission
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    if (isSubmitting) return;
+    
+    // Validaciones
+    if (!validateForm()) return;
+    
+    // Enviar formulario directamente
+    submitFormDirectly();
+  });
+});
+
+function validateForm() {
+  const nombre = document.getElementById('nombre').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const confirmPassword = document.getElementById('confirmPassword').value;
+  const selectedModules = document.querySelectorAll('.module-checkbox:checked');
+
+  if (!nombre || !email || !password) {
+    alert('Por favor complete todos los campos requeridos');
+    return false;
+  }
+
+  if (password !== confirmPassword) {
+    alert('Las contraseñas no coinciden');
+    return false;
+  }
+
+  if (selectedModules.length === 0) {
+    alert('Debe seleccionar al menos un módulo');
+    return false;
+  }
+
+  return true;
+}
+
+function showConfirmationModal() {
+  const selectedModules = document.querySelectorAll('.module-checkbox:checked');
+  
+  document.getElementById('confirmNombre').textContent = document.getElementById('nombre').value;
+  document.getElementById('confirmEmail').textContent = document.getElementById('email').value;
+  document.getElementById('confirmModulos').textContent = Array.from(selectedModules)
+    .map(cb => cb.nextElementSibling.textContent.trim())
+    .join(', ');
+  
+  modalInstance.show();
+}
+
+function submitForm() {
+  // Esta función se llama desde el modal (si es que se usa)
+  submitFormDirectly();
+}
+
+function submitFormDirectly() {
+  if (isSubmitting) return;
+  
+  isSubmitting = true;
+  
+  const submitBtn = document.getElementById('submitBtn');
+  
+  // Cambiar estado del botón
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Creando...';
+  }
+  
+  // Mostrar overlay de carga
+  showLoadingOverlay();
+  
+  // Enviar formulario después de un breve delay
+  setTimeout(() => {
+    document.getElementById('userForm').submit();
+  }, 1000);
+}
+
+function cancelForm() {
+  if (isSubmitting) return;
+  
+  modalInstance.hide();
+  resetModalButtons();
+}
+
+function resetModalButtons() {
+  const confirmBtn = document.getElementById('confirmBtn');
+  const cancelBtn = document.getElementById('cancelBtn');
+  
+  if (confirmBtn) {
+    confirmBtn.disabled = false;
+    confirmBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Crear Usuario';
+  }
+  if (cancelBtn) {
+    cancelBtn.disabled = false;
+  }
+}
+
+function showLoadingOverlay() {
+  // Remover overlay existente si hay uno
+  const existingOverlay = document.getElementById('loadingOverlay');
+  if (existingOverlay) {
+    existingOverlay.remove();
+  }
+  
+  const overlay = document.createElement('div');
+  overlay.id = 'loadingOverlay';
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  `;
+  
+  overlay.innerHTML = `
+    <div class="text-center text-white">
+      <div class="spinner-border text-light mb-3" role="status" style="width: 3rem; height: 3rem;">
+        <span class="visually-hidden">Creando usuario...</span>
+      </div>
+      <h4 style="margin-bottom: 0.5rem;">Creando Usuario</h4>
+      <p style="margin: 0; opacity: 0.8;">Por favor espere mientras se procesa la información...</p>
+    </div>
+  `;
+  
+  document.body.appendChild(overlay);
+}
+
+function selectAllModules() {
+  document.querySelectorAll('.module-checkbox').forEach(checkbox => {
+    checkbox.checked = true;
+    checkbox.closest('.module-card').classList.add('selected');
+  });
+}
+
+function deselectAllModules() {
+  document.querySelectorAll('.module-checkbox').forEach(checkbox => {
+    checkbox.checked = false;
+    checkbox.closest('.module-card').classList.remove('selected');
+  });
+}
+</script>
 {% endblock %}

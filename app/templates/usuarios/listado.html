@@ -1,31 +1,435 @@
 {% extends "base.html" %}
+{% block title %}Gestión de Usuarios - SOMYL{% endblock %}
 
 {% block content %}
-<h1 class="titulo-modulo w-100 titulo-modulo-con-icono">
-  <span class="icono-modulo">S</span>
-  Usuarios
-</h1>
-<a href="{{ url_for('usuarios.nuevo_usuario') }}" class="btn btn-success mb-3">Nuevo usuario</a>
-<table class="table table-bordered">
-  <thead>
-    <tr>
-      <th>ID</th>
-      <th>Nombre</th>
-      <th>Email</th>
-      <th>Acciones</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for usuario in usuarios %}
-    <tr>
-      <td>{{ usuario.id }}</td>
-      <td>{{ usuario.nombre }}</td>
-      <td>{{ usuario.email }}</td>
-      <td>
-        <a href="{{ url_for('usuarios.editar_usuario', id=usuario.id) }}" class="btn btn-primary btn-sm">Editar</a>
-      </td>
-    </tr>
+<style>
+  .user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    font-size: 16px;
+  }
+  
+  .stats-card {
+    transition: transform 0.2s ease;
+  }
+  
+  .stats-card:hover {
+    transform: translateY(-2px);
+  }
+  
+  .user-status {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-weight: 500;
+  }
+  
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+  }
+  
+  .toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 24px;
+  }
+  
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+  }
+  
+  input:checked + .slider {
+    background-color: #28a745;
+  }
+  
+  input:checked + .slider:before {
+    transform: translateX(26px);
+  }
+  
+  .card {
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+  }
+  
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1) !important;
+  }
+  
+  .table-hover tbody tr:hover {
+    background-color: rgba(0,123,255,0.05);
+  }
+  
+  .btn {
+    transition: all 0.2s ease;
+  }
+  
+  .btn:hover {
+    transform: translateY(-1px);
+  }
+</style>
+
+<!-- Mostrar mensajes flash -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ 'success' if category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+        <i class="bi bi-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' }} me-2"></i>{{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+      </div>
     {% endfor %}
-  </tbody>
-</table>
+  {% endif %}
+{% endwith %}
+
+<h1 class="titulo-modulo w-100 titulo-modulo-con-icono">
+  <span class="icono-modulo">U</span>
+  Gestión de Usuarios
+</h1>
+
+<!-- Estadísticas -->
+<div class="row mb-4">
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm stats-card">
+      <div class="card-body text-center">
+        <div class="d-flex align-items-center justify-content-center mb-2">
+          <div class="bg-primary rounded-circle p-3">
+            <i class="bi bi-people text-white fs-4"></i>
+          </div>
+        </div>
+        <h3 class="fw-bold text-primary mb-0">{{ stats.total }}</h3>
+        <small class="text-muted">Total Usuarios</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm stats-card">
+      <div class="card-body text-center">
+        <div class="d-flex align-items-center justify-content-center mb-2">
+          <div class="bg-success rounded-circle p-3">
+            <i class="bi bi-person-check text-white fs-4"></i>
+          </div>
+        </div>
+        <h3 class="fw-bold text-success mb-0">{{ stats.activos }}</h3>
+        <small class="text-muted">Activos</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm stats-card">
+      <div class="card-body text-center">
+        <div class="d-flex align-items-center justify-content-center mb-2">
+          <div class="bg-secondary rounded-circle p-3">
+            <i class="bi bi-person-dash text-white fs-4"></i>
+          </div>
+        </div>
+        <h3 class="fw-bold text-secondary mb-0">{{ stats.inactivos }}</h3>
+        <small class="text-muted">Inactivos</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card border-0 shadow-sm stats-card">
+      <div class="card-body text-center">
+        <div class="d-flex align-items-center justify-content-center mb-2">
+          <div class="bg-danger rounded-circle p-3">
+            <i class="bi bi-person-x text-white fs-4"></i>
+          </div>
+        </div>
+        <h3 class="fw-bold text-danger mb-0">{{ stats.bloqueados }}</h3>
+        <small class="text-muted">Bloqueados</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filtros y acciones -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-light border-0 py-3">
+    <div class="row align-items-center">
+      <div class="col-md-6">
+        <h5 class="mb-0 fw-bold">
+          <i class="bi bi-funnel me-2"></i>Filtros y Búsqueda
+        </h5>
+      </div>
+      <div class="col-md-6 text-end">
+        <a href="{{ url_for('usuarios.nuevo_usuario') }}" class="btn btn-success">
+          <i class="bi bi-person-plus me-1"></i>Nuevo Usuario
+        </a>
+        <a href="{{ url_for('usuarios.dashboard_usuarios') }}" class="btn btn-info">
+          <i class="bi bi-bar-chart me-1"></i>Dashboard
+        </a>
+      </div>
+    </div>
+  </div>
+  <div class="card-body">
+    <form method="GET" class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label fw-medium">Estado:</label>
+        <select name="estado" class="form-select">
+          <option value="todos" {{ 'selected' if filtro_estado == 'todos' else '' }}>Todos</option>
+          <option value="activos" {{ 'selected' if filtro_estado == 'activos' else '' }}>Activos</option>
+          <option value="inactivos" {{ 'selected' if filtro_estado == 'inactivos' else '' }}>Inactivos</option>
+          <option value="bloqueados" {{ 'selected' if filtro_estado == 'bloqueados' else '' }}>Bloqueados</option>
+        </select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label fw-medium">Buscar:</label>
+        <input type="text" name="buscar" class="form-control" placeholder="Nombre o email..." value="{{ buscar }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">&nbsp;</label>
+        <button type="submit" class="btn btn-primary d-block">
+          <i class="bi bi-search me-1"></i>Filtrar
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Tabla de usuarios -->
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-light border-0 py-3">
+    <h5 class="mb-0 fw-bold">
+      <i class="bi bi-people me-2"></i>Lista de Usuarios
+    </h5>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 60px;">Avatar</th>
+            <th>Usuario</th>
+            <th>Módulos</th>
+            <th>Estado</th>
+            <th>Último Acceso</th>
+            <th style="width: 200px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for usuario in usuarios %}
+          <tr>
+            <td>
+              <div class="user-avatar bg-primary">
+                {{ usuario.nombre[0].upper() }}
+              </div>
+            </td>
+            <td>
+              <div>
+                <div class="fw-medium">{{ usuario.nombre }}</div>
+                <small class="text-muted">{{ usuario.email }}</small>
+                {% if usuario.get('intentos_fallidos', 0) > 0 %}
+                  <br><small class="text-danger">
+                    <i class="bi bi-exclamation-triangle"></i> {{ usuario.intentos_fallidos }} intentos fallidos
+                  </small>
+                {% endif %}
+              </div>
+            </td>
+            <td>
+              <div class="d-flex flex-wrap gap-1">
+                {% for modulo in usuario.modulos %}
+                  <span class="badge bg-info">{{ modulo }}</span>
+                {% endfor %}
+              </div>
+            </td>
+            <td>
+              <div class="d-flex flex-column gap-1">
+                {% if usuario.get('bloqueado', False) %}
+                  <span class="user-status bg-danger text-white">
+                    <i class="bi bi-lock"></i> Bloqueado
+                  </span>
+                {% elif usuario.get('activo', True) %}
+                  <span class="user-status bg-success text-white">
+                    <i class="bi bi-check-circle"></i> Activo
+                  </span>
+                {% else %}
+                  <span class="user-status bg-secondary text-white">
+                    <i class="bi bi-pause-circle"></i> Inactivo
+                  </span>
+                {% endif %}
+              </div>
+            </td>
+            <td>
+              {% if usuario.get('fecha_ultimo_acceso') %}
+                <small class="text-muted">
+                  {{ usuario.fecha_ultimo_acceso[:10] }}
+                </small>
+              {% else %}
+                <small class="text-warning">
+                  <i class="bi bi-clock"></i> Sin acceso
+                </small>
+              {% endif %}
+            </td>
+            <td>
+              <div class="btn-group" role="group">
+                <a href="{{ url_for('usuarios.editar_usuario', id=usuario.id) }}" 
+                   class="btn btn-sm btn-outline-primary" title="Editar">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                
+                <button type="button" 
+                        class="btn btn-sm btn-outline-{{ 'secondary' if usuario.get('activo', True) else 'success' }} toggle-estado-btn"
+                        data-id="{{ usuario.id }}"
+                        data-estado="{{ usuario.get('activo', True) | lower }}"
+                        title="{{ 'Desactivar' if usuario.get('activo', True) else 'Activar' }}">
+                  <i class="bi bi-{{ 'pause' if usuario.get('activo', True) else 'play' }}"></i>
+                </button>
+                
+                <button type="button" 
+                        class="btn btn-sm btn-outline-{{ 'warning' if usuario.get('bloqueado', False) else 'danger' }} toggle-bloqueo-btn"
+                        data-id="{{ usuario.id }}"
+                        data-bloqueado="{{ usuario.get('bloqueado', False) | lower }}"
+                        title="{{ 'Desbloquear' if usuario.get('bloqueado', False) else 'Bloquear' }}">
+                  <i class="bi bi-{{ 'unlock' if usuario.get('bloqueado', False) else 'lock' }}"></i>
+                </button>
+                
+                <button type="button" 
+                        class="btn btn-sm btn-outline-info reset-password-btn"
+                        data-id="{{ usuario.id }}"
+                        title="Restablecer contraseña">
+                  <i class="bi bi-key"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Eliminamos el modal problemático y usamos método directo -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  
+  // Toggle estado
+  document.querySelectorAll('.toggle-estado-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.dataset.id;
+      const estadoActual = this.dataset.estado === 'true';
+      const nuevoEstado = !estadoActual;
+      
+      fetch(`/usuarios/toggle_estado/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activo: nuevoEstado })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          location.reload();
+        } else {
+          alert(data.message);
+        }
+      });
+    });
+  });
+
+  // Toggle bloqueo
+  document.querySelectorAll('.toggle-bloqueo-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.dataset.id;
+      const bloqueadoActual = this.dataset.bloqueado === 'true';
+      const nuevoBloqueado = !bloqueadoActual;
+      
+      fetch(`/usuarios/toggle_bloqueo/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bloqueado: nuevoBloqueado })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          location.reload();
+        } else {
+          alert(data.message);
+        }
+      });
+    });
+  });
+
+  // Reset password
+  document.querySelectorAll('.reset-password-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.dataset.id;
+      
+      if (confirm('¿Estás seguro de que quieres restablecer la contraseña de este usuario?')) {
+        // Mostrar feedback visual
+        const originalText = this.innerHTML;
+        this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+        this.disabled = true;
+        
+        fetch(`/usuarios/reset_password/${id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            // Mostrar la contraseña directamente con prompt y opción de copiar
+            const password = data.password_temp;
+            const message = `Contraseña temporal generada:\n\n${password}\n\nEsta contraseña es temporal. El usuario debería cambiarla en su próximo inicio de sesión.\n\n¿Deseas copiar la contraseña al portapapeles?`;
+            
+            if (confirm(message)) {
+              // Copiar al portapapeles
+              navigator.clipboard.writeText(password).then(() => {
+                alert('Contraseña copiada al portapapeles');
+              }).catch(() => {
+                // Fallback si no se puede copiar automáticamente
+                prompt('Contraseña generada (selecciona y copia):', password);
+              });
+            }
+            
+            // Actualizar la página para reflejar cambios
+            location.reload();
+          } else {
+            alert('Error: ' + data.message);
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          alert('Error al restablecer contraseña');
+        })
+        .finally(() => {
+          // Restaurar botón
+          this.innerHTML = originalText;
+          this.disabled = false;
+        });
+      }
+    });
+  });
+});
+</script>
 {% endblock %}

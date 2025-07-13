@@ -70,6 +70,23 @@ def new_orden():
     # --- Datos GET para autocompletar ---
     tipos_entrega = ["30 DIAS","45 DIAS","60 DIAS","90 DIAS","INMEDIATA","OTRO"]
     plazos_pago   = ["CONTADO","30 DIAS","45 DIAS","60 DIAS","90 DIAS","OTRO"]
+    
+    # Obtener datos para las listas desplegables
+    proveedores = supabase.table("proveedores") \
+        .select("id,nombre,rut") \
+        .order("nombre", desc=False) \
+        .execute().data or []
+    
+    proyectos = supabase.table("proyectos") \
+        .select("id,proyecto") \
+        .order("proyecto", desc=False) \
+        .execute().data or []
+    
+    trabajadores = supabase.table("trabajadores") \
+        .select("id,nombre") \
+        .order("nombre", desc=False) \
+        .execute().data or []
+    
     history = supabase.table("orden_de_compra") \
         .select("descripcion,precio_unitario,orden_compra") \
         .order("orden_compra", desc=True) \
@@ -187,7 +204,10 @@ def new_orden():
         next_num=next_num,
         tipos_entrega=tipos_entrega,
         plazos_pago=plazos_pago,
-        history=history
+        history=history,
+        proveedores=proveedores,
+        proyectos=proyectos,
+        trabajadores=trabajadores
     )
 
 
@@ -369,12 +389,15 @@ def generate_pdf():
 
     # ——— Calcular totales ———
     total_neto = sum(ln[4] for ln in lineas)  # Suma los totales de cada línea
-    iva = round(total_neto * 0.19)
+    iva = 0 if sin_iva else round(total_neto * 0.19)  # IVA = 0 si es sin IVA
     total_final = total_neto + iva
+
+    # Texto del IVA que cambia según si es exento o no
+    iva_text = "IVA (19%) - EXENTO:" if sin_iva else "IVA (19%):"
 
     totales_tbl = Table([
         ["", "Total Neto:", formato_pesos(total_neto)],
-        ["", "IVA (19%):", formato_pesos(iva)],
+        ["", iva_text, formato_pesos(iva)],
         ["", "Total:", formato_pesos(total_final)],
     ], colWidths=[100*mm, 35*mm, 35*mm])
     totales_tbl.setStyle(TableStyle([

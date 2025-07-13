@@ -11,17 +11,35 @@ bp_pdf = Blueprint(
     template_folder='../templates/ordenes_pago'
 )
 
+def safe_float(value, default=0.0):
+    """Convierte un valor a float de manera segura, retornando default si está vacío o es inválido"""
+    if not value or value.strip() == '':
+        return default
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return default
+
+def safe_int(value, default=0):
+    """Convierte un valor a int de manera segura, retornando default si está vacío o es inválido"""
+    if not value or str(value).strip() == '':
+        return default
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        return default
+
 @bp_pdf.route('/ordenes_pago/pdf', methods=['POST'], endpoint='pdf')
 def generar_pdf():
     supabase = current_app.config['SUPABASE']
     f = request.form
 
     # 1) Lectura de datos del formulario
-    numero           = int(f['next_num'])
-    nombre_proveedor = f['nombre_proveedor']
+    numero           = safe_int(f.get('next_num', '0'))
+    nombre_proveedor = f.get('nombre_proveedor', '')
     detalle_op       = f.get('detalle_compra', '')
-    fecha_venc       = f.get('vencimiento')
-    fecha_factura    = f.get('fecha_factura')
+    fecha_venc       = f.get('vencimiento', '')
+    fecha_factura    = f.get('fecha_factura', '')
     autoriza_nombre  = f.get('autoriza_input', '')
     autoriza_email   = f.get('autoriza_email', '')
 
@@ -30,10 +48,59 @@ def generar_pdf():
     guias         = f.getlist('guia_recepcion[]')
     descripciones = f.getlist('descripcion[]')
 
-    # Totales
-    total_neto  = float(f['total_neto'])
-    total_iva   = float(f['total_iva'])
-    total_pagar = float(f['total_pagar'])
+    # Totales (verificar si son sin IVA consultando las órdenes de compra originales)
+    total_neto  = safe_float(f.get('total_neto', '0'))
+    total_iva   = safe_float(f.get('total_iva', '0'))
+    total_pagar = safe_float(f.get('total_pagar', '0'))
+    
+    # Verificar si las órdenes de compra originales son sin IVA
+    sin_iva = False
+    ocs = f.getlist('orden_compra[]')
+    
+    if ocs:
+        try:
+            # Convertir OCs a enteros y verificar si alguna es sin IVA
+            oc_numbers = []
+            for oc in ocs:
+                try:
+                    oc_numbers.append(int(oc))
+                except (ValueError, TypeError):
+                    continue
+            
+            if oc_numbers:
+                # Consultar las órdenes de compra para verificar fac_sin_iva
+                oc_rows = (
+                    supabase.table('orden_de_compra')
+                            .select('fac_sin_iva')
+                            .in_('orden_compra', oc_numbers)
+                            .execute()
+                            .data
+                ) or []
+                
+                # Si alguna orden de compra es sin IVA, toda la orden de pago es sin IVA
+                for oc_row in oc_rows:
+                    if oc_row.get('fac_sin_iva', 0):
+                        sin_iva = True
+                        break
+                        
+        except Exception as e:
+            current_app.logger.error(f"Error verificando IVA: {e}")
+            sin_iva = False
+    
+    # Recalcular totales si es sin IVA
+    if sin_iva:
+        total_iva = 0
+        total_pagar = total_neto
+    
+    # Recalcular IVA basado en si es sin IVA o no
+    if sin_iva:
+        total_iva = 0
+        total_pagar = total_neto
+    else:
+        # Solo recalcular si el IVA no fue proporcionado correctamente
+        if total_iva == 0 and total_neto > 0:
+            total_iva = round(total_neto * 0.19)
+            total_pagar = total_neto + total_iva
 
     # 2) Información fija de la empresa
     empresa = {
@@ -66,18 +133,19 @@ def generar_pdf():
 
     # 4) Condición de pago (tomamos la primera OC de la lista)
     cond_pago = ''
-    if ocs:
-        oc0 = int(ocs[0])
-        oc_rows = (
-            supabase.table('orden_de_compra')
-                    .select('condicion_de_pago')
-                    .eq('orden_compra', oc0)
-                    .limit(1)
-                    .execute()
-                    .data
-        ) or []
-        if oc_rows:
-            cond_pago = oc_rows[0].get('condicion_de_pago', '')
+    if ocs and len(ocs) > 0:
+        oc0 = safe_int(ocs[0])
+        if oc0 > 0:
+            oc_rows = (
+                supabase.table('orden_de_compra')
+                        .select('condicion_de_pago')
+                        .eq('orden_compra', oc0)
+                        .limit(1)
+                        .execute()
+                        .data
+            ) or []
+            if oc_rows:
+                cond_pago = oc_rows[0].get('condicion_de_pago', '')
 
     # 5) Preparar detalle de materiales
     detalle_material = []
@@ -109,6 +177,7 @@ def generar_pdf():
         'total_neto': total_neto,
         'total_iva': total_iva,
         'total_pagar': total_pagar,
+        'sin_iva': sin_iva,  # Agregar información de si es sin IVA
         'autorizador': autorizador,
         'fecha_emision': date.today().isoformat()
     }

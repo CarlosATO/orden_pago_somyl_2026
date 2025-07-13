@@ -1,98 +1,750 @@
 {% extends 'base.html' %}
 
-{% block title %}Órdenes de Pago Pendientes{% endblock %}
+{% block title %}Documentos Pendientes - SOMYL{% endblock %}
 
 {% block content %}
-<h1 class="titulo-modulo w-100 titulo-modulo-con-icono">
-  <span class="icono-modulo">S</span>
-  Documentos Pendientes
-</h1>
+<style>
+  /* Estilos modernos para documentos pendientes */
+  .pending-container {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    overflow: hidden;
+    margin-bottom: 2rem;
+  }
+  
+  .pending-header {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    padding: 1.5rem;
+    border-bottom: none;
+  }
+  
+  .pending-stats {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #dee2e6;
+  }
+  
+  .stats-card {
+    background: white;
+    border-radius: 10px;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+  }
+  
+  .stats-card:hover {
+    transform: translateY(-2px);
+  }
+  
+  .stats-number {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #dc3545;
+    display: block;
+  }
+  
+  .stats-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  
+  .pending-table {
+    font-size: 0.85rem;
+    margin-bottom: 0;
+  }
+  
+  .pending-table th {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+    padding: 0.8rem 0.5rem;
+    text-align: center;
+    white-space: nowrap;
+  }
+  
+  .pending-table td {
+    padding: 0.6rem 0.5rem;
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f3f4;
+  }
+  
+  .pending-table tbody tr {
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  
+  .pending-table tbody tr:hover {
+    background: linear-gradient(135deg, rgba(0,123,255,0.05) 0%, rgba(0,123,255,0.02) 100%);
+    transform: scale(1.002);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  
+  .factura-input {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.5rem;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    text-align: center;
+    font-weight: 600;
+  }
+  
+  .factura-input:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+    outline: none;
+  }
+  
+  .factura-input:valid {
+    border-color: #28a745;
+    background: linear-gradient(135deg, #f8fff9 0%, #ffffff 100%);
+  }
+  
+  .btn-modern {
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    border: none;
+  }
+  
+  .btn-modern:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  
+  .btn-update {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+  }
+  
+  .btn-update:hover {
+    background: linear-gradient(135deg, #218838 0%, #1aa179 100%);
+    color: white;
+  }
+  
+  .btn-update:disabled {
+    background: #6c757d;
+    transform: none;
+    box-shadow: none;
+    cursor: not-allowed;
+  }
+  
+  .btn-bulk {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    padding: 0.75rem 2rem;
+    font-size: 0.9rem;
+  }
+  
+  .btn-clear {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    color: white;
+  }
+  
+  .search-container {
+    position: relative;
+    margin-bottom: 1rem;
+  }
+  
+  .search-input {
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    padding: 0.75rem 1rem 0.75rem 3rem;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+  }
+  
+  .search-input:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+    outline: none;
+  }
+  
+  .search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+    z-index: 1;
+  }
+  
+  .badge-pending {
+    background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+    color: white;
+    font-size: 0.7rem;
+    padding: 0.3rem 0.6rem;
+    border-radius: 15px;
+  }
+  
+  .order-badge {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    font-weight: 600;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+  }
+  
+  .provider-name {
+    font-weight: 500;
+    color: #495057;
+  }
+  
+  .material-desc {
+    color: #6c757d;
+    font-size: 0.8rem;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .quantity-badge {
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    color: white;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  
+  .loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+  
+  .loading-spinner {
+    background: white;
+    padding: 2rem;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  }
+  
+  .toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+  }
+  
+  .toast-modern {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    border: none;
+    margin-bottom: 0.5rem;
+  }
+  
+  .toast-success {
+    border-left: 4px solid #28a745;
+  }
+  
+  .toast-error {
+    border-left: 4px solid #dc3545;
+  }
+  
+  /* Responsive improvements */
+  @media (max-width: 768px) {
+    .pending-table {
+      font-size: 0.75rem;
+    }
+    
+    .pending-table th,
+    .pending-table td {
+      padding: 0.4rem 0.2rem;
+    }
+    
+    .btn-modern {
+      font-size: 0.75rem;
+      padding: 0.4rem 0.8rem;
+    }
+  }
+</style>
 
-  <!-- Bulk update form -->
-  <form id="bulk-form" method="POST" action="{{ url_for('ordenes_pago_pendientes.update_pendiente') }}">
-    <button type="submit" class="btn btn-primary mb-3">Actualizar todo</button>
+<!-- Header modernizado -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="titulo-modulo titulo-modulo-con-icono mb-0">
+    <span class="icono-modulo">📋</span>
+    Documentos Pendientes
+  </h1>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-modern btn-clear" onclick="limpiarTodo()">
+      <i class="bi bi-arrow-clockwise me-1"></i>Limpiar Todo
+    </button>
+    <button type="button" class="btn btn-modern btn-bulk" onclick="guardarTodo()">
+      <i class="bi bi-floppy me-1"></i>Guardar Todo
+    </button>
+  </div>
+</div>
 
-    <div class="table-responsive">
-      <table class="table table-bordered table-striped align-middle">
-        <thead>
-          <tr>
-            <th>O.COMPRA</th>
-            <th>O.DE PAGO</th>
-            <th>PROVEEDOR</th>
-            <th>DETALLE</th>
-            <th>CANTIDAD</th>
-            <th>DETALLE O.P.</th>
-            <th>FACTURA</th>
-            <th>ACCIONES</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for f in filas %}
-          <tr data-id="{{ f.id }}">
-            <td>{{ f.orden_compra }}</td>
-            <td>{{ f.orden_numero }}</td>
-            <td>{{ f.proveedor_nombre }}</td>
-            <td>{{ f.material_nombre }}</td>
-            <td>{{ f.cantidad }}</td>
-            <td>{{ f.detalle_compra }}</td>
-            <td style="width:120px;">
-              <input type="number"
-                     name="factura[]"
-                     class="form-control factura-input"
-                     min="1"
-                     placeholder="Nº Doc"
-                     required>
-              <input type="hidden" name="id[]" value="{{ f.id }}">
-            </td>
-            <td style="width:130px;">
-              <button type="button" class="btn btn-sm btn-outline-primary update-btn">
-                Actualizar
-              </button>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+<!-- Container principal -->
+<div class="pending-container">
+  <!-- Header con estadísticas -->
+  <div class="pending-header">
+    <div class="row align-items-center">
+      <div class="col-md-8">
+        <h3 class="mb-1">
+          <i class="bi bi-exclamation-triangle me-2"></i>
+          Órdenes Pendientes de Documentación
+        </h3>
+        <p class="mb-0 opacity-75">
+          Complete los números de documento para procesar las órdenes de pago
+        </p>
+      </div>
+      <div class="col-md-4 text-end">
+        <div class="d-flex justify-content-end gap-2">
+          <div class="stats-card">
+            <span class="stats-number" id="totalPendientes">{{ filas|length }}</span>
+            <span class="stats-label">Pendientes</span>
+          </div>
+        </div>
+      </div>
     </div>
-  </form>
+  </div>
 
+  <!-- Búsqueda y filtros -->
+  <div class="pending-stats">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="search-container">
+          <i class="bi bi-search search-icon"></i>
+          <input type="text" 
+                 id="searchInput" 
+                 class="form-control search-input" 
+                 placeholder="Buscar por proveedor, orden, material...">
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="d-flex justify-content-end gap-2">
+          <select id="proveedorFilter" class="form-select" style="width: auto;">
+            <option value="">Todos los proveedores</option>
+            {% set proveedores = filas | map(attribute='proveedor_nombre') | unique | sort %}
+            {% for proveedor in proveedores %}
+            <option value="{{ proveedor }}">{{ proveedor }}</option>
+            {% endfor %}
+          </select>
+          <select id="ordenFilter" class="form-select" style="width: auto;">
+            <option value="">Todas las órdenes</option>
+            {% set ordenes = filas | map(attribute='orden_numero') | unique | sort %}
+            {% for orden in ordenes %}
+            <option value="{{ orden }}">{{ orden }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla principal -->
+  <div class="table-responsive">
+    <table class="table pending-table" id="pendientesTable">
+      <thead>
+        <tr>
+          <th style="width: 100px;">O.COMPRA</th>
+          <th style="width: 100px;">O.PAGO</th>
+          <th style="width: 200px;">PROVEEDOR</th>
+          <th style="width: 250px;">MATERIAL</th>
+          <th style="width: 80px;">CANT.</th>
+          <th style="width: 200px;">DETALLE O.P.</th>
+          <th style="width: 140px;">Nº DOCUMENTO</th>
+          <th style="width: 120px;">ACCIONES</th>
+        </tr>
+      </thead>
+      <tbody id="pendientesTableBody">
+        {% for f in filas %}
+        <tr data-id="{{ f.id }}" data-proveedor="{{ f.proveedor_nombre }}" data-orden="{{ f.orden_numero }}">
+          <td>
+            <span class="badge-pending">{{ f.orden_compra }}</span>
+          </td>
+          <td>
+            <span class="order-badge">{{ f.orden_numero }}</span>
+          </td>
+          <td>
+            <div class="provider-name">{{ f.proveedor_nombre }}</div>
+          </td>
+          <td>
+            <div class="material-desc" title="{{ f.material_nombre }}">
+              {{ f.material_nombre }}
+            </div>
+          </td>
+          <td class="text-center">
+            <span class="quantity-badge">{{ f.cantidad }}</span>
+          </td>
+          <td>
+            <div class="material-desc" title="{{ f.detalle_compra }}">
+              {{ f.detalle_compra or '-' }}
+            </div>
+          </td>
+          <td>
+            <input type="number"
+                   class="form-control factura-input"
+                   min="1"
+                   placeholder="Nº Doc"
+                   data-id="{{ f.id }}"
+                   data-proveedor="{{ f.proveedor_nombre }}">
+          </td>
+          <td>
+            <button type="button" 
+                    class="btn btn-modern btn-update update-btn" 
+                    data-id="{{ f.id }}"
+                    disabled>
+              <i class="bi bi-check-lg me-1"></i>Guardar
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  
+  <!-- Footer con información -->
+  <div class="pending-stats">
+    <div class="row">
+      <div class="col-md-6">
+        <small class="text-muted">
+          <i class="bi bi-info-circle me-1"></i>
+          Mostrando <span id="visibleRows">{{ filas|length }}</span> de {{ filas|length }} documentos pendientes
+        </small>
+      </div>
+      <div class="col-md-6 text-end">
+        <small class="text-muted">
+          <i class="bi bi-clock me-1"></i>
+          Última actualización: {{ fecha_actualizacion }}
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner">
+    <div class="spinner-border text-primary mb-3" role="status">
+      <span class="visually-hidden">Cargando...</span>
+    </div>
+    <div>Procesando documento...</div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.update-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const tr = e.target.closest('tr');
-        const id = tr.dataset.id;
-        const facturaInput = tr.querySelector('.factura-input');
-        const factura = facturaInput.value;
-        if (!factura || factura <= 0) {
-          alert('Ingrese un número de factura válido');
-          return;
+class PendientesManager {
+  constructor() {
+    this.initializeEventListeners();
+    this.setupSearch();
+    this.setupFilters();
+    this.totalPendientes = {{ filas|length }};
+  }
+
+  initializeEventListeners() {
+    // Habilitar/deshabilitar botones según input
+    document.querySelectorAll('.factura-input').forEach(input => {
+      input.addEventListener('input', (e) => {
+        const row = e.target.closest('tr');
+        const updateBtn = row.querySelector('.update-btn');
+        const value = e.target.value.trim();
+        
+        if (value && parseInt(value) > 0) {
+          updateBtn.disabled = false;
+          updateBtn.classList.remove('btn-secondary');
+          updateBtn.classList.add('btn-update');
+        } else {
+          updateBtn.disabled = true;
+          updateBtn.classList.add('btn-secondary');
+          updateBtn.classList.remove('btn-update');
         }
-        // Envío por AJAX JSON
-        fetch('{{ url_for("ordenes_pago_pendientes.update_pendiente") }}', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            updates: [{ id: id, factura: factura, proveedor_nombre: tr.children[2].textContent }]
-          })
-        })
-        .then(res => res.json())
-        .then(results => {
-          const res = results[0];
-          if (res.success) {
-            tr.remove();
-          } else {
-            alert(res.msg);
+      });
+
+      // Enter para guardar
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          const row = e.target.closest('tr');
+          const updateBtn = row.querySelector('.update-btn');
+          if (!updateBtn.disabled) {
+            this.updateSingle(updateBtn);
           }
-        })
-        .catch(console.error);
+        }
       });
     });
+
+    // Botones de actualización individual
+    document.querySelectorAll('.update-btn').forEach(btn => {
+      btn.addEventListener('click', () => this.updateSingle(btn));
+    });
+  }
+
+  setupSearch() {
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('input', (e) => {
+      this.filterTable();
+    });
+  }
+
+  setupFilters() {
+    const proveedorFilter = document.getElementById('proveedorFilter');
+    const ordenFilter = document.getElementById('ordenFilter');
+    
+    proveedorFilter.addEventListener('change', () => this.filterTable());
+    ordenFilter.addEventListener('change', () => this.filterTable());
+  }
+
+  filterTable() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const proveedorFilter = document.getElementById('proveedorFilter').value;
+    const ordenFilter = document.getElementById('ordenFilter').value;
+    
+    const rows = document.querySelectorAll('#pendientesTableBody tr');
+    let visibleCount = 0;
+
+    rows.forEach(row => {
+      const proveedor = row.dataset.proveedor.toLowerCase();
+      const orden = row.dataset.orden;
+      const material = row.querySelector('.material-desc').textContent.toLowerCase();
+      const detalle = row.querySelector('td:nth-child(6)').textContent.toLowerCase();
+      
+      const matchesSearch = !searchTerm || 
+        proveedor.includes(searchTerm) || 
+        material.includes(searchTerm) || 
+        detalle.includes(searchTerm) ||
+        orden.includes(searchTerm);
+      
+      const matchesProveedor = !proveedorFilter || proveedor === proveedorFilter.toLowerCase();
+      const matchesOrden = !ordenFilter || orden === ordenFilter;
+      
+      if (matchesSearch && matchesProveedor && matchesOrden) {
+        row.style.display = '';
+        visibleCount++;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    document.getElementById('visibleRows').textContent = visibleCount;
+  }
+
+  async updateSingle(button) {
+    const row = button.closest('tr');
+    const id = button.dataset.id;
+    const facturaInput = row.querySelector('.factura-input');
+    const factura = facturaInput.value.trim();
+    const proveedorNombre = button.dataset.proveedor || row.dataset.proveedor;
+
+    if (!factura || parseInt(factura) <= 0) {
+      this.showToast('Ingrese un número de documento válido', 'error');
+      facturaInput.focus();
+      return;
+    }
+
+    // Mostrar loading
+    this.showLoading(true);
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+    try {
+      const response = await fetch('{{ url_for("ordenes_pago_pendientes.update_pendiente") }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          updates: [{
+            id: id,
+            factura: factura,
+            proveedor_nombre: proveedorNombre
+          }]
+        })
+      });
+
+      const results = await response.json();
+      const result = results[0];
+
+      if (result.success) {
+        this.showToast('Documento guardado exitosamente', 'success');
+        this.removeRow(row);
+        this.updateStats();
+      } else {
+        this.showToast(result.msg || 'Error al guardar documento', 'error');
+        button.disabled = false;
+        button.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar';
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      this.showToast('Error de conexión. Inténtelo nuevamente.', 'error');
+      button.disabled = false;
+      button.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardar';
+    } finally {
+      this.showLoading(false);
+    }
+  }
+
+  removeRow(row) {
+    row.style.transition = 'all 0.3s ease';
+    row.style.transform = 'translateX(100%)';
+    row.style.opacity = '0';
+    
+    setTimeout(() => {
+      row.remove();
+      this.filterTable(); // Actualizar contadores
+    }, 300);
+  }
+
+  updateStats() {
+    const currentTotal = document.querySelectorAll('#pendientesTableBody tr').length;
+    document.getElementById('totalPendientes').textContent = currentTotal;
+    
+    if (currentTotal === 0) {
+      setTimeout(() => {
+        this.showToast('¡Excelente! No hay documentos pendientes', 'success');
+        // Opcional: redirigir o mostrar mensaje de éxito
+      }, 500);
+    }
+  }
+
+  showToast(message, type = 'info') {
+    const toastContainer = document.getElementById('toastContainer');
+    const toastId = 'toast-' + Date.now();
+    
+    const toastHTML = `
+      <div class="toast toast-modern toast-${type === 'error' ? 'error' : 'success'}" id="${toastId}" role="alert">
+        <div class="toast-header">
+          <i class="bi bi-${type === 'error' ? 'exclamation-triangle' : 'check-circle'} me-2 text-${type === 'error' ? 'danger' : 'success'}"></i>
+          <strong class="me-auto">${type === 'error' ? 'Error' : 'Éxito'}</strong>
+          <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+          ${message}
+        </div>
+      </div>
+    `;
+    
+    toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+    
+    const toastElement = document.getElementById(toastId);
+    const bsToast = new bootstrap.Toast(toastElement, { delay: 4000 });
+    bsToast.show();
+    
+    // Limpiar después de que se oculte
+    toastElement.addEventListener('hidden.bs.toast', () => {
+      toastElement.remove();
+    });
+  }
+
+  showLoading(show) {
+    const overlay = document.getElementById('loadingOverlay');
+    overlay.style.display = show ? 'flex' : 'none';
+  }
+}
+
+// Funciones globales
+function limpiarTodo() {
+  if (confirm('¿Está seguro de que desea limpiar todos los campos?')) {
+    document.querySelectorAll('.factura-input').forEach(input => {
+      input.value = '';
+      const updateBtn = input.closest('tr').querySelector('.update-btn');
+      updateBtn.disabled = true;
+      updateBtn.classList.add('btn-secondary');
+      updateBtn.classList.remove('btn-update');
+    });
+    pendientesManager.showToast('Campos limpiados', 'info');
+  }
+}
+
+async function guardarTodo() {
+  const inputs = document.querySelectorAll('.factura-input');
+  const updates = [];
+  
+  inputs.forEach(input => {
+    const value = input.value.trim();
+    if (value && parseInt(value) > 0) {
+      const row = input.closest('tr');
+      updates.push({
+        id: input.dataset.id,
+        factura: value,
+        proveedor_nombre: input.dataset.proveedor
+      });
+    }
   });
+  
+  if (updates.length === 0) {
+    pendientesManager.showToast('No hay documentos para guardar', 'error');
+    return;
+  }
+  
+  if (!confirm(`¿Confirma guardar ${updates.length} documento(s)?`)) {
+    return;
+  }
+  
+  pendientesManager.showLoading(true);
+  
+  try {
+    const response = await fetch('{{ url_for("ordenes_pago_pendientes.update_pendiente") }}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ updates: updates })
+    });
+    
+    const results = await response.json();
+    const successful = results.filter(r => r.success).length;
+    const failed = results.filter(r => !r.success).length;
+    
+    if (successful > 0) {
+      pendientesManager.showToast(`${successful} documento(s) guardado(s) exitosamente`, 'success');
+      
+      // Remover filas exitosas
+      results.forEach(result => {
+        if (result.success) {
+          const row = document.querySelector(`tr[data-id="${result.id}"]`);
+          if (row) {
+            pendientesManager.removeRow(row);
+          }
+        }
+      });
+      
+      setTimeout(() => {
+        pendientesManager.updateStats();
+      }, 300);
+    }
+    
+    if (failed > 0) {
+      pendientesManager.showToast(`${failed} documento(s) no se pudieron guardar`, 'error');
+    }
+    
+  } catch (error) {
+    console.error('Error:', error);
+    pendientesManager.showToast('Error de conexión. Inténtelo nuevamente.', 'error');
+  } finally {
+    pendientesManager.showLoading(false);
+  }
+}
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+  window.pendientesManager = new PendientesManager();
+});
 </script>
 {% endblock %}

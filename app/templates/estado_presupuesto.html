@@ -1,254 +1,812 @@
 {% extends 'base.html' %}
-{% block title %}Estado de Presupuesto{% endblock %}
+{% block title %}Estado de Presupuesto - SOMYL{% endblock %}
 
 {% block content %}
-<h1 class="titulo-modulo w-100 titulo-modulo-con-icono">
-  <span class="icono-modulo">S</span>
-  Estado de presupuesto
-</h1>
+<style>
+  /* Estilos modernos para estado de presupuesto */
+  .budget-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    overflow: hidden;
+  }
+  
+  .budget-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+  }
+  
+  .budget-header {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    font-weight: 600;
+    padding: 1rem;
+    text-align: center;
+    letter-spacing: 1px;
+    font-size: 0.9rem;
+  }
+  
+  .budget-real-header {
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+  }
+  
+  .budget-table {
+    margin: 0;
+    background: #f8f9fa;
+  }
+  
+  .budget-table th {
+    background: #e9ecef;
+    font-weight: 600;
+    color: #495057;
+    border: none;
+    padding: 0.8rem;
+  }
+  
+  .budget-table td {
+    border: none;
+    padding: 0.8rem;
+    transition: background-color 0.2s ease;
+  }
+  
+  .budget-table tr:hover td {
+    background-color: rgba(0,123,255,0.05);
+  }
+  
+  .input-produccion {
+    border: 2px solid #28a745;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+  }
+  
+  .input-produccion:focus {
+    border-color: #20c997;
+    box-shadow: 0 0 0 0.2rem rgba(40,167,69,0.25);
+  }
+  
+  .modern-form {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+  
+  .modern-select {
+    border-radius: 10px;
+    border: 2px solid #dee2e6;
+    transition: all 0.2s ease;
+  }
+  
+  .modern-select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+  }
+  
+  .btn-modern {
+    border-radius: 10px;
+    font-weight: 600;
+    padding: 0.6rem 2rem;
+    transition: all 0.2s ease;
+    border: none;
+  }
+  
+  .btn-modern:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  }
+  
+  .btn-primary-modern {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+  }
+  
+  .btn-success-modern {
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+    color: white;
+  }
+  
+  .btn-secondary-modern {
+    background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+    color: white;
+  }
+  
+  .budget-table-container {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    overflow: hidden;
+    margin-bottom: 2rem;
+  }
+  
+  .budget-table-main {
+    font-size: 0.85rem;
+    margin: 0;
+  }
+  
+  .budget-table-main th {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    font-weight: 600;
+    color: #495057;
+    text-align: center;
+    border: 1px solid #dee2e6;
+    padding: 0.8rem 0.5rem;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  
+  .budget-table-main td {
+    border: 1px solid #dee2e6;
+    padding: 0.6rem 0.5rem;
+    text-align: center;
+    transition: all 0.2s ease;
+  }
+  
+  .budget-table-main tbody tr:hover {
+    background-color: rgba(0,123,255,0.05);
+    transform: scale(1.001);
+  }
+  
+  .presupuesto-cell {
+    background-color: #e3f2fd !important;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .presupuesto-cell:hover {
+    background-color: #bbdefb !important;
+    box-shadow: inset 0 0 5px rgba(0,123,255,0.3);
+  }
+  
+  .presupuesto-cell:focus {
+    background-color: #90caf9 !important;
+    outline: 2px solid #2196f3;
+    outline-offset: -2px;
+  }
+  
+  .real-cell {
+    background-color: #f3e5f5;
+    font-weight: 500;
+  }
+  
+  .month-separator {
+    border-right: 3px solid #007bff !important;
+  }
+  
+  .total-border {
+    border-left: 3px solid #28a745 !important;
+    background-color: #e8f5e8 !important;
+    font-weight: 700;
+  }
+  
+  .stats-container {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+  
+  .stat-item {
+    text-align: center;
+    padding: 1rem;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+  }
+  
+  .stat-item:hover {
+    transform: translateY(-2px);
+  }
+  
+  .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  
+  .stat-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  
+  .loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 15px;
+    z-index: 1000;
+  }
+  
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+  
+  .alert-modern {
+    border: none;
+    border-radius: 15px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+  
+  .export-controls {
+    background: white;
+    border-radius: 15px;
+    padding: 1rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    margin-bottom: 1rem;
+  }
+  
+  /* Responsive improvements */
+  @media (max-width: 768px) {
+    .budget-card {
+      margin-bottom: 1rem;
+    }
+    
+    .modern-form {
+      padding: 1rem;
+    }
+    
+    .budget-table-main {
+      font-size: 0.75rem;
+    }
+    
+    .budget-table-main th,
+    .budget-table-main td {
+      padding: 0.4rem 0.3rem;
+    }
+  }
+</style>
+
+<!-- Header con título -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="titulo-modulo titulo-modulo-con-icono mb-0">
+    <span class="icono-modulo">📊</span>
+    Estado de Presupuesto
+  </h1>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-outline-primary btn-sm" onclick="refreshData()">
+      <i class="bi bi-arrow-clockwise me-1"></i>Actualizar
+    </button>
+    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetFilters()">
+      <i class="bi bi-x-circle me-1"></i>Limpiar
+    </button>
+  </div>
+</div>
+<!-- Resumen de presupuesto (solo cuando hay un proyecto seleccionado) -->
 {% if resumen_presupuesto and selected|length == 1 %}
-  <div class="row mb-4 justify-content-center">
-    <div class="col-md-4 d-flex justify-content-center">
-      <div class="shadow-sm rounded" style="overflow:hidden;">
-        <div style="background:#3767e3; color:#fff; font-weight:bold; padding:8px 12px; border-top-left-radius:8px; border-top-right-radius:8px; letter-spacing:1px; text-align:center;">
-          PRESUPUESTO INICIAL
-        </div>
-        <table class="table table-bordered mb-0" style="background:#f9fafb">
-          <tbody>
-            <tr>
-              <th>Venta presupuestada</th>
-              <td class="text-end">{{ resumen_presupuesto.venta | clp }}</td>
-            </tr>
-            <tr>
-              <th>Gasto presupuestado</th>
-              <td class="text-end">{{ resumen_presupuesto.gasto | clp }}</td>
-            </tr>
-            <tr>
-              <th>Saldo presupuestado</th>
-              <td class="text-end fw-bold">{{ resumen_presupuesto.saldo | clp }}</td>
-            </tr>
-          </tbody>
-        </table>
+<div class="row mb-4 justify-content-center">
+  <div class="col-lg-5 col-md-6 mb-3">
+    <div class="budget-card">
+      <div class="budget-header">
+        <i class="bi bi-clipboard-data me-2"></i>
+        PRESUPUESTO INICIAL
+      </div>
+      <table class="budget-table table table-borderless mb-0">
+        <tbody>
+          <tr>
+            <th>Venta presupuestada</th>
+            <td class="text-end fw-bold text-primary">{{ resumen_presupuesto.venta | clp }}</td>
+          </tr>
+          <tr>
+            <th>Gasto presupuestado</th>
+            <td class="text-end fw-bold text-danger">{{ resumen_presupuesto.gasto | clp }}</td>
+          </tr>
+          <tr style="border-top: 2px solid #dee2e6;">
+            <th class="text-primary">Saldo presupuestado</th>
+            <td class="text-end fw-bold text-{% if resumen_presupuesto.saldo >= 0 %}success{% else %}danger{% endif %}">
+              {{ resumen_presupuesto.saldo | clp }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <div class="col-lg-5 col-md-6 mb-3">
+    <div class="budget-card">
+      <div class="budget-header budget-real-header">
+        <i class="bi bi-graph-up me-2"></i>
+        ESTADO ACTUAL
+      </div>
+      <table class="budget-table table table-borderless mb-0">
+        <tbody>
+          <tr>
+            <th>Producción actual</th>
+            <td class="text-end">
+              <input type="text" id="input-produccion"
+                     class="form-control form-control-sm text-end input-produccion"
+                     value="{{ resumen_real.produccion | clp }}"
+                     style="max-width:150px;display:inline-block;" autocomplete="off">
+            </td>
+          </tr>
+          <tr>
+            <th>Gasto actual</th>
+            <td class="text-end fw-bold text-danger">{{ resumen_real.gasto_real | clp }}</td>
+          </tr>
+          <tr style="border-top: 2px solid #dee2e6;">
+            <th class="text-success">Saldo actual</th>
+            <td class="text-end fw-bold text-{% if resumen_real.saldo_real >= 0 %}success{% else %}danger{% endif %}" id="saldo-actual">
+              {% set prod = resumen_real.produccion %}
+              {% set gasto = resumen_real.gasto_real %}
+              {% set prod_int = (prod if prod is number else (prod|default(0)|int)) %}
+              {% set gasto_int = (gasto if gasto is number else (gasto|default(0)|int)) %}
+              {{ (prod_int - gasto_int) | clp }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Estadísticas comparativas -->
+<div class="stats-container">
+  <div class="row g-3">
+    <div class="col-md-3">
+      <div class="stat-item">
+        <div class="stat-value text-primary">{{ ((resumen_real.gasto_real / resumen_presupuesto.gasto * 100) if resumen_presupuesto.gasto > 0 else 0) | round(1) }}%</div>
+        <div class="stat-label">Ejecución Presupuesto</div>
       </div>
     </div>
-    <!-- Cuadro PRESUPUESTO REAL al lado -->
-    <div class="col-md-4 d-flex justify-content-center">
-      <div class="shadow-sm rounded" style="overflow:hidden;">
-        <div style="background:#3767e3; color:#fff; font-weight:bold; padding:8px 12px; border-top-left-radius:8px; border-top-right-radius:8px; letter-spacing:1px; text-align:center;">
-          PRESUPUESTO REAL
+    <div class="col-md-3">
+      <div class="stat-item">
+        <div class="stat-value text-{% if resumen_real.produccion >= resumen_presupuesto.venta %}success{% else %}warning{% endif %}">
+          {{ ((resumen_real.produccion / resumen_presupuesto.venta * 100) if resumen_presupuesto.venta > 0 else 0) | round(1) }}%
         </div>
-        <table class="table table-bordered mb-0" style="background:#f9fafb">
-          <tbody>
-            <tr>
-              <th>Producción actual</th>
-              <td class="text-end">
-                <input type="text" id="input-produccion"
-                       class="form-control form-control-sm text-end"
-                       value="{{ resumen_real.produccion | clp }}"
-                       min="0" style="max-width:130px;display:inline-block;" autocomplete="off">
-              </td>
-            </tr>
-            <tr>
-              <th>Gasto actual</th>
-              <td class="text-end">{{ resumen_real.gasto_real | clp }}</td>
-            </tr>
-            <tr>
-              <th>Saldo actual</th>
-              <td class="text-end fw-bold" id="saldo-actual">
-                {% set prod = resumen_real.produccion %}
-                {% set gasto = resumen_real.gasto_real %}
-                {% set prod_int = (prod if prod is number else (prod|default(0)|int)) %}
-                {% set gasto_int = (gasto if gasto is number else (gasto|default(0)|int)) %}
-                {{ (prod_int - gasto_int) | clp }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="stat-label">Avance Producción</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-item">
+        <div class="stat-value text-{% if (resumen_presupuesto.saldo - (resumen_real.produccion - resumen_real.gasto_real)) >= 0 %}success{% else %}danger{% endif %}">
+          {{ (resumen_presupuesto.saldo - (resumen_real.produccion - resumen_real.gasto_real)) | clp }}
+        </div>
+        <div class="stat-label">Variación Saldo</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stat-item">
+        <div class="stat-value text-info">{{ months | length }}</div>
+        <div class="stat-label">Meses Analizados</div>
       </div>
     </div>
   </div>
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const input = document.getElementById('input-produccion');
-      if (input) {
-        // Extrae el número actual desde el valor inicial
-        let lastValue = parseInt(String(input.value).replace(/\D/g,'')) || 0;
-        // Siempre formatea a CLP al cargar
-        input.value = lastValue.toLocaleString('es-CL', {style:'currency', currency:'CLP', maximumFractionDigits:0});
-
-        // Al hacer clic: deja solo número y permite editar
-        input.addEventListener('focus', function() {
-          input.value = lastValue || '';
-          input.readOnly = false;
-        });
-        // Al perder foco: vuelve a CLP y guarda si cambió
-        input.addEventListener('blur', function() {
-          input.readOnly = true;
-          const val = parseInt(input.value.replace(/\D/g,'')) || 0;
-          input.value = val.toLocaleString('es-CL', {style:'currency', currency:'CLP', maximumFractionDigits:0});
-          if (val !== lastValue) {
-            fetch("{{ url_for('estado_presupuesto.update_produccion') }}", {
-              method: 'POST',
-              headers: {'Content-Type':'application/json'},
-              body: JSON.stringify({
-                proyecto: {{ selected[0]|tojson }},
-                produccion: val
-              })
-            })
-            .then(response => response.json())
-            .then(json => {
-              // Actualizar saldo actual en pantalla (sin recargar)
-              const gasto = {{ resumen_real.gasto_real|int or 0 }};
-              const saldo = val - gasto;
-              const saldoActual = document.getElementById('saldo-actual');
-              if (saldoActual) {
-                saldoActual.textContent = saldo.toLocaleString('es-CL', {style:'currency', currency:'CLP', maximumFractionDigits:0});
-              }
-              lastValue = val;
-            });
-          }
-        });
-      }
-    });
-  </script>
+</div>
 {% endif %}
-  <style>
-    .month-separator {
-      border-right: 3px solid #3767e3 !important;
-    }
-    .total-border {
-      border-left: 3px solid #3767e3 !important;
-    }
-    .table th, .table td {
-      border-right: 1px solid #dee2e6;
-    }
-  </style>
-
-  <form method="GET" class="row g-3 mb-4 align-items-end">
-    <div class="col-md-4">
-      <label for="proyectos">Proyectos:</label>
-      <select id="proyectos" name="proyecto" multiple class="form-select">
+<!-- Formulario de filtros -->
+<div class="modern-form">
+  <form method="GET" class="row g-3 align-items-end" id="filterForm">
+    <div class="col-lg-4 col-md-6">
+      <label for="proyectos" class="form-label fw-bold">
+        <i class="bi bi-building me-1"></i>Proyectos:
+      </label>
+      <select id="proyectos" name="proyecto" multiple class="form-select modern-select" size="4">
         {% for pid, pname in proyectos %}
           <option value="{{ pid }}" {% if pid in selected %}selected{% endif %}>{{ pname }}</option>
         {% endfor %}
       </select>
-      <div class="form-text">Mantén presionada Ctrl/Cmd para seleccionar varios.</div>
+      <div class="form-text">
+        <i class="bi bi-info-circle me-1"></i>
+        Mantén presionada Ctrl/Cmd para seleccionar varios.
+      </div>
     </div>
-    <div class="col-md-3">
-      <label for="desde">Desde:</label>
-      <select id="desde" name="desde" class="form-select">
+    
+    <div class="col-lg-3 col-md-6">
+      <label for="desde" class="form-label fw-bold">
+        <i class="bi bi-calendar-event me-1"></i>Desde:
+      </label>
+      <select id="desde" name="desde" class="form-select modern-select">
         <option value="">– Inicio –</option>
         {% for m in months %}
           <option value="{{ m }}" {% if m == desde %}selected{% endif %}>{{ m }}</option>
         {% endfor %}
       </select>
     </div>
-    <div class="col-md-3">
-      <label for="hasta">Hasta:</label>
-      <select id="hasta" name="hasta" class="form-select">
+    
+    <div class="col-lg-3 col-md-6">
+      <label for="hasta" class="form-label fw-bold">
+        <i class="bi bi-calendar-check me-1"></i>Hasta:
+      </label>
+      <select id="hasta" name="hasta" class="form-select modern-select">
         <option value="">– Fin –</option>
         {% for m in months %}
           <option value="{{ m }}" {% if m == hasta %}selected{% endif %}>{{ m }}</option>
         {% endfor %}
       </select>
     </div>
-    <div class="col-md-2">
-      <button class="btn btn-primary">Ver estado</button>
+    
+    <div class="col-lg-2 col-md-6">
+      <button type="submit" class="btn btn-primary-modern btn-modern w-100">
+        <i class="bi bi-search me-1"></i>Ver Estado
+      </button>
     </div>
   </form>
+</div>
 
-  {% if selected %}
-    <div class="mb-3 text-end">
+{% if selected %}
+  <!-- Controles de exportación -->
+  <div class="export-controls">
+    <div class="d-flex justify-content-between align-items-center">
+      <div class="d-flex gap-2">
+        <span class="badge bg-primary">{{ selected|length }} proyecto(s) seleccionado(s)</span>
+        <span class="badge bg-secondary">{{ months|length }} mes(es) analizados</span>
+      </div>
       <a href="{{ url_for('estado_presupuesto.export_presupuesto', proyecto=','.join(selected), desde=desde, hasta=hasta) }}"
-         class="btn btn-outline-secondary">
-        📥 Exportar a Excel
+         class="btn btn-success-modern btn-modern">
+        <i class="bi bi-file-earmark-excel me-1"></i>Exportar a Excel
       </a>
     </div>
+  </div>
 
-    <div class="table-responsive">
-      <table class="table table-bordered table-striped align-middle">
-        <thead class="table-light text-center">
+  <!-- Tabla principal -->
+  <div class="budget-table-container" style="position: relative;">
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+      <div class="spinner"></div>
+    </div>
+    
+    <div class="table-responsive" style="max-height: 70vh;">
+      <table class="budget-table-main table table-bordered">
+        <thead class="table-light">
           <tr>
-            <th rowspan="2">Proyecto</th>
-            <th rowspan="2">Item</th>
+            <th rowspan="2" style="min-width: 150px;">
+              <i class="bi bi-building me-1"></i>Proyecto
+            </th>
+            <th rowspan="2" style="min-width: 120px;">
+              <i class="bi bi-tag me-1"></i>Item
+            </th>
             {% for m in months %}
-              <th colspan="2"{% if not loop.last %} class="month-separator"{% endif %}>{{ m }}</th>
+              <th colspan="2"{% if not loop.last %} class="month-separator"{% endif %}>
+                <i class="bi bi-calendar3 me-1"></i>{{ m }}
+              </th>
             {% endfor %}
-            <th colspan="2" class="total-border">Total</th>
+            <th colspan="2" class="total-border">
+              <i class="bi bi-calculator me-1"></i>Total
+            </th>
           </tr>
           <tr>
             {% for m in months %}
-              <th>Presupuesto</th><th {% if not loop.last %}class="month-separator"{% endif %}>Real</th>
+              <th class="text-primary">
+                <i class="bi bi-clipboard-data"></i> Presup.
+              </th>
+              <th class="text-success{% if not loop.last %} month-separator{% endif %}">
+                <i class="bi bi-cash-stack"></i> Real
+              </th>
             {% endfor %}
-            <th class="total-border">Presupuesto</th><th>Real</th>
+            <th class="total-border text-primary">
+              <i class="bi bi-clipboard-data"></i> Presup.
+            </th>
+            <th class="text-success">
+              <i class="bi bi-cash-stack"></i> Real
+            </th>
           </tr>
         </thead>
         <tbody>
           {% for project, items in table.items() %}
             {% for item, meses in items|dictsort %}
-              <tr>
-                <td>{{ project_names[project]|e }}</td>
-                <td>{{ item }}</td>
+              <tr data-project="{{ project }}" data-item="{{ item }}">
+                <td class="fw-bold text-primary">{{ project_names[project]|e }}</td>
+                <td class="fw-medium">{{ item }}</td>
                 {% for m in months %}
-                  <td class="presupuesto-cell text-end"
+                  <td class="presupuesto-cell"
                       contenteditable="true"
                       data-project="{{ project|e }}"
                       data-item="{{ item|e }}"
-                      data-month="{{ m|e }}">
+                      data-month="{{ m|e }}"
+                      data-original="{{ meses[m]['presupuesto'] }}"
+                      title="Clic para editar presupuesto de {{ m }}">
                     {{ meses[m]['presupuesto'] | clp }}
                   </td>
-                  <td {% if not loop.last %}class="text-end month-separator"{% else %}class="text-end"{% endif %}>{{ meses[m]['real'] | clp }}</td>
+                  <td class="real-cell{% if not loop.last %} month-separator{% endif %}"
+                      title="Gasto real de {{ m }}">
+                    {{ meses[m]['real'] | clp }}
+                  </td>
                 {% endfor %}
-                <td class="text-end total-border">{{ row_totals[project][item]['presupuesto'] | clp }}</td>
-                <td class="text-end">{{ row_totals[project][item]['real']       | clp }}</td>
+                <td class="total-border text-primary fw-bold">
+                  {{ row_totals[project][item]['presupuesto'] | clp }}
+                </td>
+                <td class="text-success fw-bold">
+                  {{ row_totals[project][item]['real'] | clp }}
+                </td>
               </tr>
             {% endfor %}
           {% endfor %}
         </tbody>
-        <tfoot class="table-light text-end">
-          <tr>
-            <th colspan="2">Totales →</th>
+        <tfoot class="table-light">
+          <tr class="fw-bold">
+            <th colspan="2" class="text-center">
+              <i class="bi bi-calculator me-1"></i>Totales
+            </th>
             {% for m in months %}
-              <th>{{ col_totals[m]['presupuesto'] | clp }}</th>
-              <th {% if not loop.last %}class="month-separator"{% endif %}>{{ col_totals[m]['real']       | clp }}</th>
+              <th class="text-primary">{{ col_totals[m]['presupuesto'] | clp }}</th>
+              <th class="text-success{% if not loop.last %} month-separator{% endif %}">{{ col_totals[m]['real'] | clp }}</th>
             {% endfor %}
-            <th class="total-border">{{ grand_totals['presupuesto'] | clp }}</th>
-            <th>{{ grand_totals['real']       | clp }}</th>
+            <th class="total-border text-primary">{{ grand_totals['presupuesto'] | clp }}</th>
+            <th class="text-success">{{ grand_totals['real'] | clp }}</th>
           </tr>
         </tfoot>
       </table>
     </div>
-  {% else %}
-    <div class="alert alert-info">Selecciona al menos un proyecto para ver su estado.</div>
-  {% endif %}
-{% endblock %}
-
-{% block extra_js %}
+  </div>
+{% else %}
+  <div class="alert alert-info alert-modern text-center">
+    <i class="bi bi-info-circle fs-1 mb-3 d-block"></i>
+    <h5>Selecciona al menos un proyecto</h5>
+    <p class="mb-0">Elige uno o más proyectos en el filtro de arriba para ver su estado de presupuesto.</p>
+  </div>
+{% endif %}
+<!-- Scripts JavaScript mejorados -->
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('.presupuesto-cell').forEach(cell => {
-      cell.addEventListener('blur', () => {
-        const proyecto = cell.dataset.project;
-        const item      = cell.dataset.item;
-        const month     = cell.dataset.month;
-        const value     = parseInt(cell.textContent.trim()) || 0;
+document.addEventListener('DOMContentLoaded', function() {
+  initializeProduccionInput();
+  initializePresupuestoCells();
+  initializeKeyboardShortcuts();
+});
 
-        fetch("{{ url_for('estado_presupuesto.update_presupuesto') }}", {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({ proyecto, item, month, value })
-        })
-        .then(response => response.json())
-        .then(json => {
-          if (!json.success) {
-            alert('Error al actualizar presupuesto');
-          }
-        })
-        .catch(() => {
-          alert('Error de red al actualizar');
-        });
-      });
+function initializeProduccionInput() {
+  const input = document.getElementById('input-produccion');
+  if (!input) return;
+  
+  let lastValue = parseInt(String(input.value).replace(/\D/g,'')) || 0;
+  input.value = formatCurrency(lastValue);
+  
+  input.addEventListener('focus', function() {
+    input.value = lastValue || '';
+    input.readOnly = false;
+  });
+  
+  input.addEventListener('blur', function() {
+    input.readOnly = true;
+    const val = parseInt(input.value.replace(/\D/g,'')) || 0;
+    input.value = formatCurrency(val);
+    
+    if (val !== lastValue) {
+      updateProduccion(val);
+      lastValue = val;
+    }
+  });
+  
+  input.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      input.blur();
+    }
+  });
+}
+
+function updateProduccion(value) {
+  showLoading();
+  
+  fetch("{{ url_for('estado_presupuesto.update_produccion') }}", {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({
+      proyecto: {{ selected[0]|tojson if selected else 'null' }},
+      produccion: value
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      updateSaldoActual(value);
+      showSuccess('Producción actualizada correctamente');
+    } else {
+      showError('Error al actualizar producción');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showError('Error de conexión');
+  })
+  .finally(() => {
+    hideLoading();
+  });
+}
+
+function updateSaldoActual(produccion) {
+  const gasto = {{ resumen_real.gasto_real|int or 0 if resumen_real else 0 }};
+  const saldo = produccion - gasto;
+  const saldoElement = document.getElementById('saldo-actual');
+  if (saldoElement) {
+    saldoElement.textContent = formatCurrency(saldo);
+    saldoElement.className = `text-end fw-bold text-${saldo >= 0 ? 'success' : 'danger'}`;
+  }
+}
+
+function initializePresupuestoCells() {
+  document.querySelectorAll('.presupuesto-cell').forEach(cell => {
+    let originalValue = cell.dataset.original;
+    
+    cell.addEventListener('focus', function() {
+      const currentValue = parseInt(this.textContent.replace(/\D/g,'')) || 0;
+      this.textContent = currentValue || '';
+    });
+    
+    cell.addEventListener('blur', function() {
+      const value = parseInt(this.textContent.trim().replace(/\D/g,'')) || 0;
+      this.textContent = formatCurrency(value);
+      
+      if (value != originalValue) {
+        updatePresupuesto(this);
+        originalValue = value;
+        this.dataset.original = value;
+      }
+    });
+    
+    cell.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        this.blur();
+      }
+      // Solo permitir números
+      if (!/[\d]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Enter'].includes(e.key)) {
+        e.preventDefault();
+      }
+    });
+    
+    cell.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        this.textContent = formatCurrency(originalValue);
+        this.blur();
+      }
     });
   });
+}
+
+function updatePresupuesto(cell) {
+  const proyecto = cell.dataset.project;
+  const item = cell.dataset.item;
+  const month = cell.dataset.month;
+  const value = parseInt(cell.textContent.replace(/\D/g,'')) || 0;
+  
+  showLoading();
+  
+  fetch("{{ url_for('estado_presupuesto.update_presupuesto') }}", {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ proyecto, item, month, value })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      showSuccess('Presupuesto actualizado');
+      updateRowTotals(cell);
+    } else {
+      showError('Error al actualizar presupuesto');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showError('Error de conexión');
+  })
+  .finally(() => {
+    hideLoading();
+  });
+}
+
+function updateRowTotals(cell) {
+  const row = cell.closest('tr');
+  const presupuestoCells = row.querySelectorAll('.presupuesto-cell');
+  let total = 0;
+  presupuestoCells.forEach(c => {
+    total += parseInt(c.textContent.replace(/\D/g,'')) || 0;
+  });
+  
+  const totalCell = row.querySelector('.total-border');
+  if (totalCell) {
+    totalCell.textContent = formatCurrency(total);
+  }
+}
+
+function initializeKeyboardShortcuts() {
+  document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey || e.metaKey) {
+      switch(e.key) {
+        case 'r':
+          e.preventDefault();
+          refreshData();
+          break;
+        case 'e':
+          e.preventDefault();
+          exportData();
+          break;
+      }
+    }
+  });
+}
+
+function formatCurrency(value) {
+  return value.toLocaleString('es-CL', {
+    style: 'currency',
+    currency: 'CLP',
+    maximumFractionDigits: 0
+  });
+}
+
+function showLoading() {
+  const overlay = document.getElementById('loadingOverlay');
+  if (overlay) overlay.style.display = 'flex';
+}
+
+function hideLoading() {
+  const overlay = document.getElementById('loadingOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function showSuccess(message) {
+  showToast(message, 'success');
+}
+
+function showError(message) {
+  showToast(message, 'danger');
+}
+
+function showToast(message, type) {
+  const toastHtml = `
+    <div class="toast align-items-center text-white bg-${type} border-0" role="alert">
+      <div class="d-flex">
+        <div class="toast-body">${message}</div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+  `;
+  
+  const toastContainer = document.querySelector('.toast-container') || createToastContainer();
+  toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+  
+  const toast = toastContainer.lastElementChild;
+  const bsToast = new bootstrap.Toast(toast);
+  bsToast.show();
+  
+  toast.addEventListener('hidden.bs.toast', () => toast.remove());
+}
+
+function createToastContainer() {
+  const container = document.createElement('div');
+  container.className = 'toast-container position-fixed top-0 end-0 p-3';
+  container.style.zIndex = '1055';
+  document.body.appendChild(container);
+  return container;
+}
+
+function refreshData() {
+  window.location.reload();
+}
+
+function resetFilters() {
+  document.getElementById('proyectos').selectedIndex = -1;
+  document.getElementById('desde').selectedIndex = 0;
+  document.getElementById('hasta').selectedIndex = 0;
+}
+
+function exportData() {
+  const exportLink = document.querySelector('a[href*="export_presupuesto"]');
+  if (exportLink) {
+    exportLink.click();
+  }
+}
 </script>
 {% endblock %}

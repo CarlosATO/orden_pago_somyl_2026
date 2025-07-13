@@ -1,12 +1,225 @@
 {# templates/materiales/form.html #}
 {% extends "base.html" %}
-{% block title %}Materiales - Apps. Adquisiciones{% endblock %}
+{% block title %}Materiales - SOMYL{% endblock %}
 
 {% block content %}
-<h1 class="titulo-modulo w-100 titulo-modulo-con-icono">
-  <span class="icono-modulo">S</span>
-  Materiales
-</h1>
+<style>
+  /* Estilos modernos para el módulo de materiales */
+  .materials-container {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  }
+  
+  .form-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+    border: none;
+  }
+  
+  .form-card-header {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    padding: 1rem 1.5rem;
+    margin: -1.5rem -1.5rem 1.5rem -1.5rem;
+    border-radius: 12px 12px 0 0;
+    font-weight: 600;
+  }
+  
+  .form-control-modern {
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    transition: all 0.3s ease;
+    font-size: 0.95rem;
+  }
+  
+  .form-control-modern:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+    transform: translateY(-1px);
+  }
+  
+  .form-control-modern.is-valid {
+    border-color: #28a745;
+    background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEzLjg1NDMgNC4xNDU3TDYuNjY2NjcgMTEuMzMzM0wyLjE0NTk5IDYuODEyNjVMMy4yODc5NyA1LjY3MDY3TDYuNjY2NjcgOS4wNDkzN0wxMi43MTIzIDMuMDAzNzFMMTMuODU0MyA0LjE0NTdaIiBmaWxsPSIjMjhhNzQ1Ii8+Cjwvc3ZnPgo=");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+  }
+  
+  .form-control-modern.is-invalid {
+    border-color: #dc3545;
+  }
+  
+  .btn-modern {
+    border-radius: 8px;
+    padding: 0.6rem 1.5rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    border: none;
+  }
+  
+  .btn-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  }
+  
+  .btn-primary-modern {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+  }
+  
+  .btn-success-modern {
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+    color: white;
+  }
+  
+  .btn-warning-modern {
+    background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+    color: white;
+  }
+  
+  .btn-secondary-modern {
+    background: linear-gradient(135deg, #6c757d 0%, #545b62 100%);
+    color: white;
+  }
+  
+  /* Tabla moderna */
+  .table-modern {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border: none;
+  }
+  
+  .table-modern thead th {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: none;
+    padding: 1rem;
+    font-weight: 600;
+    color: #495057;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+  }
+  
+  .table-modern tbody td {
+    padding: 1rem;
+    border: none;
+    border-bottom: 1px solid #f8f9fa;
+    vertical-align: middle;
+  }
+  
+  .table-modern tbody tr {
+    transition: all 0.2s ease;
+  }
+  
+  .table-modern tbody tr:hover {
+    background-color: rgba(0,123,255,0.05);
+    transform: scale(1.001);
+  }
+  
+  /* Búsqueda moderna */
+  .search-container {
+    position: relative;
+    margin-bottom: 2rem;
+  }
+  
+  .search-input {
+    border: 2px solid #e9ecef;
+    border-radius: 25px;
+    padding: 0.8rem 1.5rem 0.8rem 3rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+  }
+  
+  .search-input:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+  }
+  
+  .search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+    font-size: 1.2rem;
+  }
+  
+  /* Indicadores de estado */
+  .status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 8px;
+  }
+  
+  .status-active { background-color: #28a745; }
+  .status-editing { background-color: #ffc107; }
+  
+  /* Animaciones de entrada */
+  .fade-in {
+    animation: fadeIn 0.5s ease-in;
+  }
+  
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  /* Responsive mejoras */
+  @media (max-width: 768px) {
+    .materials-container {
+      padding: 1rem;
+    }
+    
+    .form-card {
+      padding: 1rem;
+    }
+    
+    .btn-modern {
+      width: 100%;
+      margin-top: 1rem;
+    }
+  }
+  
+  /* Tooltips y ayudas */
+  .field-help {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+  }
+  
+  .required-indicator {
+    color: #dc3545;
+    font-weight: bold;
+  }
+</style>
+
+<!-- Header principal -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h1 class="titulo-modulo titulo-modulo-con-icono mb-0">
+    <span class="icono-modulo">📦</span>
+    Gestión de Materiales
+  </h1>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-secondary-modern btn-modern btn-sm" onclick="exportarMateriales()">
+      <i class="bi bi-file-earmark-excel me-1"></i>Exportar
+    </button>
+    <button type="button" class="btn btn-outline-primary btn-sm" onclick="limpiarFormulario()">
+      <i class="bi bi-plus-circle me-1"></i>Nuevo Material
+    </button>
+  </div>
+</div>
   <div class="search-container mb-3">
     <input type="text" id="searchInput" class="form-control" placeholder="Buscar material por nombre...">
   </div>

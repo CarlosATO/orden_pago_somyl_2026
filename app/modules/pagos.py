@@ -87,18 +87,41 @@ def get_pagos(filtros=None):
 @bp_pagos.route("/pagos", methods=["GET"])
 @require_modulo('pagos')
 def list_pagos():
-    # Si hay filtros, recógelos aquí (adaptar según tus parámetros de filtro)
+    # Recoger filtros de la URL
     filtros = {}
-    # Ejemplo: filtro por proveedor desde GET
-    proveedor = request.args.get("proveedor")
+    proveedor = request.args.get("proveedor", "").strip()
+    proyecto = request.args.get("proyecto", "").strip()
+    estado = request.args.get("estado", "").strip()  # pagado, pendiente, vencido
+    fecha_desde = request.args.get("fecha_desde", "").strip()
+    fecha_hasta = request.args.get("fecha_hasta", "").strip()
+    
     if proveedor:
         filtros["proveedor"] = proveedor
+    if proyecto:
+        filtros["proyecto"] = proyecto
+    if estado:
+        filtros["estado"] = estado
+    if fecha_desde:
+        filtros["fecha_desde"] = fecha_desde
+    if fecha_hasta:
+        filtros["fecha_hasta"] = fecha_hasta
+    
     pagos = get_pagos(filtros)
+    
+    # Datos adicionales para el template
+    proveedores_unicos = sorted(set(p["proveedor_nombre"] for p in pagos))
+    proyectos_unicos = sorted(set(p["proyecto"] for p in pagos))
+    
+    # Calcular fecha máxima para el input de fecha (hoy + 7 días)
+    fecha_maxima = (date.today() + timedelta(days=7)).isoformat()
+    
     return render_template(
         "pagos.html",
         pagos=pagos,
-        date=date,
-        timedelta=timedelta
+        fecha_maxima=fecha_maxima,
+        proveedores_unicos=proveedores_unicos,
+        proyectos_unicos=proyectos_unicos,
+        filtros_activos=filtros
     )
 
 @login_required

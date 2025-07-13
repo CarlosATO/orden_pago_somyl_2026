@@ -78,45 +78,72 @@ def list_ordenes_pago():
     if request.args.get("detail"):
         guia = request.args.get("guia")
         oc = request.args.get("oc", type=int)
-
-        ingresos = (
-            supabase
-            .table("ingresos")
-            .select("id, orden_compra, guia_recepcion, art_corr, recepcion, neto_unitario, material")
-            .eq("guia_recepcion", guia)
-            .eq("orden_compra", oc)
-            .execute()
-            .data
-        ) or []
+        
+        # Logging para debug
+        current_app.logger.info(f"AJAX detail request: guia={guia}, oc={oc}")
+        
+        # Construir consulta base
+        query = supabase.table("ingresos").select("id, orden_compra, factura, guia_recepcion, art_corr, recepcion, neto_unitario, material")
+        
+        # Filtrar por orden_compra (siempre debe existir)
+        if oc is not None:
+            query = query.eq("orden_compra", oc)
+        else:
+            current_app.logger.warning("Orden de compra no válida o faltante")
+            return jsonify([])
+        
+        # Filtrar por factura (documento principal)
+        if guia and guia.upper() not in ["NONE", "SIN_DOCUMENTO", "NULL", ""]:
+            query = query.eq("factura", guia)
+            current_app.logger.info(f"Buscando ingresos con factura: {guia}")
+        else:
+            # Si guia es None, "SIN_DOCUMENTO" o vacío, buscar registros con factura nula o vacía
+            query = query.or_("factura.is.null,factura.eq.")
+            current_app.logger.info(f"Buscando ingresos sin documento/factura (guia={guia})")
+        
+        ingresos = query.execute().data or []
+        current_app.logger.info(f"Ingresos encontrados: {len(ingresos)}")
 
         # map id→material name
-        mat_ids = {i["material"] for i in ingresos}
-        mats = (
-            supabase
-            .table("materiales")
-            .select("id, material")
-            .in_("id", list(mat_ids))
-            .execute()
-            .data
-        ) or []
-        mat_map = {m["id"]: m["material"] for m in mats}
+        mat_ids = {i["material"] for i in ingresos if i.get("material")}
+        if mat_ids:
+            mats = (
+                supabase
+                .table("materiales")
+                .select("id, material")
+                .in_("id", list(mat_ids))
+                .execute()
+                .data
+            ) or []
+            mat_map = {m["id"]: m["material"] for m in mats}
+        else:
+            mat_map = {}
+        
+        current_app.logger.info(f"Materiales encontrados: {len(mat_map)}")
 
         # ingresos ya usados en OP
         pagados_ids = {p["ingreso_id"] for p in pagos_all if p.get("ingreso_id")}
+        current_app.logger.info(f"Ingresos ya pagados: {len(pagados_ids)}")
 
         result = []
         for i in ingresos:
             if i["id"] in pagados_ids:
+                current_app.logger.debug(f"Ingreso {i['id']} ya está pagado, omitiendo")
                 continue
+                
+            material_name = mat_map.get(i["material"], f"Material ID: {i['material']}")
+            
             result.append({
                 "ingreso_id":    i["id"],
-                "descripcion":   mat_map.get(i["material"], ""),
+                "descripcion":   material_name,
                 "recepcion":     int(i.get("recepcion") or 0),
                 "neto_unitario": float(i.get("neto_unitario") or 0),
                 "art_corr":      i.get("art_corr"),
                 "orden_compra":  i.get("orden_compra"),
                 "material_id":   i.get("material")
             })
+            
+        current_app.logger.info(f"Resultado final: {len(result)} líneas disponibles")
         return jsonify(result)
 
     # GET normal: si se filtró proveedor, armar docs pendientes
@@ -125,21 +152,42 @@ def list_ordenes_pago():
     docs = []
 
     if nombre_proveedor:
-        prov = (
-            supabase
-            .table("proveedores")
-            .select("id")
-            .eq("nombre", nombre_proveedor)
-            .limit(1)
-            .execute()
-            .data
-        ) or []
-        if prov:
-            provider_id = prov[0]["id"]
+        # Verificar si nombre_proveedor es un ID numérico o un nombre
+        try:
+            # Si es un número, buscar por ID
+            provider_id = int(nombre_proveedor)
+            prov = (
+                supabase
+                .table("proveedores")
+                .select("id, nombre")
+                .eq("id", provider_id)
+                .limit(1)
+                .execute()
+                .data
+            ) or []
+            if prov:
+                nombre_proveedor = prov[0]["nombre"]  # Actualizar con el nombre real
+                provider_id = prov[0]["id"]
+        except (ValueError, TypeError):
+            # Si no es un número, buscar por nombre
+            prov = (
+                supabase
+                .table("proveedores")
+                .select("id, nombre")
+                .eq("nombre", nombre_proveedor)
+                .limit(1)
+                .execute()
+                .data
+            ) or []
+            if prov:
+                provider_id = prov[0]["id"]
+        
+        # Si encontramos el proveedor, buscar ingresos
+        if provider_id:
             ingresos = (
                 supabase
                 .table("ingresos")
-                .select("id, orden_compra, guia_recepcion, art_corr, neto_recepcion")
+                .select("id, orden_compra, factura, guia_recepcion, art_corr, neto_recepcion")
                 .eq("proveedor", provider_id)
                 .execute()
                 .data
@@ -150,15 +198,27 @@ def list_ordenes_pago():
 
             grupos = {}
             for i in pendientes:
-                key = (i["guia_recepcion"], i["orden_compra"])
+                # Manejar factura nula - usar "SIN_DOCUMENTO" en lugar de "None"
+                factura_key = i["factura"] if i["factura"] is not None else "SIN_DOCUMENTO"
+                key = (factura_key, i["orden_compra"])
                 if key not in grupos:
                     grupos[key] = {
-                        "guia_recepcion":       i["guia_recepcion"],
+                        "guia_recepcion":       factura_key,  # Mantenemos el nombre por compatibilidad con template
                         "orden_compra":         i["orden_compra"],
                         "total_neto_recepcion": 0.0
                     }
                 grupos[key]["total_neto_recepcion"] += float(i.get("neto_recepcion") or 0)
             docs = list(grupos.values())
+            
+            # Logging para debug
+            current_app.logger.info(f"Proveedor encontrado: ID={provider_id}, Nombre={nombre_proveedor}")
+            current_app.logger.info(f"Documentos pendientes generados: {len(docs)}")
+            for doc in docs:
+                current_app.logger.debug(f"Doc: {doc['guia_recepcion']}, OC: {doc['orden_compra']}, Total: {doc['total_neto_recepcion']}")
+        else:
+            current_app.logger.warning(f"Proveedor no encontrado: {nombre_proveedor}")
+    else:
+        current_app.logger.info("No se proporcionó nombre_proveedor en la consulta")
 
     return render_template(
         "ordenes_pago/form.html",
@@ -208,7 +268,7 @@ def new_orden_pago():
 
         # Buscar el ID padre de orden_de_compra por orden_compra y art_corr
         oc_res = supabase.table("orden_de_compra") \
-            .select("id, proyecto, condicion_de_pago") \
+            .select("id, proyecto, condicion_de_pago, fac_sin_iva") \
             .eq("orden_compra", orden_compra_int) \
             .eq("art_corr", art_corr_int) \
             .single() \
@@ -222,6 +282,7 @@ def new_orden_pago():
         orden_de_compra_id = oc_res.data["id"]
         proyecto_val       = oc_res.data.get("proyecto")
         condicion_pago_val = oc_res.data.get("condicion_de_pago")
+        fac_sin_iva        = oc_res.data.get("fac_sin_iva", 0)  # 0 = con IVA, 1 = sin IVA
 
         # Obtener tipo e item desde tabla materiales
         mat_res = supabase.table("materiales") \
@@ -241,11 +302,12 @@ def new_orden_pago():
         cantidad_int       = int(recepciones[i])
         unitario_float     = float(neto_unitarios[i])
         neto_total         = cantidad_int * unitario_float
-        costo_final_con_iva= neto_total * 1.19
+        # Calcular IVA solo si la orden de compra original no era sin IVA
+        costo_final_con_iva= neto_total * (1.0 if fac_sin_iva else 1.19)
 
         supabase.table("orden_de_pago").insert({
             "ingreso_id":           int(ingreso_id),
-            "orden_compra":         orden_de_compra_id,
+            "orden_compra":         orden_compra_int,  # Guardar número de OC, no el ID
             "doc_recep":            doc_recep,
             "art_corr":             art_corr_int,
             "material":             material_id_int,
@@ -268,6 +330,7 @@ def new_orden_pago():
             "factura":             factura_val,
             "estado_documento":    estado_doc,
             "tipo":                tipo_val,
+            # "fac_sin_iva":         fac_sin_iva,  # Comentado hasta agregar la columna
             "item":                item_val,
             "fecha":                date.today().isoformat()
         }).execute()
@@ -468,3 +531,26 @@ def api_trabajadores():
         cache_select2_results("trabajadores", term, results)
     
     return jsonify({"results": results})
+
+@bp.route("/check_iva/<int:oc_numero>", methods=["GET"])
+def check_iva(oc_numero):
+    """Verifica si una orden de compra específica es sin IVA"""
+    supabase = current_app.config["SUPABASE"]
+    
+    try:
+        # Consultar si la orden de compra es sin IVA
+        oc_res = supabase.table("orden_de_compra") \
+            .select("fac_sin_iva") \
+            .eq("orden_compra", oc_numero) \
+            .limit(1) \
+            .execute()
+        
+        if oc_res.data and len(oc_res.data) > 0:
+            sin_iva = bool(oc_res.data[0].get("fac_sin_iva", 0))
+            return jsonify({"sin_iva": sin_iva})
+        else:
+            return jsonify({"sin_iva": False})
+            
+    except Exception as e:
+        current_app.logger.error(f"Error verificando IVA para OC {oc_numero}: {e}")
+        return jsonify({"sin_iva": False})

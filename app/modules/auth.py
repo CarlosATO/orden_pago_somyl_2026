@@ -55,6 +55,18 @@ def login():
             flash('Contraseña incorrecta', 'danger')
         else:
             login_user(user)
+            
+            # Verificar si tiene contraseña temporal
+            supabase = current_app.config['SUPABASE']
+            usuario_data = supabase.table('usuarios').select('motivo_bloqueo').eq('id', user.id).single().execute().data
+            
+            current_app.logger.info(f"Usuario {user.id} logueado. Motivo bloqueo: {usuario_data.get('motivo_bloqueo') if usuario_data else 'None'}")
+            
+            if usuario_data and usuario_data.get('motivo_bloqueo') == 'CONTRASEÑA_TEMPORAL':
+                current_app.logger.info(f"Usuario {user.id} tiene contraseña temporal, redirigiendo a cambio de contraseña")
+                flash('Debes cambiar tu contraseña temporal antes de continuar', 'warning')
+                return redirect(url_for('usuarios.change_password'))
+            
             flash(f'Bienvenido, {user.nombre}', 'success')
             
             from app.modules.usuarios import get_modulos_usuario
