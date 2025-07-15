@@ -237,17 +237,21 @@ def list_ordenes_pago():
 def new_orden_pago():
     print("=== new_orden_pago start ===")
     current_app.logger.info("new_orden_pago(): inicio de la función")
-    supabase = current_app.config["SUPABASE"]
-    f = request.form
+    
+    try:
+        supabase = current_app.config["SUPABASE"]
+        f = request.form
 
-    orden_numero      = int(f.get("next_num", 0))
-    provider_id       = int(f.get("proveedor_id", 0))
-    proveedor_nombre  = f.get("nombre_proveedor", "")
-    autoriza_id       = f.get("autoriza_id") or None
-    fecha_factura     = f.get("fecha_factura")
-    vencimiento       = f.get("vencimiento")
-    estado_pago       = f.get("estado_pago")
-    detalle_compra    = f.get("detalle_compra", "")
+        orden_numero      = int(f.get("next_num", 0))
+        provider_id       = int(f.get("proveedor_id", 0))
+        proveedor_nombre  = f.get("nombre_proveedor", "")
+        autoriza_id       = f.get("autoriza_id") or None
+        fecha_factura     = f.get("fecha_factura")
+        vencimiento       = f.get("vencimiento")
+        estado_pago       = f.get("estado_pago")
+        detalle_compra    = f.get("detalle_compra", "")
+        
+        current_app.logger.info(f"Procesando orden {orden_numero} para proveedor {proveedor_nombre}")
 
     # Listas de inputs múltiples
     ingreso_ids        = f.getlist("ingreso_id[]")
@@ -305,35 +309,48 @@ def new_orden_pago():
         # Calcular IVA solo si la orden de compra original no era sin IVA
         costo_final_con_iva= neto_total * (1.0 if fac_sin_iva else 1.19)
 
-        supabase.table("orden_de_pago").insert({
-            "ingreso_id":           int(ingreso_id),
-            "orden_compra":         orden_compra_int,  # Guardar número de OC, no el ID
-            "doc_recep":            doc_recep,
-            "art_corr":             art_corr_int,
-            "material":             material_id_int,
-            "material_nombre":      descripcion,
-            "cantidad":             cantidad_int,
-            "neto_unitario":        unitario_float,
-            "neto_total_recibido":  neto_total,
-            "costo_final_con_iva":  costo_final_con_iva,
-            "orden_numero":         orden_numero,
-            "proveedor":            provider_id,
-            "proveedor_nombre":     proveedor_nombre,
-            "autoriza":            f.get("autoriza_input"),
-            "autoriza_nombre":     f.get("autoriza_input"),
-            "fecha_factura":        fecha_factura,
-            "vencimiento":          vencimiento,
-            "estado_pago":          estado_pago,
-            "detalle_compra":       detalle_compra,
-            "proyecto":            proyecto_val,
-            "condicion_pago":      condicion_pago_val,
-            "factura":             factura_val,
-            "estado_documento":    estado_doc,
-            "tipo":                tipo_val,
-            # "fac_sin_iva":         fac_sin_iva,  # Comentado hasta agregar la columna
-            "item":                item_val,
-            "fecha":                date.today().isoformat()
-        }).execute()
+        try:
+            result = supabase.table("orden_de_pago").insert({
+                "ingreso_id":           int(ingreso_id),
+                "orden_compra":         orden_compra_int,  # Guardar número de OC, no el ID
+                "doc_recep":            doc_recep,
+                "art_corr":             art_corr_int,
+                "material":             material_id_int,
+                "material_nombre":      descripcion,
+                "cantidad":             cantidad_int,
+                "neto_unitario":        unitario_float,
+                "neto_total_recibido":  neto_total,
+                "costo_final_con_iva":  costo_final_con_iva,
+                "orden_numero":         orden_numero,
+                "proveedor":            provider_id,
+                "proveedor_nombre":     proveedor_nombre,
+                "autoriza":            f.get("autoriza_input"),
+                "autoriza_nombre":     f.get("autoriza_input"),
+                "fecha_factura":        fecha_factura,
+                "vencimiento":          vencimiento,
+                "estado_pago":          estado_pago,
+                "detalle_compra":       detalle_compra,
+                "proyecto":            proyecto_val,
+                "condicion_pago":      condicion_pago_val,
+                "factura":             factura_val,
+                "estado_documento":    estado_doc,
+                "tipo":                tipo_val,
+                # "fac_sin_iva":         fac_sin_iva,  # Comentado hasta agregar la columna
+                "item":                item_val,
+                "fecha":                date.today().isoformat()
+            }).execute()
+            
+            if hasattr(result, 'error') and result.error:
+                current_app.logger.error(f"Error en inserción Supabase: {result.error}")
+                flash(f"Error al insertar línea {i+1}: {result.error}", "danger")
+                continue
+                
+            current_app.logger.info(f"Línea {i+1} insertada exitosamente")
+            
+        except Exception as e:
+            current_app.logger.error(f"Error insertando línea {i+1}: {e}")
+            flash(f"Error al insertar línea {i+1}: {str(e)}", "danger")
+            continue
 
     print("=== before PDF generation ===")
     # — Generar PDF en memoria para adjuntar —
@@ -377,9 +394,72 @@ def new_orden_pago():
         'fecha_emision':  date.today().isoformat()
     }
     html = render_template('ordenes_pago/pdf_template.html', **pdf_context)
-    config = pdfkit.configuration(wkhtmltopdf='/usr/local/bin/wkhtmltopdf')
-    options = {'enable-local-file-access': None}
-    pdf_bytes = pdfkit.from_string(html, False, configuration=config, options=options)
+    
+    # Configuración robusta de wkhtmltopdf para producción
+    try:
+        config = None
+        
+        # 1. Intentar con la instalación del sistema (Railway, Heroku, etc.)
+        try:
+            import subprocess
+            result = subprocess.run(['which', 'wkhtmltopdf'], capture_output=True, text=True)
+            if result.returncode == 0:
+                wkhtmltopdf_path = result.stdout.strip()
+                current_app.logger.info(f"wkhtmltopdf encontrado en: {wkhtmltopdf_path}")
+                config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
+        except Exception as e:
+            current_app.logger.warning(f"Error buscando wkhtmltopdf: {e}")
+        
+        # 2. Fallback a rutas comunes si no se encuentra
+        if not config:
+            common_paths = [
+                '/usr/bin/wkhtmltopdf',
+                '/usr/local/bin/wkhtmltopdf',
+                '/bin/wkhtmltopdf',
+                'wkhtmltopdf'  # Usar PATH del sistema
+            ]
+            
+            for path in common_paths:
+                try:
+                    config = pdfkit.configuration(wkhtmltopdf=path)
+                    # Probar si la configuración funciona
+                    test_options = {'enable-local-file-access': None}
+                    pdfkit.from_string('<html><body>Test</body></html>', False, configuration=config, options=test_options)
+                    current_app.logger.info(f"wkhtmltopdf configurado exitosamente en: {path}")
+                    break
+                except Exception as e:
+                    current_app.logger.warning(f"Ruta {path} no funciona: {e}")
+                    continue
+        
+        # 3. Si no se encuentra wkhtmltopdf, usar configuración sin path
+        if not config:
+            current_app.logger.info("Usando configuración por defecto de wkhtmltopdf")
+            config = None
+        
+        # Generar PDF con la configuración encontrada
+        options = {
+            'enable-local-file-access': None,
+            'page-size': 'A4',
+            'margin-top': '0.75in',
+            'margin-right': '0.75in',
+            'margin-bottom': '0.75in',
+            'margin-left': '0.75in',
+            'encoding': "UTF-8",
+            'no-outline': None
+        }
+        
+        if config:
+            pdf_bytes = pdfkit.from_string(html, False, configuration=config, options=options)
+        else:
+            pdf_bytes = pdfkit.from_string(html, False, options=options)
+            
+        current_app.logger.info(f"PDF generado exitosamente para orden {orden_numero}")
+        
+    except Exception as e:
+        current_app.logger.error(f"Error generando PDF en new_orden_pago: {e}")
+        # En caso de error, continuar sin PDF pero completar el guardado
+        pdf_bytes = None
+        current_app.logger.warning("Continuando sin PDF debido a error en generación")
 
     # — Construir y enviar correo —
     # mail = current_app.extensions['mail']
@@ -392,12 +472,13 @@ def new_orden_pago():
     #     f"Junto con saludar, orden de pago N{orden_numero} de {proveedor_nombre}.\n\n"
     #     f"Saludos cordiales."
     # )
-    # # adjuntar PDF
-    # msg.attach(
-    #     filename=f"orden_pago_{orden_numero}_{proveedor_nombre}.PDF",
-    #     content_type="application/pdf",
-    #     data=pdf_bytes
-    # )
+    # # adjuntar PDF solo si se generó correctamente
+    # if pdf_bytes:
+    #     msg.attach(
+    #         filename=f"orden_pago_{orden_numero}_{proveedor_nombre}.PDF",
+    #         content_type="application/pdf",
+    #         data=pdf_bytes
+    #     )
     # # adjuntar archivos si existen
     # for field in ('documento1', 'documento2'):
     #     file = request.files.get(field)
@@ -415,8 +496,13 @@ def new_orden_pago():
     # except Exception as e:
     #     current_app.logger.error("Error al enviar correo: %s", e, exc_info=True)
 
-    flash(f"Orden de Pago Nº{orden_numero} creada exitosamente.", "success")
-    return redirect(url_for("ordenes_pago.list_ordenes_pago"))
+        flash(f"Orden de Pago Nº{orden_numero} creada exitosamente.", "success")
+        return redirect(url_for("ordenes_pago.list_ordenes_pago"))
+        
+    except Exception as e:
+        current_app.logger.error(f"Error en new_orden_pago: {e}", exc_info=True)
+        flash(f"Error al crear la orden de pago: {str(e)}", "danger")
+        return redirect(url_for("ordenes_pago.list_ordenes_pago"))
 
 
 @bp.route("/complete_doc/<int:id>", methods=["POST"])
