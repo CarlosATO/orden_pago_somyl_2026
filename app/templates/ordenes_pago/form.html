@@ -428,11 +428,22 @@
 
     <!-- 5) Botones Generar PDF / Crear OP -->
     <div class="text-end">
-      <button type="button" id="pdf-btn"
-              class="btn btn-secondary me-2">
-        <i class="bi bi-file-earmark-pdf me-1"></i>
-        Generar PDF
-      </button>
+      <div class="btn-group me-2" role="group" aria-label="Opciones PDF">
+        <button type="button" id="pdf-btn"
+                class="btn btn-secondary">
+          <i class="bi bi-file-earmark-pdf me-1"></i>
+          Generar PDF
+        </button>
+        <button type="button" class="btn btn-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+          <span class="visually-hidden">Toggle Dropdown</span>
+        </button>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item" href="#" id="pdf-reportlab-btn">
+            <i class="bi bi-file-earmark-pdf me-1"></i>
+            PDF con ReportLab (Alternativo)
+          </a></li>
+        </ul>
+      </div>
       <button id="create-btn" disabled
               formaction="{{ url_for('ordenes_pago.new_orden_pago') }}"
               formmethod="post"
@@ -748,10 +759,139 @@
           pdfBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Generando PDF...';
           pdfBtn.disabled = true;
           
-          // Crear formulario temporal para enviar datos al PDF
+          // Función para intentar generar PDF con fallback
+          function generarPDFConFallback() {
+            // Crear formulario temporal para enviar datos al PDF
+            const tempForm = document.createElement('form');
+            tempForm.method = 'POST';
+            tempForm.action = '{{ url_for("ordenes_pago_pdf.pdf") }}';
+            tempForm.style.display = 'none';
+            
+            // Copiar todos los datos del formulario principal
+            const formData = new FormData(document.querySelector('form[method="POST"]'));
+            for (let [key, value] of formData.entries()) {
+              const input = document.createElement('input');
+              input.type = 'hidden';
+              input.name = key;
+              input.value = value;
+              tempForm.appendChild(input);
+            }
+            
+            document.body.appendChild(tempForm);
+            
+            // Manejo de errores para el primer intento
+            const originalTarget = tempForm.target;
+            tempForm.target = 'pdf-frame';
+            
+            // Crear iframe oculto para capturar respuesta
+            let iframe = document.getElementById('pdf-frame');
+            if (!iframe) {
+              iframe = document.createElement('iframe');
+              iframe.id = 'pdf-frame';
+              iframe.name = 'pdf-frame';
+              iframe.style.display = 'none';
+              document.body.appendChild(iframe);
+            }
+            
+            // Timeout para detectar fallo
+            const timeout = setTimeout(() => {
+              console.log('PDF principal falló, intentando con ReportLab...');
+              
+              // Intentar con ReportLab
+              tempForm.action = '{{ url_for("ordenes_pago_pdf_reportlab.pdf_reportlab") }}';
+              tempForm.target = '_blank';
+              tempForm.submit();
+              
+              // Limpiar
+              document.body.removeChild(tempForm);
+              
+              // Restaurar botón y habilitar crear orden
+              setTimeout(() => {
+                pdfBtn.innerHTML = originalText;
+                pdfBtn.disabled = false;
+                createBtn.disabled = false;
+                
+                // Mostrar mensaje de éxito con ReportLab
+                const toast = document.createElement('div');
+                toast.className = 'alert alert-success alert-dismissible fade show position-fixed';
+                toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+                toast.innerHTML = `
+                  <i class="bi bi-check-circle me-2"></i>
+                  PDF generado correctamente (método alternativo). Ahora puede crear la orden de pago.
+                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.body.appendChild(toast);
+                
+                // Auto-remover el toast después de 5 segundos
+                setTimeout(() => {
+                  if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                  }
+                }, 5000);
+                
+              }, 1000);
+              
+            }, 5000); // 5 segundos de timeout
+            
+            // Detectar cuando el PDF se carga exitosamente
+            iframe.onload = function() {
+              clearTimeout(timeout);
+              
+              // Limpiar
+              document.body.removeChild(tempForm);
+              
+              // Restaurar botón y habilitar crear orden
+              setTimeout(() => {
+                pdfBtn.innerHTML = originalText;
+                pdfBtn.disabled = false;
+                createBtn.disabled = false;
+                
+                // Mostrar mensaje de éxito
+                const toast = document.createElement('div');
+                toast.className = 'alert alert-success alert-dismissible fade show position-fixed';
+                toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+                toast.innerHTML = `
+                  <i class="bi bi-check-circle me-2"></i>
+                  PDF generado correctamente. Ahora puede crear la orden de pago.
+                  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                document.body.appendChild(toast);
+                
+                // Auto-remover el toast después de 5 segundos
+                setTimeout(() => {
+                  if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                  }
+                }, 5000);
+                
+              }, 1000);
+            };
+            
+            // Enviar el formulario para PDF principal
+            tempForm.submit();
+          }
+          
+          // Ejecutar la función de generación con fallback
+          generarPDFConFallback();
+        });
+      }
+
+      // Botón alternativo para PDF con ReportLab
+      const pdfReportLabBtn = document.getElementById('pdf-reportlab-btn');
+      if (pdfReportLabBtn) {
+        pdfReportLabBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          
+          // Mostrar loading en el botón PDF
+          const originalText = pdfReportLabBtn.innerHTML;
+          pdfReportLabBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Generando PDF...';
+          pdfReportLabBtn.style.pointerEvents = 'none';
+          
+          // Crear formulario temporal para enviar datos al PDF con ReportLab
           const tempForm = document.createElement('form');
           tempForm.method = 'POST';
-          tempForm.action = '{{ url_for("ordenes_pago_pdf.pdf") }}';
+          tempForm.action = '{{ url_for("ordenes_pago_pdf_reportlab.pdf_reportlab") }}';
+          tempForm.target = '_blank';
           tempForm.style.display = 'none';
           
           // Copiar todos los datos del formulario principal
@@ -770,8 +910,8 @@
           
           // Restaurar botón y habilitar crear orden después de un delay
           setTimeout(() => {
-            pdfBtn.innerHTML = originalText;
-            pdfBtn.disabled = false;
+            pdfReportLabBtn.innerHTML = originalText;
+            pdfReportLabBtn.style.pointerEvents = 'auto';
             createBtn.disabled = false;
             
             // Mostrar mensaje de éxito
@@ -780,7 +920,7 @@
             toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
             toast.innerHTML = `
               <i class="bi bi-check-circle me-2"></i>
-              PDF generado correctamente. Ahora puede crear la orden de pago.
+              PDF generado correctamente con ReportLab. Ahora puede crear la orden de pago.
               <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
             document.body.appendChild(toast);
@@ -792,7 +932,7 @@
               }
             }, 5000);
             
-          }, 2000); // 2 segundos de delay para simular la generación
+          }, 2000); // 2 segundos de delay
         });
       }
 

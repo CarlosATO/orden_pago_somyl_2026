@@ -185,12 +185,75 @@ def generar_pdf():
     # 8) Renderizar HTML y generar PDF
     html = render_template('ordenes_pago/pdf_template.html', **contexto)
 
-    # Asegúrate de que wkhtmltopdf esté en /usr/local/bin o ajusta la ruta
-    config = pdfkit.configuration(wkhtmltopdf='/usr/local/bin/wkhtmltopdf')
-    options = {
-        'enable-local-file-access': None
-    }
-    pdf_bytes = pdfkit.from_string(html, False, configuration=config, options=options)
+    try:
+        # Intentar diferentes configuraciones de wkhtmltopdf para producción
+        config = None
+        
+        # 1. Intentar con la instalación del sistema (Railway, Heroku, etc.)
+        try:
+            import subprocess
+            result = subprocess.run(['which', 'wkhtmltopdf'], capture_output=True, text=True)
+            if result.returncode == 0:
+                wkhtmltopdf_path = result.stdout.strip()
+                current_app.logger.info(f"wkhtmltopdf encontrado en: {wkhtmltopdf_path}")
+                config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
+        except Exception as e:
+            current_app.logger.warning(f"Error buscando wkhtmltopdf: {e}")
+        
+        # 2. Fallback a rutas comunes si no se encuentra
+        if not config:
+            common_paths = [
+                '/usr/bin/wkhtmltopdf',
+                '/usr/local/bin/wkhtmltopdf',
+                '/bin/wkhtmltopdf',
+                'wkhtmltopdf'  # Usar PATH del sistema
+            ]
+            
+            for path in common_paths:
+                try:
+                    config = pdfkit.configuration(wkhtmltopdf=path)
+                    # Probar si la configuración funciona
+                    pdfkit.from_string('<html><body>Test</body></html>', False, configuration=config)
+                    current_app.logger.info(f"wkhtmltopdf configurado exitosamente en: {path}")
+                    break
+                except Exception as e:
+                    current_app.logger.warning(f"Ruta {path} no funciona: {e}")
+                    continue
+        
+        # 3. Si no se encuentra wkhtmltopdf, usar configuración sin path (usar PATH del sistema)
+        if not config:
+            current_app.logger.info("Usando configuración por defecto de wkhtmltopdf")
+            config = None
+        
+        # Opciones para el PDF
+        options = {
+            'enable-local-file-access': None,
+            'page-size': 'A4',
+            'margin-top': '0.75in',
+            'margin-right': '0.75in',
+            'margin-bottom': '0.75in',
+            'margin-left': '0.75in',
+            'encoding': "UTF-8",
+            'no-outline': None
+        }
+        
+        # Generar PDF con manejo de errores
+        if config:
+            pdf_bytes = pdfkit.from_string(html, False, configuration=config, options=options)
+        else:
+            pdf_bytes = pdfkit.from_string(html, False, options=options)
+            
+        current_app.logger.info(f"PDF generado exitosamente para orden {numero}")
+        
+    except Exception as e:
+        current_app.logger.error(f"Error generando PDF: {e}")
+        # Fallback: devolver el HTML como respuesta de error
+        from flask import jsonify
+        return jsonify({
+            'error': 'Error generando PDF',
+            'message': str(e),
+            'suggestion': 'Contacte al administrador del sistema'
+        }), 500
 
     # 9) Devolver PDF como descarga
     response = make_response(pdf_bytes)

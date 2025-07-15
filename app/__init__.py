@@ -48,6 +48,11 @@ def create_app():
     app.register_blueprint(bp_op, url_prefix='/ordenes_pago')
     from .modules.ordenes_pago_pdf import bp_pdf
     app.register_blueprint(bp_pdf)
+    
+    # Registrar PDF alternativo con ReportLab
+    from .modules.ordenes_pago_pdf_reportlab import bp_pdf_reportlab
+    app.register_blueprint(bp_pdf_reportlab)
+    
     from .modules.ordenes_pago_pendientes import bp_pending
     app.register_blueprint(bp_pending, url_prefix='/ordenes_pago/pendientes')
     from .modules.ingresos import bp as bp_ing
