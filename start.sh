@@ -1,23 +1,13 @@
 #!/bin/bash
-# Script para instalar wkhtmltopdf en Railway
-echo "Instalando wkhtmltopdf..."
+# Script de inicio simplificado para Railway
+echo "Iniciando aplicación SOMYL..."
 
 # Verificar si wkhtmltopdf está disponible
-if ! command -v wkhtmltopdf &> /dev/null; then
-    echo "wkhtmltopdf no encontrado, instalando..."
-    
-    # Para Railway (usa Nixpacks)
-    if [ -f /etc/nixos/nixpkgs ]; then
-        echo "Entorno Nixpacks detectado"
-        # wkhtmltopdf debería estar disponible via nixpacks.toml
-    else
-        echo "Entorno desconocido, intentando instalación manual..."
-        # Fallback para otros entornos
-        apt-get update && apt-get install -y wkhtmltopdf
-    fi
+if command -v wkhtmltopdf &> /dev/null; then
+    echo "wkhtmltopdf disponible en: $(which wkhtmltopdf)"
 else
-    echo "wkhtmltopdf ya está instalado en: $(which wkhtmltopdf)"
+    echo "wkhtmltopdf no encontrado - usando fallback ReportLab"
 fi
 
 # Ejecutar la aplicación
-exec "$@"
+exec gunicorn run:app --bind 0.0.0.0:$PORT --workers 4 --timeout 300
