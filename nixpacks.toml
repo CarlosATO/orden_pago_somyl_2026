@@ -1,8 +1,5 @@
 [phases.setup]
-nixPkgs = ['wkhtmltopdf', 'xvfb']
-
-[phases.build]
-cmd = "pip install -r requirements.txt"
+nixPkgs = ['wkhtmltopdf', 'xvfb-run']
 
 [start]
-cmd = "gunicorn --bind 0.0.0.0:$PORT --workers 4 --timeout 300 run:app"
+cmd = "gunicorn --bind 0.0.0.0:$PORT --worker-class sync --timeout 300 run:app"
