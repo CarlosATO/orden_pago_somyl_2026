@@ -253,131 +253,131 @@ def new_orden_pago():
         
         current_app.logger.info(f"Procesando orden {orden_numero} para proveedor {proveedor_nombre}")
 
-    # Listas de inputs múltiples
-    ingreso_ids        = f.getlist("ingreso_id[]")
-    orden_compras      = f.getlist("orden_compra[]")
-    guia_recepciones   = f.getlist("guia_recepcion[]")
-    art_corrs          = f.getlist("art_corr[]")
-    material_ids       = f.getlist("material[]")
-    descs              = f.getlist("descripcion[]")
-    recepciones        = f.getlist("recepcion[]")
-    neto_unitarios     = f.getlist("neto_unitario[]")
-    # facturas           = f.getlist("factura[]")
+        # Listas de inputs múltiples
+        ingreso_ids        = f.getlist("ingreso_id[]")
+        orden_compras      = f.getlist("orden_compra[]")
+        guia_recepciones   = f.getlist("guia_recepcion[]")
+        art_corrs          = f.getlist("art_corr[]")
+        material_ids       = f.getlist("material[]")
+        descs              = f.getlist("descripcion[]")
+        recepciones        = f.getlist("recepcion[]")
+        neto_unitarios     = f.getlist("neto_unitario[]")
+        # facturas           = f.getlist("factura[]")
 
-    # Por cada línea seleccionada, insertamos una fila
-    for i, ingreso_id in enumerate(ingreso_ids):
-        orden_compra_int   = int(orden_compras[i])
-        doc_recep          = guia_recepciones[i]
-        art_corr_int       = int(art_corrs[i])
+        # Por cada línea seleccionada, insertamos una fila
+        for i, ingreso_id in enumerate(ingreso_ids):
+            orden_compra_int   = int(orden_compras[i])
+            doc_recep          = guia_recepciones[i]
+            art_corr_int       = int(art_corrs[i])
 
-        # Buscar el ID padre de orden_de_compra por orden_compra y art_corr
-        oc_res = supabase.table("orden_de_compra") \
-            .select("id, proyecto, condicion_de_pago, fac_sin_iva") \
-            .eq("orden_compra", orden_compra_int) \
-            .eq("art_corr", art_corr_int) \
-            .single() \
-            .execute()
+            # Buscar el ID padre de orden_de_compra por orden_compra y art_corr
+            oc_res = supabase.table("orden_de_compra") \
+                .select("id, proyecto, condicion_de_pago, fac_sin_iva") \
+                .eq("orden_compra", orden_compra_int) \
+                .eq("art_corr", art_corr_int) \
+                .single() \
+                .execute()
 
-        if getattr(oc_res, "error", None) or not oc_res.data:
-            current_app.logger.debug(f"OC línea no encontrada: orden_compra={orden_compra_int}, art_corr={art_corr_int}, respuesta={oc_res}")
-            flash(f"Línea OC {orden_compra_int} - art_corr {art_corr_int} no existe en orden_de_compra.", "danger")
-            continue
-
-        orden_de_compra_id = oc_res.data["id"]
-        proyecto_val       = oc_res.data.get("proyecto")
-        condicion_pago_val = oc_res.data.get("condicion_de_pago")
-        fac_sin_iva        = oc_res.data.get("fac_sin_iva", 0)  # 0 = con IVA, 1 = sin IVA
-
-        # Obtener tipo e item desde tabla materiales
-        mat_res = supabase.table("materiales") \
-            .select("tipo, item") \
-            .eq("id", int(material_ids[i])) \
-            .single() \
-            .execute()
-        tipo_val = mat_res.data.get("tipo")
-        item_val = mat_res.data.get("item")
-
-        # Asignar documento y estado según doc_recep
-        factura_val = doc_recep or ""
-        estado_doc  = "completado" if doc_recep else "pendiente"
-
-        material_id_int    = int(material_ids[i])
-        descripcion        = descs[i]
-        cantidad_int       = int(recepciones[i])
-        unitario_float     = float(neto_unitarios[i])
-        neto_total         = cantidad_int * unitario_float
-        # Calcular IVA solo si la orden de compra original no era sin IVA
-        costo_final_con_iva= neto_total * (1.0 if fac_sin_iva else 1.19)
-
-        try:
-            result = supabase.table("orden_de_pago").insert({
-                "ingreso_id":           int(ingreso_id),
-                "orden_compra":         orden_compra_int,  # Guardar número de OC, no el ID
-                "doc_recep":            doc_recep,
-                "art_corr":             art_corr_int,
-                "material":             material_id_int,
-                "material_nombre":      descripcion,
-                "cantidad":             cantidad_int,
-                "neto_unitario":        unitario_float,
-                "neto_total_recibido":  neto_total,
-                "costo_final_con_iva":  costo_final_con_iva,
-                "orden_numero":         orden_numero,
-                "proveedor":            provider_id,
-                "proveedor_nombre":     proveedor_nombre,
-                "autoriza":            f.get("autoriza_input"),
-                "autoriza_nombre":     f.get("autoriza_input"),
-                "fecha_factura":        fecha_factura,
-                "vencimiento":          vencimiento,
-                "estado_pago":          estado_pago,
-                "detalle_compra":       detalle_compra,
-                "proyecto":            proyecto_val,
-                "condicion_pago":      condicion_pago_val,
-                "factura":             factura_val,
-                "estado_documento":    estado_doc,
-                "tipo":                tipo_val,
-                # "fac_sin_iva":         fac_sin_iva,  # Comentado hasta agregar la columna
-                "item":                item_val,
-                "fecha":                date.today().isoformat()
-            }).execute()
-            
-            if hasattr(result, 'error') and result.error:
-                current_app.logger.error(f"Error en inserción Supabase: {result.error}")
-                flash(f"Error al insertar línea {i+1}: {result.error}", "danger")
+            if getattr(oc_res, "error", None) or not oc_res.data:
+                current_app.logger.debug(f"OC línea no encontrada: orden_compra={orden_compra_int}, art_corr={art_corr_int}, respuesta={oc_res}")
+                flash(f"Línea OC {orden_compra_int} - art_corr {art_corr_int} no existe en orden_de_compra.", "danger")
                 continue
-                
-            current_app.logger.info(f"Línea {i+1} insertada exitosamente")
-            
-        except Exception as e:
-            current_app.logger.error(f"Error insertando línea {i+1}: {e}")
-            flash(f"Error al insertar línea {i+1}: {str(e)}", "danger")
-            continue
 
-    print("=== before PDF generation ===")
-    # — Generar PDF en memoria para adjuntar —
-    pdf_context = {
-        'empresa': {
-            'nombre': 'Somyl S.A.',
-            'rut': '76.002.581-K',
-            'rubro': 'TELECOMUNICACIONES',
-            'direccion': 'PUERTA ORIENTE 361 OF 311 B TORRE B COLINA',
-            'telefono': '232642974'
-        },
-        'proveedor': {
-            'paguese_a': proveedor_nombre,
-            'nombre':    proveedor_nombre,
-            'rut':        '',
-            'cuenta':     '',
-            'banco':      '',
-            'correo':     ''
-        },
-        'numero':         orden_numero,
-        'facturas':       guia_recepciones,
-        'ocs':            orden_compras,
-        'cond_pago':      estado_pago,
-        'fecha_factura':  fecha_factura,
-        'fecha_venc':     vencimiento,
-        'detalle_op':     detalle_compra,
-        'detalle_material': [
+            orden_de_compra_id = oc_res.data["id"]
+            proyecto_val       = oc_res.data.get("proyecto")
+            condicion_pago_val = oc_res.data.get("condicion_de_pago")
+            fac_sin_iva        = oc_res.data.get("fac_sin_iva", 0)  # 0 = con IVA, 1 = sin IVA
+
+            # Obtener tipo e item desde tabla materiales
+            mat_res = supabase.table("materiales") \
+                .select("tipo, item") \
+                .eq("id", int(material_ids[i])) \
+                .single() \
+                .execute()
+            tipo_val = mat_res.data.get("tipo")
+            item_val = mat_res.data.get("item")
+
+            # Asignar documento y estado según doc_recep
+            factura_val = doc_recep or ""
+            estado_doc  = "completado" if doc_recep else "pendiente"
+
+            material_id_int    = int(material_ids[i])
+            descripcion        = descs[i]
+            cantidad_int       = int(recepciones[i])
+            unitario_float     = float(neto_unitarios[i])
+            neto_total         = cantidad_int * unitario_float
+            # Calcular IVA solo si la orden de compra original no era sin IVA
+            costo_final_con_iva= neto_total * (1.0 if fac_sin_iva else 1.19)
+
+            try:
+                result = supabase.table("orden_de_pago").insert({
+                    "ingreso_id":           int(ingreso_id),
+                    "orden_compra":         orden_compra_int,  # Guardar número de OC, no el ID
+                    "doc_recep":            doc_recep,
+                    "art_corr":             art_corr_int,
+                    "material":             material_id_int,
+                    "material_nombre":      descripcion,
+                    "cantidad":             cantidad_int,
+                    "neto_unitario":        unitario_float,
+                    "neto_total_recibido":  neto_total,
+                    "costo_final_con_iva":  costo_final_con_iva,
+                    "orden_numero":         orden_numero,
+                    "proveedor":            provider_id,
+                    "proveedor_nombre":     proveedor_nombre,
+                    "autoriza":            f.get("autoriza_input"),
+                    "autoriza_nombre":     f.get("autoriza_input"),
+                    "fecha_factura":        fecha_factura,
+                    "vencimiento":          vencimiento,
+                    "estado_pago":          estado_pago,
+                    "detalle_compra":       detalle_compra,
+                    "proyecto":            proyecto_val,
+                    "condicion_pago":      condicion_pago_val,
+                    "factura":             factura_val,
+                    "estado_documento":    estado_doc,
+                    "tipo":                tipo_val,
+                    # "fac_sin_iva":         fac_sin_iva,  # Comentado hasta agregar la columna
+                    "item":                item_val,
+                    "fecha":                date.today().isoformat()
+                }).execute()
+                
+                if hasattr(result, 'error') and result.error:
+                    current_app.logger.error(f"Error en inserción Supabase: {result.error}")
+                    flash(f"Error al insertar línea {i+1}: {result.error}", "danger")
+                    continue
+                    
+                current_app.logger.info(f"Línea {i+1} insertada exitosamente")
+                
+            except Exception as e:
+                current_app.logger.error(f"Error insertando línea {i+1}: {e}")
+                flash(f"Error al insertar línea {i+1}: {str(e)}", "danger")
+                continue
+
+        print("=== before PDF generation ===")
+        # — Generar PDF en memoria para adjuntar —
+        pdf_context = {
+            'empresa': {
+                'nombre': 'Somyl S.A.',
+                'rut': '76.002.581-K',
+                'rubro': 'TELECOMUNICACIONES',
+                'direccion': 'PUERTA ORIENTE 361 OF 311 B TORRE B COLINA',
+                'telefono': '232642974'
+            },
+            'proveedor': {
+                'paguese_a': proveedor_nombre,
+                'nombre':    proveedor_nombre,
+                'rut':        '',
+                'cuenta':     '',
+                'banco':      '',
+                'correo':     ''
+            },
+            'numero':         orden_numero,
+            'facturas':       guia_recepciones,
+            'ocs':            orden_compras,
+            'cond_pago':      estado_pago,
+            'fecha_factura':  fecha_factura,
+            'fecha_venc':     vencimiento,
+            'detalle_op':     detalle_compra,
+            'detalle_material': [
             {
                 'guia':        guia_recepciones[j],
                 'oc':          orden_compras[j],
@@ -392,74 +392,75 @@ def new_orden_pago():
             'correo': f.get('autoriza_email', '')
         },
         'fecha_emision':  date.today().isoformat()
-    }
-    html = render_template('ordenes_pago/pdf_template.html', **pdf_context)
-    
-    # Configuración robusta de wkhtmltopdf para producción
-    try:
-        config = None
-        
-        # 1. Intentar con la instalación del sistema (Railway, Heroku, etc.)
-        try:
-            import subprocess
-            result = subprocess.run(['which', 'wkhtmltopdf'], capture_output=True, text=True)
-            if result.returncode == 0:
-                wkhtmltopdf_path = result.stdout.strip()
-                current_app.logger.info(f"wkhtmltopdf encontrado en: {wkhtmltopdf_path}")
-                config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
-        except Exception as e:
-            current_app.logger.warning(f"Error buscando wkhtmltopdf: {e}")
-        
-        # 2. Fallback a rutas comunes si no se encuentra
-        if not config:
-            common_paths = [
-                '/usr/bin/wkhtmltopdf',
-                '/usr/local/bin/wkhtmltopdf',
-                '/bin/wkhtmltopdf',
-                'wkhtmltopdf'  # Usar PATH del sistema
-            ]
-            
-            for path in common_paths:
-                try:
-                    config = pdfkit.configuration(wkhtmltopdf=path)
-                    # Probar si la configuración funciona
-                    test_options = {'enable-local-file-access': None}
-                    pdfkit.from_string('<html><body>Test</body></html>', False, configuration=config, options=test_options)
-                    current_app.logger.info(f"wkhtmltopdf configurado exitosamente en: {path}")
-                    break
-                except Exception as e:
-                    current_app.logger.warning(f"Ruta {path} no funciona: {e}")
-                    continue
-        
-        # 3. Si no se encuentra wkhtmltopdf, usar configuración sin path
-        if not config:
-            current_app.logger.info("Usando configuración por defecto de wkhtmltopdf")
-            config = None
-        
-        # Generar PDF con la configuración encontrada
-        options = {
-            'enable-local-file-access': None,
-            'page-size': 'A4',
-            'margin-top': '0.75in',
-            'margin-right': '0.75in',
-            'margin-bottom': '0.75in',
-            'margin-left': '0.75in',
-            'encoding': "UTF-8",
-            'no-outline': None
         }
         
-        if config:
-            pdf_bytes = pdfkit.from_string(html, False, configuration=config, options=options)
-        else:
-            pdf_bytes = pdfkit.from_string(html, False, options=options)
+        print("=== before PDF generation ===")
+        # Configuración robusta de wkhtmltopdf para producción
+        try:
+            html = render_template('ordenes_pago/pdf_template.html', **pdf_context)
+            config = None
             
-        current_app.logger.info(f"PDF generado exitosamente para orden {orden_numero}")
-        
-    except Exception as e:
-        current_app.logger.error(f"Error generando PDF en new_orden_pago: {e}")
-        # En caso de error, continuar sin PDF pero completar el guardado
-        pdf_bytes = None
-        current_app.logger.warning("Continuando sin PDF debido a error en generación")
+            # 1. Intentar con la instalación del sistema (Railway, Heroku, etc.)
+            try:
+                import subprocess
+                result = subprocess.run(['which', 'wkhtmltopdf'], capture_output=True, text=True)
+                if result.returncode == 0:
+                    wkhtmltopdf_path = result.stdout.strip()
+                    current_app.logger.info(f"wkhtmltopdf encontrado en: {wkhtmltopdf_path}")
+                    config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
+            except Exception as e:
+                current_app.logger.warning(f"Error buscando wkhtmltopdf: {e}")
+            
+            # 2. Fallback a rutas comunes si no se encuentra
+            if not config:
+                common_paths = [
+                    '/usr/bin/wkhtmltopdf',
+                    '/usr/local/bin/wkhtmltopdf',
+                    '/bin/wkhtmltopdf',
+                    'wkhtmltopdf'  # Usar PATH del sistema
+                ]
+                
+                for path in common_paths:
+                    try:
+                        config = pdfkit.configuration(wkhtmltopdf=path)
+                        # Probar si la configuración funciona
+                        test_options = {'enable-local-file-access': None}
+                        pdfkit.from_string('<html><body>Test</body></html>', False, configuration=config, options=test_options)
+                        current_app.logger.info(f"wkhtmltopdf configurado exitosamente en: {path}")
+                        break
+                    except Exception as e:
+                        current_app.logger.warning(f"Ruta {path} no funciona: {e}")
+                        continue
+            
+            # 3. Si no se encuentra wkhtmltopdf, usar configuración sin path
+            if not config:
+                current_app.logger.info("Usando configuración por defecto de wkhtmltopdf")
+                config = None
+            
+            # Generar PDF con la configuración encontrada
+            options = {
+                'enable-local-file-access': None,
+                'page-size': 'A4',
+                'margin-top': '0.75in',
+                'margin-right': '0.75in',
+                'margin-bottom': '0.75in',
+                'margin-left': '0.75in',
+                'encoding': "UTF-8",
+                'no-outline': None
+            }
+            
+            if config:
+                pdf_bytes = pdfkit.from_string(html, False, configuration=config, options=options)
+            else:
+                pdf_bytes = pdfkit.from_string(html, False, options=options)
+                
+            current_app.logger.info(f"PDF generado exitosamente para orden {orden_numero}")
+            
+        except Exception as e:
+            current_app.logger.error(f"Error generando PDF en new_orden_pago: {e}")
+            # En caso de error, continuar sin PDF pero completar el guardado
+            pdf_bytes = None
+            current_app.logger.warning("Continuando sin PDF debido a error en generación")
 
     # — Construir y enviar correo —
     # mail = current_app.extensions['mail']
