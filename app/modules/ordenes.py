@@ -72,25 +72,27 @@ def new_orden():
     plazos_pago   = ["CONTADO","30 DIAS","45 DIAS","60 DIAS","90 DIAS","OTRO"]
     
     # Obtener datos para las listas desplegables
-    proveedores = supabase.table("proveedores") \
-        .select("id,nombre,rut") \
-        .order("nombre", desc=False) \
-        .execute().data or []
-    
-    proyectos = supabase.table("proyectos") \
-        .select("id,proyecto") \
-        .order("proyecto", desc=False) \
-        .execute().data or []
-    
-    trabajadores = supabase.table("trabajadores") \
-        .select("id,nombre") \
-        .order("nombre", desc=False) \
-        .execute().data or []
-    
-    history = supabase.table("orden_de_compra") \
-        .select("descripcion,precio_unitario,orden_compra") \
-        .order("orden_compra", desc=True) \
-        .execute().data or []
+    # --- Paginación automática para grandes volúmenes ---
+    def fetch_all_rows(table, select_str, order_col, desc=False):
+        page_size = 1000
+        offset = 0
+        all_rows = []
+        while True:
+            batch = supabase.table(table) \
+                .select(select_str) \
+                .order(order_col, desc=desc) \
+                .range(offset, offset + page_size - 1) \
+                .execute().data or []
+            all_rows.extend(batch)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+        return all_rows
+
+    proveedores = fetch_all_rows("proveedores", "id,nombre,rut", "nombre", desc=False)
+    proyectos = fetch_all_rows("proyectos", "id,proyecto", "proyecto", desc=False)
+    trabajadores = fetch_all_rows("trabajadores", "id,nombre", "nombre", desc=False)
+    history = fetch_all_rows("orden_de_compra", "descripcion,precio_unitario,orden_compra", "orden_compra", desc=True)
 
     # Próximo número de OC
     last_num = supabase.table("orden_de_compra") \
@@ -130,10 +132,6 @@ def new_orden():
         solicitante     = request.form["solicitado_por"]
         
         # Debug: Log del valor en guardado
-        print(f"DEBUG SAVE: incluir_iva recibido = {request.form.get('incluir_iva')}")
-        print(f"DEBUG SAVE: incluir_iva procesado = {incluir_iva}")
-        print(f"DEBUG SAVE: fac_sin_iva calculado = {fac_sin_iva}")
-        print(f"DEBUG SAVE: form keys = {list(request.form.keys())}")
 
         # --- Leer líneas ---
         cods    = request.form.getlist("cod_linea[]")
@@ -153,6 +151,10 @@ def new_orden():
                     parse_monto(net),
                     parse_monto(tot)
                 ])
+
+        if not lineas:
+            flash("Debes ingresar al menos una línea con cantidad.", "warning")
+            return redirect(url_for("ordenes.new_orden"))
 
         rows = []
         corr = next_corr
@@ -180,7 +182,7 @@ def new_orden():
                 "mes":              mes,
                 "semana":           semana,
                 "proveedor":        proveedor_id,
-                "tipo_de_entrega":  tipo_de_entrega,
+                "tipo_de_entrega":  tipo_entrega,
                 "metodo_de_pago":   condicion_pago,
                 "condicion_de_pago":condicion_pago,
                 "fac_sin_iva":      fac_sin_iva,
@@ -197,10 +199,6 @@ def new_orden():
                 "estado_pago":      "0"
             })
             corr += 1
-
-        if not rows:
-            flash("Debes ingresar al menos una línea con cantidad.", "warning")
-            return redirect(url_for("ordenes.new_orden"))
 
         res = supabase.table("orden_de_compra").insert(rows).execute()
         if getattr(res, "error", None):
@@ -247,8 +245,6 @@ def generate_pdf():
     observaciones = request.form.get("observaciones", "")
     
     # Debug: Log del valor
-    print(f"DEBUG PDF: incluir_iva recibido = {request.form.get('incluir_iva')}")
-    print(f"DEBUG PDF: incluir_iva procesado = {incluir_iva}")
     print(f"DEBUG PDF: sin_iva calculado = {sin_iva}")
     print(f"DEBUG PDF: form keys = {list(request.form.keys())}")
     print(f"DEBUG PDF: form values = {dict(request.form)}")

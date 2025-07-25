@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+
+{% block title %}Demostración de Componentes Modernos - SOMYL{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="row">
+    <div class="col-12">
+      <!-- Header moderno -->
+      <div class="modern-card">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+          <div>
+            <h1 class="h3 mb-1" style="background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+              🎨 Componentes Modernos 2025
+            </h1>
+            <p class="text-muted mb-0">Demostración del nuevo sistema de diseño de SOMYL</p>
+          </div>
+          <button class="btn-modern">
+            <i class="bi bi-palette"></i> Nuevo Diseño
+          </button>
+        </div>
+        
+        <!-- Progress bar moderno -->
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <small class="text-muted">Modernización UI</small>
+            <small class="text-muted">85%</small>
+          </div>
+          <div class="progress-modern">
+            <div class="progress-bar" style="width: 85%"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Columna 1: Cards y Botones -->
+    <div class="col-md-6">
+      <!-- Botones modernos -->
+      <div class="modern-card">
+        <h5 class="mb-3">🔘 Botones Modernos</h5>
+        <div class="d-flex flex-wrap gap-2">
+          <button class="btn-modern">
+            <i class="bi bi-plus-circle"></i> Crear
+          </button>
+          <button class="btn-modern" style="background: var(--gradient-success);">
+            <i class="bi bi-check-circle"></i> Guardar
+          </button>
+          <button class="btn-modern" style="background: var(--gradient-warning);">
+            <i class="bi bi-exclamation-triangle"></i> Advertencia
+          </button>
+          <button class="btn-modern" style="background: var(--gradient-danger);">
+            <i class="bi bi-trash"></i> Eliminar
+          </button>
+        </div>
+      </div>
+
+      <!-- Formularios modernos -->
+      <div class="modern-card">
+        <h5 class="mb-3">📝 Formularios Modernos</h5>
+        <form>
+          <div class="mb-3">
+            <label class="form-label">Nombre del Proyecto</label>
+            <input type="text" class="form-control-modern" placeholder="Ingresa el nombre...">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Descripción</label>
+            <textarea class="form-control-modern" rows="3" placeholder="Describe tu proyecto..."></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Presupuesto</label>
+            <input type="number" class="form-control-modern" placeholder="0">
+          </div>
+        </form>
+      </div>
+
+      <!-- Notificaciones modernas -->
+      <div class="modern-card">
+        <h5 class="mb-3">🔔 Notificaciones Modernas</h5>
+        <div class="notification-modern success">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-check-circle-fill text-success me-2"></i>
+            <span>¡Orden de pago creada exitosamente!</span>
+          </div>
+        </div>
+        <div class="notification-modern warning">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+            <span>Revisa los datos antes de continuar</span>
+          </div>
+        </div>
+        <div class="notification-modern danger">
+          <div class="d-flex align-items-center">
+            <i class="bi bi-x-circle-fill text-danger me-2"></i>
+            <span>Error al procesar la solicitud</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Columna 2: Tablas y Estadísticas -->
+    <div class="col-md-6">
+      <!-- Tabla moderna -->
+      <div class="modern-card">
+        <h5 class="mb-3">📊 Tabla Moderna</h5>
+        <div class="table-responsive">
+          <table class="table table-modern mb-0">
+            <thead>
+              <tr>
+                <th>Proyecto</th>
+                <th>Estado</th>
+                <th>Presupuesto</th>
+                <th>Progreso</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <div class="d-flex align-items-center">
+                    <div class="me-2" style="width: 8px; height: 8px; background: var(--gradient-primary); border-radius: 50%;"></div>
+                    Sistema SOMYL
+                  </div>
+                </td>
+                <td><span class="badge rounded-pill" style="background: var(--gradient-success); color: white;">Activo</span></td>
+                <td>$150,000</td>
+                <td>
+                  <div class="progress-modern" style="height: 6px;">
+                    <div class="progress-bar" style="width: 75%"></div>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="d-flex align-items-center">
+                    <div class="me-2" style="width: 8px; height: 8px; background: var(--gradient-warning); border-radius: 50%;"></div>
+                    Módulo Pagos
+                  </div>
+                </td>
+                <td><span class="badge rounded-pill" style="background: var(--gradient-warning); color: white;">En Progreso</span></td>
+                <td>$75,000</td>
+                <td>
+                  <div class="progress-modern" style="height: 6px;">
+                    <div class="progress-bar" style="width: 45%"></div>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div class="d-flex align-items-center">
+                    <div class="me-2" style="width: 8px; height: 8px; background: var(--gradient-secondary); border-radius: 50%;"></div>
+                    Dashboard
+                  </div>
+                </td>
+                <td><span class="badge rounded-pill" style="background: var(--gradient-secondary); color: white;">Planificado</span></td>
+                <td>$25,000</td>
+                <td>
+                  <div class="progress-modern" style="height: 6px;">
+                    <div class="progress-bar" style="width: 15%"></div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Cards de estadísticas -->
+      <div class="row">
+        <div class="col-6">
+          <div class="modern-card text-center">
+            <div style="background: var(--gradient-primary); width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+              <i class="bi bi-graph-up text-white fs-4"></i>
+            </div>
+            <h3 class="mb-1">$1.2M</h3>
+            <small class="text-muted">Total Presupuesto</small>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="modern-card text-center">
+            <div style="background: var(--gradient-success); width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px;">
+              <i class="bi bi-check-circle text-white fs-4"></i>
+            </div>
+            <h3 class="mb-1">24</h3>
+            <small class="text-muted">Proyectos Activos</small>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading states -->
+      <div class="modern-card">
+        <h5 class="mb-3">⏳ Estados de Carga</h5>
+        <div class="d-flex align-items-center justify-content-between">
+          <span>Procesando datos...</span>
+          <div class="loading-modern"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Instrucciones de uso -->
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="modern-card">
+        <h5 class="mb-3">🚀 Cómo usar los Componentes Modernos</h5>
+        <div class="row">
+          <div class="col-md-4">
+            <h6>🎨 Clases CSS Disponibles:</h6>
+            <ul class="list-unstyled">
+              <li><code>.modern-card</code> - Cards con glassmorphism</li>
+              <li><code>.btn-modern</code> - Botones con gradientes</li>
+              <li><code>.form-control-modern</code> - Inputs modernos</li>
+              <li><code>.table-modern</code> - Tablas con efectos</li>
+              <li><code>.notification-modern</code> - Notificaciones</li>
+            </ul>
+          </div>
+          <div class="col-md-4">
+            <h6>🌙 Dark Mode:</h6>
+            <ul class="list-unstyled">
+              <li>Usa el toggle en la esquina superior derecha</li>
+              <li>Se guarda automáticamente la preferencia</li>
+              <li>Respeta la configuración del sistema</li>
+            </ul>
+          </div>
+          <div class="col-md-4">
+            <h6>📱 Responsivo:</h6>
+            <ul class="list-unstyled">
+              <li>Todos los componentes son responsive</li>
+              <li>Optimizado para móviles</li>
+              <li>Transiciones suaves</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Estilos específicos para la demo */
+code {
+  background: rgba(102, 126, 234, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: var(--primary-color);
+}
+</style>
+{% endblock %}

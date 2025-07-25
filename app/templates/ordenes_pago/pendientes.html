@@ -330,25 +330,13 @@
           <input type="text" 
                  id="searchInput" 
                  class="form-control search-input" 
-                 placeholder="Buscar por proveedor, orden, material...">
+                 autocomplete="off"
+                 placeholder="Buscar proveedor...">
         </div>
       </div>
       <div class="col-md-6">
         <div class="d-flex justify-content-end gap-2">
-          <select id="proveedorFilter" class="form-select" style="width: auto;">
-            <option value="">Todos los proveedores</option>
-            {% set proveedores = filas | map(attribute='proveedor_nombre') | unique | sort %}
-            {% for proveedor in proveedores %}
-            <option value="{{ proveedor }}">{{ proveedor }}</option>
-            {% endfor %}
-          </select>
-          <select id="ordenFilter" class="form-select" style="width: auto;">
-            <option value="">Todas las órdenes</option>
-            {% set ordenes = filas | map(attribute='orden_numero') | unique | sort %}
-            {% for orden in ordenes %}
-            <option value="{{ orden }}">{{ orden }}</option>
-            {% endfor %}
-          </select>
+          <!-- Filtros por proveedor y orden eliminados, solo queda el buscador por texto -->
         </div>
       </div>
     </div>
@@ -356,17 +344,17 @@
 
   <!-- Tabla principal -->
   <div class="table-responsive">
-    <table class="table pending-table" id="pendientesTable">
+    <table class="table pending-table resizable-table" id="pendientesTable">
       <thead>
         <tr>
-          <th style="width: 100px;">O.COMPRA</th>
-          <th style="width: 100px;">O.PAGO</th>
-          <th style="width: 200px;">PROVEEDOR</th>
-          <th style="width: 250px;">MATERIAL</th>
-          <th style="width: 80px;">CANT.</th>
-          <th style="width: 200px;">DETALLE O.P.</th>
-          <th style="width: 140px;">Nº DOCUMENTO</th>
-          <th style="width: 120px;">ACCIONES</th>
+          <th style="width: 70px; min-width: 50px;">O.COMPRA</th>
+          <th style="width: 70px; min-width: 50px;">O.PAGO</th>
+          <th style="width: 140px; min-width: 80px;">PROVEEDOR</th>
+          <th style="width: 160px; min-width: 80px;">MATERIAL</th>
+          <th style="width: 60px; min-width: 40px;">CANT.</th>
+          <th style="width: 120px; min-width: 80px;">DETALLE O.P.</th>
+          <th style="width: 100px; min-width: 70px;">Nº DOCUMENTO</th>
+          <th style="width: 80px; min-width: 60px;">ACCIONES</th>
         </tr>
       </thead>
       <tbody id="pendientesTableBody">
@@ -447,7 +435,28 @@
 
 <!-- Toast container -->
 <div class="toast-container" id="toastContainer"></div>
+
+<style>
+  .resizable-table th { position: relative; }
+  .resizer {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    user-select: none;
+    z-index: 10;
+    background: transparent;
+  }
+  .resizer:hover {
+    background: #007bff22;
+  }
+</style>
+<script src="{{ url_for('static', filename='ordenes_pago/pendientes_resizable.js') }}"></script>
 {% endblock %}
+
+
 
 {% block extra_js %}
 <script>
@@ -455,7 +464,6 @@ class PendientesManager {
   constructor() {
     this.initializeEventListeners();
     this.setupSearch();
-    this.setupFilters();
     this.totalPendientes = {{ filas|length }};
   }
 
@@ -504,37 +512,19 @@ class PendientesManager {
   }
 
   setupFilters() {
-    const proveedorFilter = document.getElementById('proveedorFilter');
-    const ordenFilter = document.getElementById('ordenFilter');
-    
-    proveedorFilter.addEventListener('change', () => this.filterTable());
-    ordenFilter.addEventListener('change', () => this.filterTable());
+    // Filtros eliminados, solo queda el buscador por texto
   }
 
   filterTable() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const proveedorFilter = document.getElementById('proveedorFilter').value;
-    const ordenFilter = document.getElementById('ordenFilter').value;
+    let searchTerm = document.getElementById('searchInput').value.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
     
     const rows = document.querySelectorAll('#pendientesTableBody tr');
     let visibleCount = 0;
 
     rows.forEach(row => {
-      const proveedor = row.dataset.proveedor.toLowerCase();
-      const orden = row.dataset.orden;
-      const material = row.querySelector('.material-desc').textContent.toLowerCase();
-      const detalle = row.querySelector('td:nth-child(6)').textContent.toLowerCase();
-      
-      const matchesSearch = !searchTerm || 
-        proveedor.includes(searchTerm) || 
-        material.includes(searchTerm) || 
-        detalle.includes(searchTerm) ||
-        orden.includes(searchTerm);
-      
-      const matchesProveedor = !proveedorFilter || proveedor === proveedorFilter.toLowerCase();
-      const matchesOrden = !ordenFilter || orden === ordenFilter;
-      
-      if (matchesSearch && matchesProveedor && matchesOrden) {
+      let proveedor = row.dataset.proveedor ? row.dataset.proveedor.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '') : '';
+      const matchesSearch = !searchTerm || proveedor.includes(searchTerm);
+      if (matchesSearch) {
         row.style.display = '';
         visibleCount++;
       } else {

@@ -107,41 +107,12 @@ def create_app():
             return {'modulos_usuario': get_modulos_usuario()}
         return {'modulos_usuario': []}
 
-    def get_total_pendiente():
-        from flask import current_app
-        supabase = current_app.config["SUPABASE"]
-
-        pagos = (
-            supabase
-            .table("fechas_de_pagos_op")
-            .select("orden_numero")
-            .execute()
-            .data
-        ) or []
-        ids_pagados = set(int(row["orden_numero"]) for row in pagos if row.get("orden_numero") is not None)
-        print("ORDENES PAGADAS:", ids_pagados)
-
-        ordenes = (
-            supabase
-            .table("orden_de_pago")
-            .select("orden_numero, costo_final_con_iva")
-            .execute()
-            .data
-        ) or []
-        print("ORDENES DE PAGO:", [(row.get("orden_numero"), row.get("costo_final_con_iva")) for row in ordenes])
-
-        total = sum(
-            float(row.get("costo_final_con_iva") or 0)
-            for row in ordenes
-            if row.get("orden_numero") is not None and int(row.get("orden_numero")) not in ids_pagados
-        )
-        print("TOTAL PENDIENTE:", total)
-        return total
+    from app.utils.pendiente_global import get_total_pendiente_global
 
     @app.context_processor
     def inject_total_pendiente():
         try:
-            total = get_total_pendiente()
+            total = get_total_pendiente_global()
         except Exception:
             total = 0
         return dict(total_pendiente=total)
@@ -155,26 +126,3 @@ def create_app():
         return response
 
     return app
-
-bp_pagos = Blueprint('pagos', __name__)
-
-@bp_pagos.route('/pagos/export', methods=['GET'])
-def export_pagos():
-    supabase = current_app.config['SUPABASE']
-    response = supabase.table('pagos').select('*').execute()
-    pagos = response.data
-
-    # Create CSV in memory
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=pagos[0].keys() if pagos else [])
-    writer.writeheader()
-    writer.writerows(pagos)
-
-    output.seek(0)
-
-    return send_file(
-        io.BytesIO(output.getvalue().encode()),
-        mimetype='text/csv',
-        as_attachment=True,
-        download_name='pagos.csv'
-    )

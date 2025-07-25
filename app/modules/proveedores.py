@@ -24,19 +24,21 @@ def validate_rut(rut):
     except (ValueError, IndexError):
         return False, "RUT inválido"
     
-    # Calcular dígito verificador
+    # Calcular dígito verificador (ciclo 2-7)
     sum_val = 0
     mul = 2
     for digit in reversed(str(num)):
         sum_val += int(digit) * mul
-        mul = 7 if mul == 6 else mul + 1
-    
-    remainder = sum_val % 11
-    expected_dv = '0' if remainder == 11 else 'K' if remainder == 10 else str(11 - remainder)
-    
+        mul = mul + 1 if mul < 7 else 2
+    remainder = 11 - (sum_val % 11)
+    if remainder == 11:
+        expected_dv = '0'
+    elif remainder == 10:
+        expected_dv = 'K'
+    else:
+        expected_dv = str(remainder)
     if dv != expected_dv:
         return False, "Dígito verificador incorrecto"
-    
     return True, rut
 
 def normalize_data(data):
@@ -197,7 +199,23 @@ def edit_proveedor(id):
             return redirect(url_for("proveedores.list_proveedores"))
         
         # GET: mostrar formulario de edición
-        proveedores = supabase.table("proveedores").select("*").order("nombre").execute().data or []
+        def fetch_all_rows(table, select_str, order_col=None, desc=False):
+            page_size = 1000
+            offset = 0
+            all_rows = []
+            while True:
+                q = supabase.table(table).select(select_str)
+                if order_col:
+                    q = q.order(order_col, desc=desc)
+                q = q.range(offset, offset + page_size - 1)
+                batch = q.execute().data or []
+                all_rows.extend(batch)
+                if len(batch) < page_size:
+                    break
+                offset += page_size
+            return all_rows
+
+        proveedores = fetch_all_rows("proveedores", "*", "nombre")
         return render_template("proveedores/form.html", proveedores=proveedores, proveedor=proveedor)
         
     except Exception as e:

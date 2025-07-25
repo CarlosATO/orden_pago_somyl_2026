@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}{% endblock %}</title>
+    <title>{% block title %}Acceso SOMYL{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- Bootstrap 5 + Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -14,26 +14,76 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <style>
+      :root {
+        --primary-color: #3b82f6;
+        --secondary-color: #8b5cf6;
+        --accent-color: #f59e0b;
+        --danger-color: #ef4444;
+        --success-color: #10b981;
+        --bg-primary: #ffffff;
+        --bg-secondary: #f9fafb;
+        --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+        --radius-xl: 1rem;
+      }
       * {
         box-sizing: border-box;
       }
-      
       body {
         margin: 0;
         padding: 0;
         font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         min-height: 100vh;
-        background: #f6f7ff;
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
         display: flex;
         align-items: center;
         justify-content: center;
         line-height: 1.6;
         letter-spacing: -0.025em;
       }
+      .login-glass {
+        background: rgba(255,255,255,0.95);
+        backdrop-filter: blur(18px) saturate(180%);
+        border-radius: var(--radius-xl);
+        box-shadow: var(--shadow-lg);
+        border: 1px solid #e5e7eb;
+        padding: 2.5rem 2rem 2rem 2rem;
+        min-width: 340px;
+        max-width: 400px;
+        width: 100%;
+        animation: fadeInUp 0.7s cubic-bezier(0.4,0,0.2,1);
+      }
+      .login-title {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--primary-color);
+        text-align: center;
+        margin-bottom: 1.5rem;
+        letter-spacing: -1px;
+      }
+      .login-logo {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2.2rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0.5rem;
+      }
+      @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
     </style>
 </head>
 <body>
-    {% block content %}{% endblock %}
+    <div class="login-glass">
+      <div class="login-logo">SOMYL</div>
+      <div class="login-title">Acceso al Sistema</div>
+      {% block content %}{% endblock %}
+    </div>
     
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

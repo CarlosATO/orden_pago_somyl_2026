@@ -8,6 +8,7 @@ from flask_login import login_required
 import io
 from openpyxl import Workbook
 from app.modules.usuarios import require_modulo
+import json
 from app.utils.static_data import get_cached_proveedores, get_cached_proyectos_with_id
 
 bp_pagos = Blueprint(
@@ -18,26 +19,49 @@ bp_pagos = Blueprint(
 def get_pagos(filtros=None):
     supabase = current_app.config["SUPABASE"]
     # Trae y agrupa igual que la vista
-    all_rows = supabase \
-        .table("orden_de_pago") \
-        .select(
-            "orden_numero, fecha, proveedor_nombre, detalle_compra, factura, "
-            "costo_final_con_iva, proyecto, orden_compra, condicion_pago, vencimiento, fecha_factura"
-        ) \
-        .order("orden_numero") \
-        .execute() \
-        .data or []
+    # Traer todos los registros usando paginación manual
+    page_size = 1000
+    offset = 0
+    all_rows = []
+    while True:
+        batch = supabase \
+            .table("orden_de_pago") \
+            .select(
+                "orden_numero, fecha, proveedor_nombre, detalle_compra, factura, "
+                "costo_final_con_iva, proyecto, orden_compra, condicion_pago, vencimiento, fecha_factura"
+            ) \
+            .order("orden_numero") \
+            .range(offset, offset + page_size - 1) \
+            .execute() \
+            .data or []
+        all_rows.extend(batch)
+        if len(batch) < page_size:
+            break
+        offset += page_size
+
+    # Print temporal para diagnóstico
+    print("[DEBUG] Total registros traídos:", len(all_rows))
+
+
+
 
     # Aplicar filtros si corresponde (aquí puedes adaptar según tus filtros)
     if filtros:
-        # Ejemplo filtro: solo pagos de un proveedor
         if filtros.get("proveedor"):
             all_rows = [r for r in all_rows if r["proveedor_nombre"] == filtros["proveedor"]]
 
-    # Agrupar por orden_numero
+    # Agrupar por orden_numero único, sumar montos, y tomar los demás datos del primer registro
     pagos = {}
+    ordenes_unicos_tabla = set()
+    ordenes_informe = set()
+    ordenes_no_convertibles = set()
     for r in all_rows:
-        num = r["orden_numero"]
+        ordenes_unicos_tabla.add(r["orden_numero"])
+        try:
+            num = int(r["orden_numero"])
+        except Exception:
+            ordenes_no_convertibles.add(r["orden_numero"])
+            continue  # Si no se puede convertir, omitir
         if num not in pagos:
             pagos[num] = {
                 "orden_numero": num,
@@ -54,6 +78,11 @@ def get_pagos(filtros=None):
                 "fecha_pago": None
             }
         pagos[num]["total_pago"] += float(r.get("costo_final_con_iva") or 0)
+        ordenes_informe.add(num)
+
+    # ...logs temporales eliminados...
+    # Ordenar de mayor a menor por orden_numero
+    pagos_ordenados = [pagos[k] for k in sorted(pagos.keys(), reverse=True)]
 
     # Fechas de pago existentes
     pagos_guardados = (
@@ -64,24 +93,24 @@ def get_pagos(filtros=None):
         .data or []
     )
     fecha_map = {p["orden_numero"]: p["fecha_pago"] for p in pagos_guardados}
-    for num, data in pagos.items():
-        data["fecha_pago"] = fecha_map.get(num)
+    for data in pagos_ordenados:
+        data["fecha_pago"] = fecha_map.get(data["orden_numero"])
 
     # Cuentas corrientes de proveedores - usar datos cacheados
     provs = get_cached_proveedores()
     cuenta_map = {p["nombre"]: p["cuenta"] for p in provs}
-    for data in pagos.values():
+    for data in pagos_ordenados:
         data["cuenta"] = cuenta_map.get(data["proveedor_nombre"], "")
 
     # Nombres de proyectos - usar datos cacheados
     projs = get_cached_proyectos_with_id()
     proyecto_map = {pr["id"]: pr["proyecto"] for pr in projs}
-    for data in pagos.values():
+    for data in pagos_ordenados:
         proj_id = data.get("proyecto")
         data["proyecto"] = proyecto_map.get(proj_id, proj_id)
 
-    # Retorna una lista ordenada igual que la tabla
-    return list(pagos.values())
+    # Retorna la lista ordenada
+    return pagos_ordenados
 
 @login_required
 @bp_pagos.route("/pagos", methods=["GET"])
@@ -107,21 +136,25 @@ def list_pagos():
         filtros["fecha_hasta"] = fecha_hasta
     
     pagos = get_pagos(filtros)
-    
+
+    # Calcular el total pendiente igual que en la plantilla
+    total_pendiente = sum(p["total_pago"] for p in pagos if not p["fecha_pago"])
+
     # Datos adicionales para el template
     proveedores_unicos = sorted(set(p["proveedor_nombre"] for p in pagos))
     proyectos_unicos = sorted(set(p["proyecto"] for p in pagos))
-    
+
     # Calcular fecha máxima para el input de fecha (hoy + 7 días)
     fecha_maxima = (date.today() + timedelta(days=7)).isoformat()
-    
+
     return render_template(
         "pagos.html",
         pagos=pagos,
         fecha_maxima=fecha_maxima,
         proveedores_unicos=proveedores_unicos,
         proyectos_unicos=proyectos_unicos,
-        filtros_activos=filtros
+        filtros_activos=filtros,
+        total_pendiente=total_pendiente
     )
 
 @login_required
@@ -132,6 +165,7 @@ def update_pagos():
     nums = request.form.getlist("orden_numero[]")
     fechas = request.form.getlist("fecha_pago[]")
     any_error = False
+    upserts = []
 
     for i, num in enumerate(nums):
         fpago = fechas[i]
@@ -147,24 +181,12 @@ def update_pagos():
             flash(f"Fecha de pago muy futura para OP {num}", "danger")
             any_error = True
             continue
-        existing = (
-            supabase
-            .table("fechas_de_pagos_op")
-            .select("orden_numero")
-            .eq("orden_numero", int(num))
-            .limit(1)
-            .execute()
-            .data or []
-        )
-        if existing:
-            supabase.table("fechas_de_pagos_op") \
-                .update({"fecha_pago": fpago}) \
-                .eq("orden_numero", int(num)) \
-                .execute()
-        else:
-            supabase.table("fechas_de_pagos_op") \
-                .insert({"orden_numero": int(num), "fecha_pago": fpago}) \
-                .execute()
+        upserts.append({"orden_numero": int(num), "fecha_pago": fpago})
+
+    # Upsert masivo si hay datos válidos
+    if upserts:
+        # Supabase Python SDK soporta upsert con .upsert()
+        supabase.table("fechas_de_pagos_op").upsert(upserts, on_conflict=["orden_numero"]).execute()
 
     if not any_error:
         flash("Fechas de pago actualizadas con éxito", "success")
@@ -219,3 +241,4 @@ def export_pagos():
         as_attachment=True,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+    # Log temporal eliminado

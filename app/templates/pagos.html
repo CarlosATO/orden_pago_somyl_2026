@@ -163,7 +163,24 @@
   .col-opago { width: 80px; }
   .col-proveedor { width: 150px; }
   .col-detalle { width: 200px; }
-  .col-factura { width: 100px; }
+  .col-factura { width: 70px; min-width: 40px; max-width: 120px; }
+  /* Estilos para el resizer de columnas */
+  .payment-table th { position: relative; }
+  .resizer {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+    user-select: none;
+    z-index: 10;
+    background: transparent;
+  }
+  .resizer:hover {
+    background: #007bff22;
+  }
+
   .col-total-pago { width: 100px; text-align: right; }
   .col-fecha-pago { width: 130px; }
   .col-proyecto { width: 120px; }
@@ -291,18 +308,16 @@
       margin-bottom: 1rem;
     }
   }
+
 </style>
 
 <!-- Header con título y controles -->
 <div class="d-flex justify-content-between align-items-center mb-4">
   <h1 class="titulo-modulo titulo-modulo-con-icono mb-0">
     <span class="icono-modulo">💰</span>
-    Informe de Pagos
+    Informe de Pagos Somyl.
   </h1>
   <div class="d-flex gap-2">
-    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#filtrosModal">
-      <i class="bi bi-funnel me-1"></i>Filtros
-    </button>
     <button type="button" class="btn btn-outline-secondary btn-sm" onclick="limpiarFiltros()">
       <i class="bi bi-x-circle me-1"></i>Limpiar
     </button>
@@ -312,11 +327,17 @@
 <!-- Búsqueda rápida -->
 <div class="row mb-3">
   <div class="col-md-6">
-    <div class="input-group">
+    <div class="input-group mb-2">
       <span class="input-group-text">
         <i class="bi bi-search"></i>
       </span>
       <input type="text" id="searchInput" class="form-control" placeholder="Buscar por proveedor, detalle, factura o proyecto...">
+    </div>
+    <div class="input-group">
+      <span class="input-group-text">
+        <i class="bi bi-hash"></i>
+      </span>
+      <input type="text" id="ordenPagoInput" class="form-control" placeholder="Buscar por N° Orden de Pago...">
     </div>
   </div>
   <div class="col-md-6">
@@ -367,8 +388,7 @@
       <div class="col-md-3">
         <div class="card border-0 bg-warning bg-opacity-10">
           <div class="card-body text-center">
-            {% set monto_pendiente = pagos|rejectattr('fecha_pago')|sum(attribute='total_pago') %}
-            <h5 class="card-title text-warning">${{ "{:,.0f}".format(monto_pendiente).replace(',', '.') }}</h5>
+            <h5 class="card-title text-warning">${{ "{:,.0f}".format(total_pendiente).replace(',', '.') }}</h5>
             <p class="card-text text-muted mb-0">Monto Pendiente</p>
           </div>
         </div>
@@ -377,27 +397,27 @@
   </div>
   <div class="col-lg-4">
     <div class="summary-card">
-      <div class="summary-header">
-        <span class="stats-indicator stats-pending"></span>
-        Proyectos Pendientes de Pago
-      </div>
       {% set pending = {} %}
       {% for p in pagos %}
         {% if not p.fecha_pago %}
-          {% set pending = pending.update({p.proyecto: (pending.get(p.proyecto, 0) + p.total_pago)}) or pending %}
+          {% set _ = pending.update({p.proyecto: (pending.get(p.proyecto, 0) + p.total_pago)}) %}
         {% endif %}
       {% endfor %}
+      <div class="summary-header mb-3">
+        <span class="stats-indicator stats-pending"></span>
+        Proyectos Pendientes de Pago
+      </div>
       <ul class="project-list">
-        {% for proj, total in pending.items() %}
-          <li>
-            <span class="project-name">{{ proj }}</span>
-            <span class="project-amount">${{ '{:,.0f}'.format(total).replace(',', '.') }}</span>
-          </li>
+        {% for proyecto, monto in pending.items() %}
+        <li>
+          <span class="project-name">{{ proyecto }}</span>
+          <span class="project-amount">${{ '{:,.0f}'.format(monto).replace(',', '.') }}</span>
+        </li>
         {% endfor %}
       </ul>
       {% set grand_total = pending.values()|sum %}
-      <div class="total-summary">
-        Total Pendiente: ${{ '{:,.0f}'.format(grand_total).replace(',', '.') }}
+      <div class="total-summary mt-4">
+        Total Pendiente: ${{ '{:,.0f}'.format(total_pendiente).replace(',', '.') }}
       </div>
     </div>
   </div>
@@ -538,9 +558,8 @@
         <div class="col-md-6 text-end">
           <small class="text-muted">
             {% set monto_pagado = pagos|selectattr('fecha_pago')|sum(attribute='total_pago') %}
-            {% set monto_pendiente = pagos|rejectattr('fecha_pago')|sum(attribute='total_pago') %}
             Pagado: ${{ "{:,.0f}".format(monto_pagado).replace(',', '.') }} | 
-            Pendiente: ${{ "{:,.0f}".format(monto_pendiente).replace(',', '.') }}
+            Pendiente: ${{ "{:,.0f}".format(total_pendiente).replace(',', '.') }}
           </small>
         </div>
       </div>
@@ -548,83 +567,6 @@
   </form>
 </div>
 
-<!-- Modal de Filtros Avanzados -->
-<div class="modal fade" id="filtrosModal" tabindex="-1" aria-labelledby="filtrosModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="filtrosModalLabel">Filtros Avanzados</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <form id="filtrosForm" method="GET">
-          <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label for="filtroProveedor" class="form-label">Proveedor</label>
-                <select class="form-select" id="filtroProveedor" name="proveedor">
-                  <option value="">Todos los proveedores</option>
-                  {% for proveedor in proveedores_unicos %}
-                  <option value="{{ proveedor }}" {% if filtros_activos.get('proveedor') == proveedor %}selected{% endif %}>
-                    {{ proveedor }}
-                  </option>
-                  {% endfor %}
-                </select>
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label for="filtroProyecto" class="form-label">Proyecto</label>
-                <select class="form-select" id="filtroProyecto" name="proyecto">
-                  <option value="">Todos los proyectos</option>
-                  {% for proyecto in proyectos_unicos %}
-                  <option value="{{ proyecto }}" {% if filtros_activos.get('proyecto') == proyecto %}selected{% endif %}>
-                    {{ proyecto }}
-                  </option>
-                  {% endfor %}
-                </select>
-              </div>
-            </div>
-          </div>
-          <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label for="filtroFechaDesde" class="form-label">Fecha Desde</label>
-                <input type="date" class="form-control" id="filtroFechaDesde" name="fecha_desde" 
-                       value="{{ filtros_activos.get('fecha_desde', '') }}">
-              </div>
-            </div>
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label for="filtroFechaHasta" class="form-label">Fecha Hasta</label>
-                <input type="date" class="form-control" id="filtroFechaHasta" name="fecha_hasta"
-                       value="{{ filtros_activos.get('fecha_hasta', '') }}">
-              </div>
-            </div>
-          </div>
-          <div class="row">
-            <div class="col-md-6">
-              <div class="mb-3">
-                <label for="filtroEstado" class="form-label">Estado de Pago</label>
-                <select class="form-select" id="filtroEstado" name="estado">
-                  <option value="">Todos los estados</option>
-                  <option value="pendiente" {% if filtros_activos.get('estado') == 'pendiente' %}selected{% endif %}>Pendientes</option>
-                  <option value="pagado" {% if filtros_activos.get('estado') == 'pagado' %}selected{% endif %}>Pagados</option>
-                  <option value="vencido" {% if filtros_activos.get('estado') == 'vencido' %}selected{% endif %}>Vencidos</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" class="btn btn-outline-warning" onclick="limpiarFiltrosModal()">Limpiar Filtros</button>
-        <button type="button" class="btn btn-primary" onclick="aplicarFiltros()">Aplicar Filtros</button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- Scripts adicionales para mejorar la experiencia -->
 <script>
@@ -635,44 +577,52 @@ document.addEventListener('DOMContentLoaded', function() {
   const proyectoFilter = document.getElementById('proyectoFilter');
   const tableRows = document.querySelectorAll('tbody tr');
   const dateInputs = document.querySelectorAll('.date-input');
-  
+  const ordenPagoInput = document.getElementById('ordenPagoInput');
+
   // Función de búsqueda y filtrado en tiempo real
   function filterTable() {
     const searchTerm = searchInput.value.toLowerCase();
     const estadoValue = estadoFilter.value;
     const proyectoValue = proyectoFilter.value;
-    
+    const ordenPagoValue = ordenPagoInput.value.toLowerCase();
+
     let visibleRows = 0;
-    
+
     tableRows.forEach(row => {
       const proveedor = row.querySelector('.col-proveedor').textContent.toLowerCase();
       const detalle = row.querySelector('.col-detalle').textContent.toLowerCase();
       const factura = row.querySelector('.col-factura').textContent.toLowerCase();
       const proyecto = row.querySelector('.col-proyecto').textContent.toLowerCase();
+      const ordenPago = row.querySelector('.col-opago').textContent.toLowerCase();
       const esPagado = row.classList.contains('row-paid');
-      
+
       // Verificar filtros
       let mostrarFila = true;
-      
+
       // Filtro de búsqueda
       if (searchTerm && !proveedor.includes(searchTerm) && 
           !detalle.includes(searchTerm) && !factura.includes(searchTerm) && 
           !proyecto.includes(searchTerm)) {
         mostrarFila = false;
       }
-      
+
       // Filtro de estado
       if (estadoValue === 'pendiente' && esPagado) {
         mostrarFila = false;
       } else if (estadoValue === 'pagado' && !esPagado) {
         mostrarFila = false;
       }
-      
+
       // Filtro de proyecto
       if (proyectoValue && !proyecto.includes(proyectoValue.toLowerCase())) {
         mostrarFila = false;
       }
-      
+
+      // Filtro por N° Orden de Pago (coincidencia parcial)
+      if (ordenPagoValue && !ordenPago.includes(ordenPagoValue)) {
+        mostrarFila = false;
+      }
+
       // Mostrar/ocultar fila
       if (mostrarFila) {
         row.style.display = '';
@@ -681,11 +631,11 @@ document.addEventListener('DOMContentLoaded', function() {
         row.style.display = 'none';
       }
     });
-    
+
     // Actualizar contador de resultados
     updateResultsCounter(visibleRows);
   }
-  
+
   // Función para actualizar contador de resultados
   function updateResultsCounter(count) {
     let counter = document.getElementById('resultsCounter');
@@ -696,7 +646,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const tableContainer = document.querySelector('.table-container');
       tableContainer.appendChild(counter);
     }
-    
+
     if (count === tableRows.length) {
       counter.style.display = 'none';
     } else {
@@ -704,12 +654,13 @@ document.addEventListener('DOMContentLoaded', function() {
       counter.innerHTML = `<i class="bi bi-info-circle me-2"></i>Mostrando ${count} de ${tableRows.length} órdenes de pago`;
     }
   }
-  
+
   // Event listeners para filtros en tiempo real
   searchInput.addEventListener('input', filterTable);
   estadoFilter.addEventListener('change', filterTable);
   proyectoFilter.addEventListener('change', filterTable);
-  
+  ordenPagoInput.addEventListener('input', filterTable);
+
   // Destacar filas al cambiar fecha de pago
   dateInputs.forEach(input => {
     input.addEventListener('change', function() {
@@ -725,7 +676,7 @@ document.addEventListener('DOMContentLoaded', function() {
       setTimeout(filterTable, 100);
     });
   });
-  
+
   // Tooltip para celdas truncadas
   const truncatedCells = document.querySelectorAll('.text-truncate');
   truncatedCells.forEach(cell => {
@@ -735,7 +686,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
-  
+
   // Confirmación antes de enviar formulario
   const form = document.querySelector('form');
   form.addEventListener('submit', function(e) {
@@ -746,7 +697,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
   });
-  
+
   // Resaltar cambios no guardados
   dateInputs.forEach(input => {
     const originalValue = input.value;
@@ -760,40 +711,30 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
+
+  window.limpiarFiltros = function() {
+    // Limpiar filtros de la página actual
+    document.getElementById('searchInput').value = '';
+    document.getElementById('estadoFilter').value = '';
+    document.getElementById('proyectoFilter').value = '';
+    ordenPagoInput.value = '';
+    filterTable();
+    // Recargar página sin filtros
+    window.location.href = window.location.pathname;
+  };
+
+  // Exportar datos filtrados (sin cambios)
+  window.exportarFiltrados = function() {
+    const visibleRows = Array.from(document.querySelectorAll('tbody tr')).filter(row => row.style.display !== 'none');
+    if (visibleRows.length === 0) {
+      alert('No hay datos para exportar con los filtros actuales.');
+      return;
+    }
+    // Aquí se podría implementar la exportación de solo los datos filtrados
+    console.log('Exportando', visibleRows.length, 'filas filtradas');
+  };
 });
-
-// Funciones para el modal de filtros
-function aplicarFiltros() {
-  document.getElementById('filtrosForm').submit();
-}
-
-function limpiarFiltrosModal() {
-  const form = document.getElementById('filtrosForm');
-  form.reset();
-}
-
-function limpiarFiltros() {
-  // Limpiar filtros de la página actual
-  document.getElementById('searchInput').value = '';
-  document.getElementById('estadoFilter').value = '';
-  document.getElementById('proyectoFilter').value = '';
-  
-  // Recargar página sin filtros
-  window.location.href = window.location.pathname;
-}
-
-// Función para exportar datos filtrados
-function exportarFiltrados() {
-  const visibleRows = Array.from(document.querySelectorAll('tbody tr')).filter(row => row.style.display !== 'none');
-  
-  if (visibleRows.length === 0) {
-    alert('No hay datos para exportar con los filtros actuales.');
-    return;
-  }
-  
-  // Aquí se podría implementar la exportación de solo los datos filtrados
-  console.log('Exportando', visibleRows.length, 'filas filtradas');
-}
 </script>
+
 
 {% endblock %}

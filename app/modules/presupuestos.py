@@ -37,13 +37,42 @@ def form_presupuesto():
                 if monto_int <= 0:
                     flash("El monto debe ser mayor a cero", "danger")
                 else:
+                    # Buscar proyecto_id
+                    from app.utils.static_data import get_cached_proyectos_with_id
+                    proyectos_id = get_cached_proyectos_with_id()
+                    proyecto_id = None
+                    for p in proyectos_id:
+                        if str(p["proyecto"]).strip().lower() == str(proyecto).strip().lower():
+                            proyecto_id = p["id"]
+                            break
+                    if proyecto_id is None:
+                        flash("No se encontró el proyecto en la base de datos.", "danger")
+                        return redirect(url_for("presupuestos.form_presupuesto"))
+
+                    # Extraer mes y año
+                    try:
+                        fecha_dt = datetime.fromisoformat(fecha)
+                    except Exception:
+                        try:
+                            fecha_dt = datetime.strptime(fecha, "%Y-%m-%d")
+                        except Exception:
+                            flash("Formato de fecha inválido", "danger")
+                            return redirect(url_for("presupuestos.form_presupuesto"))
+                    mes_numero = fecha_dt.month
+                    mes_nombre = fecha_dt.strftime("%B")  # Inglés, ej: "July"
+                    anio = fecha_dt.year
+
                     # Guardar en la base de datos
                     supabase.table("presupuesto").insert({
                         "proyecto": proyecto,
                         "item": item,
                         "detalle": detalle,
                         "fecha": fecha,
-                        "monto": monto_int
+                        "monto": monto_int,
+                        "proyecto_id": proyecto_id,
+                        "mes_numero": mes_numero,
+                        "mes_nombre": mes_nombre,
+                        "anio": anio
                     }).execute()
                     flash("Presupuesto guardado correctamente", "success")
                     return redirect(url_for("presupuestos.form_presupuesto"))
@@ -68,20 +97,30 @@ def gastos_proyecto():
         return jsonify({"error": "Proyecto no especificado"}), 400
     
     try:
-        # Obtener gastos del proyecto
-        gastos_res = supabase.table("presupuesto") \
-            .select("id, proyecto, item, detalle, fecha, monto") \
-            .eq("proyecto", proyecto) \
-            .order("fecha", desc=True) \
-            .execute()
-        
-        gastos = gastos_res.data or []
-        
+        # Obtener todos los gastos del proyecto usando paginación manual
+        page_size = 1000
+        offset = 0
+        gastos = []
+        while True:
+            batch = (
+                supabase.table("presupuesto")
+                .select("id, proyecto, item, detalle, fecha, monto")
+                .eq("proyecto", proyecto)
+                .order("fecha", desc=True)
+                .range(offset, offset + page_size - 1)
+                .execute()
+                .data or []
+            )
+            gastos.extend(batch)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+
         # Calcular estadísticas
         total_amount = sum(g.get("monto", 0) for g in gastos)
         unique_items = len(set(g.get("item") for g in gastos if g.get("item")))
         last_entry = gastos[0].get("fecha") if gastos else None
-        
+
         # Formatear fecha de último registro
         if last_entry:
             try:
@@ -89,21 +128,20 @@ def gastos_proyecto():
                 last_entry = last_entry_date.strftime("%d/%m/%Y")
             except:
                 last_entry = last_entry
-        
+
         stats = {
             "total_entries": len(gastos),
             "total_amount": total_amount,
             "unique_items": unique_items,
             "last_entry": last_entry
         }
-        
+
         return jsonify({
             "gastos": gastos,
             "stats": stats
         })
-        
+
     except Exception as e:
-        current_app.logger.error(f"Error obteniendo gastos del proyecto {proyecto}: {e}")
         return jsonify({"error": "Error interno del servidor"}), 500
 
 
@@ -152,7 +190,6 @@ def actualizar_gasto():
     except ValueError as e:
         return jsonify({"success": False, "error": "Valor inválido"}), 400
     except Exception as e:
-        current_app.logger.error(f"Error actualizando gasto {gasto_id}: {e}")
         return jsonify({"success": False, "error": "Error interno del servidor"}), 500
 
 
@@ -235,6 +272,9 @@ def importar_presupuesto():
     seen = set()
     errores = []
 
+    from app.utils.static_data import get_cached_proyectos_with_id
+    proyectos_id = get_cached_proyectos_with_id()
+
     for idx, row in df.iterrows():
         fila = idx + 2  # correspondencia de fila Excel
         pr = row["proyecto"]
@@ -250,6 +290,16 @@ def importar_presupuesto():
             continue
         pr = match_pr[0]
 
+        # Buscar proyecto_id
+        proyecto_id = None
+        for p in proyectos_id:
+            if str(p["proyecto"]).strip().lower() == str(pr).strip().lower():
+                proyecto_id = p["id"]
+                break
+        if proyecto_id is None:
+            errores.append(f"No se encontró el proyecto en la base de datos en fila {fila}: {pr}")
+            continue
+
         # Validar item
         match_it = get_close_matches(str(it), items, n=1, cutoff=0.6)
         if not match_it:
@@ -264,12 +314,17 @@ def importar_presupuesto():
         
         try:
             if hasattr(fecha, "isoformat"):
-                fecha_iso = fecha.isoformat()
+                fecha_dt = fecha
             else:
-                fecha_iso = str(fecha)
-        except:
+                fecha_dt = pd.to_datetime(fecha)
+            fecha_iso = fecha_dt.isoformat()
+        except Exception:
             errores.append(f"Formato de fecha inválido en fila {fila}.")
             continue
+
+        mes_numero = fecha_dt.month
+        mes_nombre = fecha_dt.strftime("%B")  # Inglés, ej: "July"
+        anio = fecha_dt.year
 
         # Validar monto
         try:
@@ -293,7 +348,11 @@ def importar_presupuesto():
             "item": it,
             "detalle": str(detalle) if not pd.isna(detalle) else "",
             "fecha": fecha_iso,
-            "monto": monto_int
+            "monto": monto_int,
+            "proyecto_id": proyecto_id,
+            "mes_numero": mes_numero,
+            "mes_nombre": mes_nombre,
+            "anio": anio
         })
 
     # Si hay errores, mostrarlos y no importar nada
@@ -325,18 +384,28 @@ def exportar_presupuesto():
     supabase = current_app.config["SUPABASE"]
     
     try:
-        # Obtener todos los presupuestos
-        presupuestos_res = supabase.table("presupuesto") \
-            .select("proyecto, item, detalle, fecha, monto") \
-            .order("fecha", desc=True) \
-            .execute()
-        
-        presupuestos = presupuestos_res.data or []
-        
+        # Obtener todos los presupuestos usando paginación manual
+        page_size = 1000
+        offset = 0
+        presupuestos = []
+        while True:
+            batch = (
+                supabase.table("presupuesto")
+                .select("proyecto, item, detalle, fecha, monto")
+                .order("fecha", desc=True)
+                .range(offset, offset + page_size - 1)
+                .execute()
+                .data or []
+            )
+            presupuestos.extend(batch)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+
         if not presupuestos:
             flash("No hay datos para exportar.", "warning")
             return redirect(url_for("presupuestos.form_presupuesto"))
-        
+
         # Crear DataFrame
         df = pd.DataFrame(presupuestos)
         

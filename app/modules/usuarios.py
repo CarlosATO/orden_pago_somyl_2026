@@ -16,7 +16,23 @@ def nuevo_usuario():
     
     # Obtener módulos disponibles
     try:
-        modulos = supabase.table('modulos').select('*').order('nombre_modulo').execute().data
+        def fetch_all_rows(table, select_str, order_col=None, desc=False):
+            page_size = 1000
+            offset = 0
+            all_rows = []
+            while True:
+                q = supabase.table(table).select(select_str)
+                if order_col:
+                    q = q.order(order_col, desc=desc)
+                q = q.range(offset, offset + page_size - 1)
+                batch = q.execute().data or []
+                all_rows.extend(batch)
+                if len(batch) < page_size:
+                    break
+                offset += page_size
+            return all_rows
+
+        modulos = fetch_all_rows('modulos', '*', 'nombre_modulo')
         current_app.logger.info(f"Módulos obtenidos: {len(modulos) if modulos else 0}")
         if modulos:
             current_app.logger.info(f"Primer módulo: {modulos[0]}")
@@ -198,13 +214,19 @@ def require_modulo(nombre_modulo):
         def decorated_function(*args, **kwargs):
             from flask_login import current_user
             from app.modules.usuarios import get_modulos_usuario
-            
+
+            is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes['application/json'] > 0
+
             # Verificar que el usuario esté autenticado
             if not current_user.is_authenticated:
+                if is_ajax:
+                    return jsonify(success=False, error='Debes iniciar sesión para acceder a este módulo.'), 401
                 flash('Debes iniciar sesión para acceder a este módulo.', 'warning')
                 return redirect(url_for('auth.login'))
-            
+
             if nombre_modulo not in get_modulos_usuario():
+                if is_ajax:
+                    return jsonify(success=False, error='No tienes permiso para acceder a este módulo.'), 403
                 flash('No tienes permiso para acceder a este módulo.', 'danger')
                 return redirect(url_for('auth.sin_permisos'))
             return f(*args, **kwargs)

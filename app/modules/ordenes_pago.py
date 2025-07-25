@@ -38,41 +38,34 @@ def list_ordenes_pago():
     ) or []
     next_num = (last[0]["orden_numero"] + 1) if last else 1
 
-    # Traer todas las OP (para estado_documento & ingreso_id)
-    pagos_all = (
-        supabase
-        .table("orden_de_pago")
-        .select("id, ingreso_id, orden_numero, proveedor_nombre, fecha, factura, estado_documento")
-        .order("orden_numero")
-        .execute()
-        .data
-    ) or []
+    # --- Paginación automática para grandes volúmenes ---
+    def fetch_all_rows(table, select_str, order_col=None, desc=False):
+        page_size = 1000
+        offset = 0
+        all_rows = []
+        while True:
+            q = supabase.table(table).select(select_str)
+            if order_col:
+                q = q.order(order_col, desc=desc)
+            q = q.range(offset, offset + page_size - 1)
+            batch = q.execute().data or []
+            all_rows.extend(batch)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+        return all_rows
 
+    pagos_all = fetch_all_rows("orden_de_pago", "id, ingreso_id, orden_numero, proveedor_nombre, fecha, factura, estado_documento", "orden_numero")
     # Agrupar por orden_numero y quedarnos sólo con el primero de cada OP
     pagos_unicos = {}
     for p in pagos_all:
         num = p["orden_numero"]
         if num not in pagos_unicos:
             pagos_unicos[num] = p
-
     # Sólo pendientes de documento
     pagos = [p for p in pagos_unicos.values() if p["estado_documento"] == "pendiente"]
-
-    # DataLists: proveedores y trabajadores
-    providers = (
-        supabase
-        .table("proveedores")
-        .select("id, nombre")
-        .execute()
-        .data
-    ) or []
-    trabajadores = (
-        supabase
-        .table("trabajadores")
-        .select("id, nombre, correo")
-        .execute()
-        .data
-    ) or []
+    providers = fetch_all_rows("proveedores", "id, nombre")
+    trabajadores = fetch_all_rows("trabajadores", "id, nombre, correo")
 
     # AJAX detail=1: listar líneas de ingresos no pagadas por guía+OC
     if request.args.get("detail"):
@@ -209,6 +202,8 @@ def list_ordenes_pago():
                     }
                 grupos[key]["total_neto_recepcion"] += float(i.get("neto_recepcion") or 0)
             docs = list(grupos.values())
+            # Ordenar docs por 'orden_compra' de mayor a menor
+            docs.sort(key=lambda d: d.get('orden_compra', 0), reverse=True)
             
             # Logging para debug
             current_app.logger.info(f"Proveedor encontrado: ID={provider_id}, Nombre={nombre_proveedor}")
@@ -310,6 +305,8 @@ def new_orden_pago():
             costo_final_con_iva= neto_total * (1.0 if fac_sin_iva else 1.19)
 
             try:
+                fecha_actual = date.today().isoformat()
+                anio = date.today().year
                 result = supabase.table("orden_de_pago").insert({
                     "ingreso_id":           int(ingreso_id),
                     "orden_compra":         orden_compra_int,  # Guardar número de OC, no el ID
@@ -337,7 +334,8 @@ def new_orden_pago():
                     "tipo":                tipo_val,
                     # "fac_sin_iva":         fac_sin_iva,  # Comentado hasta agregar la columna
                     "item":                item_val,
-                    "fecha":                date.today().isoformat()
+                    "fecha":                fecha_actual,
+                    "anio":                 anio
                 }).execute()
                 
                 if hasattr(result, 'error') and result.error:

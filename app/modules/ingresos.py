@@ -84,23 +84,35 @@ def list_ingresos():
                 header["proveedor_nombre"] = prov[0]["nombre"]
                 header["rut"]              = prov[0]["rut"]
 
-            # 3) Líneas de la OC
-            oc_lines = (
-                supabase.table("orden_de_compra")
-                         .select("codigo, descripcion, cantidad, precio_unitario, art_corr")
-                         .eq("orden_compra", oc)
-                         .execute().data or []
-            )
+            # 3) Líneas de la OC con paginación manual
+            page_size = 1000
+            offset = 0
+            oc_lines = []
+            while True:
+                batch = (
+                    supabase.table("orden_de_compra")
+                    .select("codigo, descripcion, cantidad, precio_unitario, art_corr")
+                    .eq("orden_compra", oc)
+                    .range(offset, offset + page_size - 1)
+                    .execute().data or []
+                )
+                oc_lines.extend(batch)
+                if len(batch) < page_size:
+                    break
+                offset += page_size
 
-            # 3a) Mapear descripciones a material_id
+            # 3a) Mapear descripciones a material_id (ignorando espacios y mayúsculas)
             descs = [ln["descripcion"] for ln in oc_lines]
+            # Traer todos los materiales para comparación robusta
             mats = (
                 supabase.table("materiales")
                          .select("id, material")
-                         .in_("material", descs)
                          .execute().data or []
             )
-            mat_id_map = {m["material"]: m["id"] for m in mats}
+            # Diccionario: clave normalizada -> id
+            def norm(s):
+                return (s or '').strip().lower()
+            mat_id_map = {norm(m["material"]): m["id"] for m in mats}
 
             # 4) Recepciones previas agrupadas por art_corr
             prev = (
@@ -126,6 +138,8 @@ def list_ingresos():
                 prev_r  = ing_map.get(art_key, 0)
                 pend    = sol - prev_r
 
+                # Normalizar descripción para buscar material_id
+                norm_desc = (ln["descripcion"] or '').strip().lower()
                 lines.append({
                     "codigo":         ln["codigo"],
                     "descripcion":    ln["descripcion"],
@@ -136,7 +150,7 @@ def list_ingresos():
                     "total":          total,
                     "total_recibido": prev_r,
                     "pendiente":      pend,
-                    "material_id":    mat_id_map.get(ln["descripcion"], None),
+                    "material_id":    mat_id_map.get(norm_desc, None),
                     "art_corr":       ln["art_corr"],
                 })
 
@@ -221,13 +235,29 @@ def save_ingresos():
     )
     oc_map = {d["descripcion"]: d for d in oc_dt}
 
+    # Traer todos los materiales para comparación robusta
     mats = (
         supabase.table("materiales")
                  .select("material, tipo, item")
-                 .in_("material", descs)
                  .execute().data or []
     )
-    mat_map = {m["material"]: m for m in mats}
+    def norm(s):
+        return (s or '').strip().lower()
+    mat_map = {norm(m["material"]): m for m in mats}
+
+    # DEBUG: Mostrar descripciones buscadas y encontradas
+    import sys, logging
+    try:
+        print("--- DEBUG INGRESOS ---", flush=True)
+        print("Descripciones buscadas (del formulario):", flush=True)
+        for d in descs:
+            print(f"- '{d}'", flush=True)
+        print("Descripciones en la tabla materiales:", flush=True)
+        for m in mats:
+            print(f"- '{m['material']}'", flush=True)
+        print("----------------------", flush=True)
+    except Exception as e:
+        logging.warning(f"DEBUG INGRESOS: {e}")
 
     items = (
         supabase.table("item")
@@ -245,15 +275,25 @@ def save_ingresos():
         if rec <= 0:
             continue
 
-        mat_id = int(mat_ids[idx] or 0)
+        # Buscar material normalizando descripción
+        norm_desc = (desc or '').strip().lower()
+        mat = mat_map.get(norm_desc)
+        raw_mat_id = mat["id"] if mat and "id" in mat else mat_ids[idx]
+        if raw_mat_id in (None, '', 'None'):
+            desc_falla = descs[idx] if idx < len(descs) else '(desconocido)'
+            try:
+                print(f"[DEBUG] No se encontró material_id para: '{desc_falla}'", flush=True)
+            except Exception as e:
+                logging.warning(f"DEBUG INGRESOS: {e}")
+            flash(f"No se encontró material_id para la descripción: '{desc_falla}'. Por favor verifique que el material exista en la base de datos o contacte a soporte.", "warning")
+            return redirect(url_for("ingresos.list_ingresos", oc=oc_val))
+        mat_id = int(raw_mat_id)
         neto   = float(netos[idx] or 0)
         net_rec = rec * neto
         next_n += 1
 
         ocd = oc_map.get(desc, {})
-        mat = mat_map.get(desc, {})
-
-        tipo_id = tipo_to_id.get(mat.get("tipo"))
+        tipo_id = tipo_to_id.get(mat.get("tipo")) if mat else None
         fac_sin = 1 if ocd.get("fac_sin_iva") else 0
 
         to_insert.append({
@@ -269,7 +309,7 @@ def save_ingresos():
             "art_corr":        art_corrs[idx],
             "fac_sin_iva":     fac_sin,
             "tipo":            tipo_id,
-            "item":            mat.get("item"),
+            "item":            mat.get("item") if mat else None,
             "proveedor":       proveedor_id,
             "n_ingreso":       next_n
         })

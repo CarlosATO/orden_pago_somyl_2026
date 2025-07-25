@@ -3,7 +3,6 @@ from flask_login import login_required, current_user
 from app.modules.usuarios import require_modulo
 from app.utils.static_data import get_cached_proyectos_with_id, get_cached_items_with_id
 from datetime import date, datetime
-import logging
 
 bp_gastos_directos = Blueprint("gastos_directos", __name__, url_prefix="/gastos_directos")
 
@@ -22,7 +21,6 @@ def form_gastos_directos():
             "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
         ]
         
-        current_app.logger.info(f"Usuario {current_user.nombre} accedió al módulo de gastos directos")
         
         return render_template(
             "gastos_directos.html",
@@ -32,7 +30,6 @@ def form_gastos_directos():
             hoy=date.today()
         )
     except Exception as e:
-        current_app.logger.error(f"Error en form_gastos_directos: {e}")
         flash("Error al cargar el módulo de gastos directos", "danger")
         return redirect(url_for('auth.home'))
 
@@ -91,14 +88,17 @@ def guardar_gastos_directos():
                     continue
                 
                 # Insertar gasto
+                fecha_actual = date.today().isoformat()
+                anio = date.today().year
                 resultado = supabase.table("gastos_directos").insert({
-                    "fecha": date.today().isoformat(),
+                    "fecha": fecha_actual,
                     "proyecto_id": int(proyecto_id),
                     "item_id": int(gasto["item_id"]),
                     "descripcion": gasto.get("descripcion", "").strip()[:255],  # Limitar a 255 caracteres
                     "mes": gasto["mes"],
                     "monto": monto,
-                    "usuario_id": usuario_id
+                    "usuario_id": usuario_id,
+                    "anio": anio
                 }).execute()
                 
                 if resultado.data:
@@ -107,7 +107,6 @@ def guardar_gastos_directos():
                     errores.append(f"Gasto {i+1}: Error al guardar en la base de datos")
                     
             except Exception as e:
-                current_app.logger.error(f"Error guardando gasto {i+1}: {e}")
                 errores.append(f"Gasto {i+1}: {str(e)}")
         
         # Registrar actividad

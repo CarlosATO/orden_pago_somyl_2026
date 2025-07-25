@@ -638,7 +638,7 @@ function updateSaldoActual(produccion) {
 
 function initializePresupuestoCells() {
   document.querySelectorAll('.presupuesto-cell').forEach(cell => {
-    let originalValue = cell.dataset.original;
+    let originalValue = parseInt(cell.dataset.original) || 0;
     
     cell.addEventListener('focus', function() {
       const currentValue = parseInt(this.textContent.replace(/\D/g,'')) || 0;
@@ -650,9 +650,66 @@ function initializePresupuestoCells() {
       this.textContent = formatCurrency(value);
       
       if (value != originalValue) {
-        updatePresupuesto(this);
-        originalValue = value;
-        this.dataset.original = value;
+        // Obtener datos desde los atributos de la celda
+        const month = this.dataset.month;
+        const project = this.dataset.project;
+        const itemFromTable = cell.closest('tr').querySelector('td:nth-child(2)').textContent.trim();
+        
+        // Intentar obtener el item_id desde los datos de la tabla
+        const tableData = {{ table|tojson|safe }};
+        let itemId = null;
+        
+        // Buscar en los datos de la tabla
+        if (tableData[project] && tableData[project][itemFromTable]) {
+          const monthData = tableData[project][itemFromTable][month];
+          if (monthData && monthData.item_id) {
+            itemId = monthData.item_id;
+          }
+        }
+        
+        // Si no encontramos item_id en los datos, intentar extraerlo del dataset existente
+        if (!itemId && this.dataset.item) {
+          itemId = this.dataset.item;
+        }
+        
+        // Como último recurso, buscar item_id en todas las celdas de la misma fila
+        if (!itemId) {
+          const rowCells = this.closest('tr').querySelectorAll('.presupuesto-cell');
+          for (let otherCell of rowCells) {
+            const otherMonth = otherCell.dataset.month;
+            if (tableData[project] && tableData[project][itemFromTable] && 
+                tableData[project][itemFromTable][otherMonth] && 
+                tableData[project][itemFromTable][otherMonth].item_id) {
+              itemId = tableData[project][itemFromTable][otherMonth].item_id;
+              break;
+            }
+          }
+        }
+        
+        console.log('Debug - Datos encontrados:', {
+          project: project,
+          itemFromTable: itemFromTable,
+          month: month,
+          itemId: itemId,
+          value: value
+        });
+        
+        if (itemId) {
+          // Actualizar el dataset con el item_id correcto para futuras referencias
+          this.dataset.item = itemId;
+          updatePresupuesto(this);
+          originalValue = value;
+          this.dataset.original = value;
+        } else {
+          console.error('No se pudo encontrar item_id para:', {
+            project: project, 
+            item: itemFromTable, 
+            month: month,
+            availableData: tableData[project] ? Object.keys(tableData[project]) : 'No project data'
+          });
+          showError('Error: No se pudo identificar el item. Verifica los datos.');
+          this.textContent = formatCurrency(originalValue);
+        }
       }
     });
     
@@ -682,25 +739,47 @@ function updatePresupuesto(cell) {
   const month = cell.dataset.month;
   const value = parseInt(cell.textContent.replace(/\D/g,'')) || 0;
   
+  console.log('Datos a enviar:', { proyecto, item, month, value });
+  
   showLoading();
   
   fetch("{{ url_for('estado_presupuesto.update_presupuesto') }}", {
     method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ proyecto, item, month, value })
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({ 
+      proyecto: proyecto, 
+      item: item, 
+      month: month, 
+      value: value 
+    })
   })
-  .then(response => response.json())
+  .then(response => {
+    console.log('Response status:', response.status);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response.json();
+  })
   .then(data => {
+    console.log('Response data:', data);
     if (data.success) {
-      showSuccess('Presupuesto actualizado');
+      showSuccess(data.message || 'Presupuesto actualizado');
       updateRowTotals(cell);
+      updateGrandTotals();
     } else {
-      showError('Error al actualizar presupuesto');
+      showError(data.error || 'Error desconocido al actualizar presupuesto');
+      // Revertir el valor de la celda
+      cell.textContent = formatCurrency(parseInt(cell.dataset.original) || 0);
     }
   })
   .catch(error => {
-    console.error('Error:', error);
-    showError('Error de conexión');
+    console.error('Error completo:', error);
+    showError(`Error de conexión: ${error.message}`);
+    // Revertir el valor de la celda
+    cell.textContent = formatCurrency(parseInt(cell.dataset.original) || 0);
   })
   .finally(() => {
     hideLoading();
@@ -719,6 +798,20 @@ function updateRowTotals(cell) {
   if (totalCell) {
     totalCell.textContent = formatCurrency(total);
   }
+}
+
+function updateGrandTotals() {
+  // Actualizar totales generales después de una actualización
+  const footerCells = document.querySelectorAll('tfoot .text-primary');
+  footerCells.forEach(cell => {
+    const columnIndex = Array.from(cell.parentNode.children).indexOf(cell);
+    const columnCells = document.querySelectorAll(`tbody tr td:nth-child(${columnIndex + 1}).presupuesto-cell`);
+    let total = 0;
+    columnCells.forEach(c => {
+      total += parseInt(c.textContent.replace(/\D/g,'')) || 0;
+    });
+    cell.textContent = formatCurrency(total);
+  });
 }
 
 function initializeKeyboardShortcuts() {

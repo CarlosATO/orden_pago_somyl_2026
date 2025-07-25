@@ -52,6 +52,8 @@ def list_pendientes():
             'ordenes_unicas': len(set(f['orden_numero'] for f in filas))
         }
         
+        # Ordenar filas por 'orden_numero' de mayor a menor (O.PAGO)
+        filas.sort(key=lambda f: f.get('orden_numero', 0), reverse=True)
         return render_template(
             "ordenes_pago/pendientes.html",
             filas=filas,
