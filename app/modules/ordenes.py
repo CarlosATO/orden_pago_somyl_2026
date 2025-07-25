@@ -119,7 +119,7 @@ def new_orden():
         semana          = hoy.isocalendar()[1]
 
         proveedor_id    = int(request.form["proveedor_id"])
-        tipo_de_entrega = request.form["tipo_entrega"]
+        tipo_entrega    = request.form["tipo_entrega"]
         condicion_pago  = request.form["plazo_pago"]
         
         # Nueva lógica: checkbox "incluir_iva" está marcado por defecto
