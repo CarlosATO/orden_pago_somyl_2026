@@ -702,8 +702,12 @@ $(document).ready(function() {
     });
   });
 
-  // Manejar envío del formulario
+  // Manejar envío del formulario con advertencia de confirmación
   $('#ordenForm').submit(function(e) {
+    if (!confirm('¿Estás seguro de que quieres grabar la Orden de Compra?')) {
+      e.preventDefault();
+      return;
+    }
     const btnSave = $('#save-btn');
     btnSave.prop('disabled', true);
     btnSave.html('<i class="bi bi-hourglass-split me-2"></i>Guardando...');

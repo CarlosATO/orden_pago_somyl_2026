@@ -166,27 +166,33 @@ def update_pagos():
     fechas = request.form.getlist("fecha_pago[]")
     any_error = False
     upserts = []
+    deletes = []
 
     for i, num in enumerate(nums):
-        fpago = fechas[i]
-        if not fpago:
-            continue
-        try:
-            d = datetime.strptime(fpago, "%Y-%m-%d").date()
-        except ValueError:
-            flash(f"Fecha inválida para OP {num}", "danger")
-            any_error = True
-            continue
-        if d > date.today() + timedelta(days=7):
-            flash(f"Fecha de pago muy futura para OP {num}", "danger")
-            any_error = True
-            continue
-        upserts.append({"orden_numero": int(num), "fecha_pago": fpago})
+        fpago = fechas[i].strip() if i < len(fechas) else ""
+        if fpago:
+            try:
+                d = datetime.strptime(fpago, "%Y-%m-%d").date()
+            except ValueError:
+                flash(f"Fecha inválida para OP {num}", "danger")
+                any_error = True
+                continue
+            if d > date.today() + timedelta(days=7):
+                flash(f"Fecha de pago muy futura para OP {num}", "danger")
+                any_error = True
+                continue
+            upserts.append({"orden_numero": int(num), "fecha_pago": fpago})
+        else:
+            # Si el campo está vacío, eliminar la fila completa
+            deletes.append(int(num))
 
     # Upsert masivo si hay datos válidos
     if upserts:
-        # Supabase Python SDK soporta upsert con .upsert()
         supabase.table("fechas_de_pagos_op").upsert(upserts, on_conflict=["orden_numero"]).execute()
+
+    # Eliminar filas completas para las fechas borradas en una sola consulta
+    if deletes:
+        supabase.table("fechas_de_pagos_op").delete().in_("orden_numero", deletes).execute()
 
     if not any_error:
         flash("Fechas de pago actualizadas con éxito", "success")
