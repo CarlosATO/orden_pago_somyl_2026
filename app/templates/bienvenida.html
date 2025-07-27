@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}¡Bienvenido!{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-7 col-md-9">
+      <div class="card shadow-lg border-0 rounded-4 animate__animated animate__fadeInDown">
+        <div class="card-body p-4 text-center">
+          <div class="mb-4">
+            <span class="d-inline-block bg-gradient-primary rounded-circle p-3 mb-2" style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;font-size:2.2rem;">
+              <i class="bi bi-emoji-smile"></i>
+            </span>
+            <h2 class="fw-bold mb-1">¡Bienvenido{{ ' ' + current_user.nombre if current_user and current_user.nombre else '' }}!</h2>
+            <p class="text-muted mb-0">Has ingresado correctamente al sistema de gestión de compras y pagos Somyl S.A.</p>
+          </div>
+          <hr class="my-4">
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-md-6">
+              <div class="p-3 bg-light rounded-3 shadow-sm h-100">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-cash-coin text-success me-2 fs-4"></i>
+                  <span class="fw-semibold">Total Deuda</span>
+                </div>
+                <div class="fs-5 fw-bold text-danger">${{ total_deuda | default('0') }}</div>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="p-3 bg-light rounded-3 shadow-sm h-100">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-file-earmark-text text-primary me-2 fs-4"></i>
+                  <span class="fw-semibold">Órdenes Pendientes</span>
+                </div>
+                <div class="fs-5 fw-bold text-warning">{{ ordenes_pendientes | default(0) }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="row g-3 mb-3">
+            <div class="col-12 col-md-6">
+              <div class="p-3 bg-light rounded-3 shadow-sm h-100">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-people text-info me-2 fs-4"></i>
+                  <span class="fw-semibold">Usuarios Activos</span>
+                </div>
+                <div class="fs-5 fw-bold text-secondary">{{ usuarios_activos | default(0) }}</div>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="p-3 bg-light rounded-3 shadow-sm h-100">
+                <div class="d-flex align-items-center mb-2">
+                  <i class="bi bi-bar-chart text-success me-2 fs-4"></i>
+                  <span class="fw-semibold">Proyectos en Curso</span>
+                </div>
+                <div class="fs-5 fw-bold text-primary">{{ proyectos_en_curso | default(0) }}</div>
+              </div>
+            </div>
+          </div>
+          <hr class="my-4">
+          <div class="mb-3">
+            <h5 class="fw-semibold mb-2">¿Qué puedes hacer aquí?</h5>
+            <ul class="list-unstyled text-start mx-auto" style="max-width: 420px;">
+              <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Gestionar órdenes de compra y pagos</li>
+              <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Visualizar y descargar reportes financieros</li>
+              <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Administrar proveedores, materiales y proyectos</li>
+              <li class="mb-2"><i class="bi bi-check-circle text-success me-2"></i>Controlar usuarios y permisos</li>
+            </ul>
+          </div>
+          <div class="alert alert-info mt-4">
+            <i class="bi bi-info-circle me-2"></i>
+            Selecciona cualquier módulo del menú para comenzar. Esta pantalla solo se muestra al ingresar.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,11 +1,62 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="alert alert-warning text-center" role="alert">
-        <h2>Sin permisos</h2>
-        <p>No tienes permiso para acceder a este módulo o sección.</p>
-        <a href="{{ url_for('auth.logout') }}" class="btn btn-secondary mt-3">Cerrar sesión</a>
-    </div>
+<style>
+  .no-access-container {
+    max-width: 420px;
+    margin: 60px auto 0 auto;
+    background: rgba(255,255,255,0.97);
+    border-radius: 18px;
+    box-shadow: 0 8px 32px rgba(234,179,8,0.10), 0 1.5px 4px rgba(234,179,8,0.07);
+    border: 1px solid rgba(234,179,8,0.18);
+    padding: 36px 28px 28px 28px;
+    text-align: center;
+    animation: fadeInScale 0.7s;
+  }
+  .no-access-icon {
+    font-size: 3.2rem;
+    color: #f59e0b;
+    margin-bottom: 12px;
+    animation: bounceIn 0.7s;
+  }
+  .no-access-title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #b45309;
+    margin-bottom: 10px;
+  }
+  .no-access-desc {
+    color: #6b7280;
+    font-size: 1.05rem;
+    margin-bottom: 18px;
+  }
+  .no-access-actions .btn {
+    margin: 0 6px;
+    min-width: 120px;
+  }
+  @keyframes fadeInScale {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  @keyframes bounceIn {
+    0% { transform: scale(0.7); opacity: 0; }
+    60% { transform: scale(1.15); opacity: 1; }
+    100% { transform: scale(1); }
+  }
+</style>
+<div class="no-access-container">
+  <div class="no-access-icon">
+    <i class="bi bi-shield-lock-fill"></i>
+  </div>
+  <div class="no-access-title">Acceso denegado</div>
+  <div class="no-access-desc">
+    No tienes permiso para acceder a este módulo o sección.<br>
+    Si crees que esto es un error, contacta al administrador.<br>
+    <span style="font-size:0.98rem; color:#b45309;">¿Necesitas ayuda?</span>
+  </div>
+  <div class="no-access-actions">
+    <a href="/" class="btn btn-outline-warning"><i class="bi bi-house"></i> Ir al inicio</a>
+    <a href="{{ url_for('auth.logout') }}" class="btn btn-secondary"><i class="bi bi-box-arrow-right"></i> Cerrar sesión</a>
+  </div>
 </div>
 {% endblock %}

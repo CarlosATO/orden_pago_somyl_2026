@@ -68,27 +68,32 @@ def login():
                 return redirect(url_for('usuarios.change_password'))
             
             flash(f'Bienvenido, {user.nombre}', 'success')
-            
+            # Redirigir al primer módulo permitido
             from app.modules.usuarios import get_modulos_usuario
             modulos = get_modulos_usuario()
-            # Mapea nombres de módulo a endpoint
-            modulo_to_endpoint = {
-                'orden_de_pago': 'ordenes_pago.list_ordenes_pago',
-                'ingresos': 'ingresos.list_ingresos',
-                'materiales': 'materiales.list_materiales',
-                'proveedores': 'proveedores.list_proveedores',
-                'trabajadores': 'trabajadores.list_trabajadores',
-                'proyectos': 'proyectos.list_proyectos',
-                'item': 'items.list_items',
-                'pagos': 'pagos.list_pagos',
-                'presupuesto': 'presupuestos.form_presupuesto',
-                # ...agrega los que correspondan...
-            }
-            for modulo in modulos:
-                if modulo in modulo_to_endpoint:
-                    return redirect(url_for(modulo_to_endpoint[modulo]))
-            # Si no tiene ningún permiso, redirige a una página de "sin permisos"
-            return redirect(url_for('sin_permisos'))
+            # Orden de prioridad de módulos (ajustar según tu app)
+            modulo_rutas = [
+                ('usuarios', 'usuarios.list_usuarios'),
+                ('ordenes', 'ordenes.new_orden'),
+                ('ingresos', 'ingresos.list_ingresos'),
+                ('ordenes_pago', 'ordenes_pago.list_ordenes_pago'),
+                ('ordenes_pago_pendientes', 'ordenes_pago_pendientes.list_pendientes'),
+                ('pagos', 'pagos.list_pagos'),
+                ('proveedores', 'proveedores.list_proveedores'),
+                ('materiales', 'materiales.list_materiales'),
+                ('items', 'items.list_items'),
+                ('trabajadores', 'trabajadores.list_trabajadores'),
+                ('proyectos', 'proyectos.list_proyectos'),
+                ('presupuestos', 'presupuestos.form_presupuesto'),
+                ('gastos_directos', 'gastos_directos.form_gastos_directos'),
+                ('estado_presupuesto', 'estado_presupuesto.show_estado'),
+            ]
+            for modulo, endpoint in modulo_rutas:
+                if modulo in modulos:
+                    return redirect(url_for(endpoint))
+            # Si no tiene acceso a ningún módulo conocido, cerrar sesión y mostrar error
+            flash('No tienes acceso a ningún módulo. Contacta al administrador.', 'danger')
+            return redirect(url_for('auth.logout'))
     return render_template('auth/login.html')
 
 @bp_auth.route('/logout')

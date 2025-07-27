@@ -1,3 +1,4 @@
+    # Eliminada la versión duplicada y mal indentada de inject_total_pendientes_sin_factura fuera de create_app
 import os
 from flask import Flask
 from supabase import create_client
@@ -14,6 +15,30 @@ load_dotenv()
 
 def create_app():
     app = Flask(__name__)
+
+    @app.context_processor
+    def inject_total_pendientes_sin_factura():
+        try:
+            supabase = app.config.get("SUPABASE")
+            if supabase:
+                count = (
+                    supabase
+                    .table("orden_de_pago")
+                    .select("id", count='exact')
+                    .eq("estado_documento", "pendiente")
+                    .execute()
+                )
+                # Para supabase-py, el conteo exacto viene en count.count o count["count"]
+                total = getattr(count, 'count', None)
+                if total is None and isinstance(count, dict):
+                    total = count.get('count', 0)
+                if total is None:
+                    total = 0
+            else:
+                total = 0
+        except Exception:
+            total = 0
+        return dict(total_pendientes_sin_factura=total)
     
     # Configuración para evitar cache en templates
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
@@ -98,6 +123,7 @@ def create_app():
         return redirect(url_for('ordenes_pago.list_ordenes_pago'))
 
     from app.modules.auth import bp_auth, login_manager
+    from app.modules.bienvenida import bp_bienvenida
     app.register_blueprint(bp_auth)
     login_manager.init_app(app)
 
