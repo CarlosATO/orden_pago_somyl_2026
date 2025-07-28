@@ -1,3 +1,4 @@
+
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify, get_flashed_messages
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_required, current_user
@@ -7,10 +8,37 @@ import secrets
 import string
 import logging
 
+def get_modulos_usuario():
+    from flask_login import current_user
+    if not current_user.is_authenticated:
+        return []
+    supabase = current_app.config['SUPABASE']
+    rows = supabase.table('usuario_modulo').select('modulo_id,modulos(nombre_modulo)').eq('usuario_id', current_user.id).execute().data
+    return [row['modulos']['nombre_modulo'] for row in rows]
+
+def require_modulo(nombre_modulo):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            from flask_login import current_user
+            # get_modulos_usuario ya está definido arriba
+            is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.accept_mimetypes['application/json'] > 0
+            if not current_user.is_authenticated:
+                if is_ajax:
+                    return jsonify(success=False, error='Debes iniciar sesión para acceder a este módulo.'), 401
+                flash('Debes iniciar sesión para acceder a este módulo.', 'warning')
+                return redirect(url_for('auth.login'))
+            if nombre_modulo not in get_modulos_usuario():
+                return render_template('sin_permisos.html'), 403
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
 bp = Blueprint('usuarios', __name__, template_folder='../templates/usuarios')
 
 @bp.route('/nuevo', methods=['GET', 'POST'])
 @login_required
+@require_modulo('Usuarios')
 def nuevo_usuario():
     supabase = current_app.config['SUPABASE']
     
@@ -129,6 +157,7 @@ def nuevo_usuario():
 
 @bp.route('/listado')
 @login_required
+@require_modulo('Usuarios')
 def list_usuarios():
     supabase = current_app.config['SUPABASE']
     
@@ -225,10 +254,8 @@ def require_modulo(nombre_modulo):
                 return redirect(url_for('auth.login'))
 
             if nombre_modulo not in get_modulos_usuario():
-                if is_ajax:
-                    return jsonify(success=False, error='No tienes permiso para acceder a este módulo.'), 403
-                flash('No tienes permiso para acceder a este módulo.', 'danger')
-                return redirect(url_for('auth.sin_permisos'))
+                # Mostrar la página elegante de acceso denegado siempre
+                return render_template('sin_permisos.html'), 403
             return f(*args, **kwargs)
         return decorated_function
     return decorator
@@ -276,6 +303,7 @@ def toggle_modulo_permiso():
 
 @bp.route('/editar/<int:id>', methods=['GET', 'POST'])
 @login_required
+@require_modulo('Usuarios')
 def editar_usuario(id):
     supabase = current_app.config['SUPABASE']
 
@@ -384,6 +412,7 @@ def reset_password_usuario(id):
 
 @bp.route('/dashboard')
 @login_required
+@require_modulo('Usuarios')
 def dashboard_usuarios():
     """Dashboard con estadísticas de usuarios."""
     supabase = current_app.config['SUPABASE']
