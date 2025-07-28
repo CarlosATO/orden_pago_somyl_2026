@@ -28,7 +28,8 @@ def require_modulo(nombre_modulo):
                     return jsonify(success=False, error='Debes iniciar sesión para acceder a este módulo.'), 401
                 flash('Debes iniciar sesión para acceder a este módulo.', 'warning')
                 return redirect(url_for('auth.login'))
-            if nombre_modulo not in get_modulos_usuario():
+            modulos_usuario = [m.strip().lower() for m in get_modulos_usuario()]
+            if nombre_modulo.strip().lower() not in modulos_usuario:
                 return render_template('sin_permisos.html'), 403
             return f(*args, **kwargs)
         return decorated_function
