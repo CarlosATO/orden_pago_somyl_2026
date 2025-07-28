@@ -3,34 +3,42 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SOMYL - Sistema de Compras Moderno</title>
+    <title>{% block title %}SOMYL - Sistema de Compras Moderno{% endblock %}</title>
     <!-- Bootstrap 5 + Icons -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <!-- Select2 Bootstrap Theme -->
+    <link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+    <!-- Prevención de cache -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <style>
       :root {
-        --primary-color: #4f46e5;
-        --primary-dark: #3730a3;
-        --secondary-color: #7c3aed;
+        --primary-color: #3b82f6;
+        --primary-dark: #2563eb;
+        --secondary-color: #8b5cf6;
         --accent-color: #f59e0b;
-        --success-color: #059669;
-        --danger-color: #dc2626;
-        --warning-color: #d97706;
-        --info-color: #0891b2;
+        --success-color: #10b981;
+        --danger-color: #ef4444;
+        --warning-color: #f59e0b;
+        --info-color: #06b6d4;
         --dark-color: #1f2937;
         --text-primary: #111827;
         --text-secondary: #6b7280;
         --text-muted: #9ca3af;
         --bg-primary: #ffffff;
-        --bg-secondary: #f8fafc;
-        --bg-tertiary: #f1f5f9;
+        --bg-secondary: #f9fafb;
+        --bg-tertiary: #f3f4f6;
+        --bg-dark: #111827;
         --border-color: #e5e7eb;
+        --border-light: #f3f4f6;
         --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         --radius-sm: 0.375rem;
         --radius-md: 0.5rem;
         --radius-lg: 0.75rem;
@@ -40,9 +48,53 @@
         --spacing-md: 1rem;
         --spacing-lg: 1.5rem;
         --spacing-xl: 2rem;
-        --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        --sidebar-width: 280px;
-        --sidebar-collapsed: 70px;
+        --spacing-xxl: 3rem;
+        --transition-fast: 0.15s ease-in-out;
+        --transition-normal: 0.3s ease-in-out;
+        --transition-slow: 0.5s ease-in-out;
+      }
+
+      @keyframes slideInRight {
+        from { transform: translateX(20px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+
+      @keyframes fadeInUp {
+        from { transform: translateY(30px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+      }
+
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+      }
+
+      /* Animación de entrada para títulos */
+      .titulo-modulo {
+        animation: tituloFadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      @keyframes tituloFadeIn {
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Animación para el icono */
+      .icono-modulo {
+        animation: iconoBounce 1.2s cubic-bezier(0.68, -0.55, 0.265, 1.55) 0.3s forwards;
+        opacity: 0;
+        transform: scale(0);
+      }
+
+      @keyframes iconoBounce {
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
       }
 
       * {
@@ -50,1021 +102,1240 @@
       }
 
       body {
-        font-family: 'Inter', sans-serif;
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-        color: var(--text-primary);
         margin: 0;
+        font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%, #f8fafc 100%);
+        color: var(--text-primary);
+        line-height: 1.6;
+        letter-spacing: -0.025em;
         overflow-x: hidden;
       }
 
-      /* Sidebar Principal */
-      .sidebar {
+      /* Patrón sutil de fondo para textura */
+      body::before {
+        content: '';
         position: fixed;
         top: 0;
         left: 0;
-        width: var(--sidebar-width);
-        height: 100vh;
-        background: linear-gradient(180deg, #ffffff 0%, #fafbff 100%);
+        right: 0;
+        bottom: 0;
+        background-image: 
+          radial-gradient(circle at 20% 20%, rgba(102, 126, 234, 0.03) 0%, transparent 50%),
+          radial-gradient(circle at 80% 80%, rgba(118, 75, 162, 0.03) 0%, transparent 50%),
+          radial-gradient(circle at 40% 60%, rgba(102, 126, 234, 0.02) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* Fuente moderna */
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+      .sidebar {
+        width: 260px;
+        background: rgba(255, 255, 255, 0.85);
+        backdrop-filter: blur(18px) saturate(180%);
         border-right: 1px solid var(--border-color);
-        box-shadow: var(--shadow-lg);
+        box-shadow: var(--shadow-xl);
         display: flex;
         flex-direction: column;
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100vh;
         z-index: 1000;
-        transition: width var(--transition);
         overflow: hidden;
+        transition: all var(--transition-normal);
       }
 
-      .sidebar.collapsed {
-        width: var(--sidebar-collapsed);
-      }
-
-      /* Header del Sidebar */
-      .sidebar-header {
-        padding: var(--spacing-lg);
-        border-bottom: 1px solid var(--border-color);
-        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-        color: white;
-        position: relative;
-        overflow: hidden;
-      }
-
-      .sidebar-header::before {
+      .sidebar::before {
         content: '';
         position: absolute;
-        top: -50%;
-        right: -50%;
-        width: 100%;
-        height: 200%;
-        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-        animation: float 6s ease-in-out infinite;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(180deg, rgba(102, 126, 234, 0.02) 0%, rgba(118, 75, 162, 0.02) 100%);
+        pointer-events: none;
       }
 
-      @keyframes float {
-        0%, 100% { transform: translateY(0px) rotate(0deg); }
-        50% { transform: translateY(-10px) rotate(180deg); }
-      }
-
-      .logo-container {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-sm);
-        position: relative;
-        z-index: 1;
-      }
-
-      .logo-icon {
-        width: 40px;
-        height: 40px;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: var(--radius-md);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.2rem;
-        font-weight: 700;
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-      }
-
-      .logo-text {
-        font-size: 1.5rem;
-        font-weight: 800;
-        letter-spacing: -0.5px;
-        transition: opacity var(--transition);
-      }
-
-      .sidebar.collapsed .logo-text {
-        opacity: 0;
-        width: 0;
-      }
-
-      .toggle-btn {
-        position: fixed;
-        top: 32px;
-        left: calc(var(--sidebar-width) - 12px);
-        z-index: 1100;
-        width: 28px;
-        height: 28px;
-        background: white;
-        border: 1px solid var(--border-color);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        box-shadow: var(--shadow-md);
-        transition: all var(--transition);
-        font-size: 0.9rem;
-        color: var(--text-secondary);
-      }
-
-      .sidebar.collapsed ~ .toggle-btn {
-        left: calc(var(--sidebar-collapsed) - 12px);
-      }
-
-      .toggle-btn:hover {
-        background: var(--bg-secondary);
-        transform: translateY(-50%) scale(1.1);
-      }
-
-      /* Navegación Principal */
       .sidebar-nav {
         flex: 1;
-        padding: var(--spacing-lg) 0;
         overflow-y: auto;
+        padding-right: var(--spacing-sm);
+        margin-right: calc(-1 * var(--spacing-sm));
         scrollbar-width: thin;
-        scrollbar-color: rgba(79, 70, 229, 0.2) transparent;
+        scrollbar-color: rgba(102, 126, 234, 0.3) transparent;
       }
 
       .sidebar-nav::-webkit-scrollbar {
-        width: 4px;
+        width: 6px;
+      }
+
+      .sidebar-nav::-webkit-scrollbar-track {
+        background: transparent;
       }
 
       .sidebar-nav::-webkit-scrollbar-thumb {
-        background: rgba(79, 70, 229, 0.2);
-        border-radius: 2px;
+        background: rgba(102, 126, 234, 0.3);
+        border-radius: 3px;
+        transition: background var(--transition-fast);
       }
 
-      .nav-section {
-        margin-bottom: var(--spacing-lg);
+      .sidebar-nav::-webkit-scrollbar-thumb:hover {
+        background: rgba(102, 126, 234, 0.5);
       }
 
-      .nav-section-title {
-        padding: 0 var(--spacing-lg);
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: var(--spacing-sm);
-        transition: opacity var(--transition);
+      .sidebar-footer {
+        position: sticky;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.98);
+        backdrop-filter: blur(20px);
+        border-radius: var(--radius-xl);
+        padding: var(--spacing-lg);
+        margin: var(--spacing-lg) 0 var(--spacing-md) 0;
+        box-shadow: var(--shadow-lg);
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        animation: fadeInUp 0.6s ease-out 0.3s both;
       }
 
-      .sidebar.collapsed .nav-section-title {
-        opacity: 0;
-        height: 0;
-        margin: 0;
-        padding: 0;
-      }
-
-      .nav-item {
-        margin: 0 var(--spacing-sm);
-      }
-
-      .nav-link {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-sm);
-        padding: var(--spacing-sm) var(--spacing-md);
-        color: var(--text-secondary);
-        text-decoration: none;
-        border-radius: var(--radius-md);
-        transition: all var(--transition);
-        font-weight: 500;
-        font-size: 0.875rem;
+      /* Bloque elegante de usuario separado */
+      .user-info-elegant {
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: var(--radius-lg);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        box-shadow: var(--shadow-md);
+        padding: 12px 14px;
+        margin: var(--spacing-lg) 0;
+        transition: all var(--transition-normal);
         position: relative;
         overflow: hidden;
-        margin-bottom: var(--spacing-xs);
+        animation: slideInRight 0.6s ease-out 0.2s both;
       }
 
-      .nav-link::before {
+      .user-info-elegant:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+        background: rgba(255, 255, 255, 0.95);
+      }
+
+      .user-info-elegant::before {
         content: '';
         position: absolute;
-        left: 0;
         top: 0;
-        bottom: 0;
-        width: 3px;
-        background: var(--primary-color);
-        transform: scaleY(0);
-        transition: transform var(--transition);
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+        opacity: 0.7;
       }
 
-      .nav-link:hover {
-        background: rgba(79, 70, 229, 0.05);
-        color: var(--primary-color);
-        transform: translateX(4px);
-      }
-
-      .nav-link.active {
-        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
-        color: white;
-        box-shadow: var(--shadow-md);
-      }
-
-      .nav-link.active::before {
-        transform: scaleY(1);
-        background: rgba(255, 255, 255, 0.3);
-      }
-
-      .nav-icon {
-        width: 20px;
-        height: 20px;
+      .user-info-elegant .user-main-row {
         display: flex;
         align-items: center;
-        justify-content: center;
-        font-size: 1rem;
-        flex-shrink: 0;
+        gap: 10px;
+        margin-bottom: 0;
       }
 
-      .nav-text {
-        flex: 1;
-        white-space: nowrap;
-        transition: opacity var(--transition);
-      }
-
-      .sidebar.collapsed .nav-text {
-        opacity: 0;
-        width: 0;
-      }
-
-      .nav-arrow {
-        font-size: 0.7rem;
-        transition: transform var(--transition);
-      }
-
-      .nav-link[aria-expanded="true"] .nav-arrow {
-        transform: rotate(180deg);
-      }
-
-      /* Submenús */
-      .submenu {
-        margin-left: var(--spacing-lg);
-        margin-top: var(--spacing-xs);
-        border-left: 2px solid rgba(79, 70, 229, 0.1);
-        padding-left: var(--spacing-sm);
-        max-height: 0;
-        overflow: hidden;
-        transition: max-height 0.3s ease-out;
-      }
-
-      .submenu.show {
-        max-height: 500px;
-      }
-
-      .sidebar.collapsed .submenu {
-        display: none;
-      }
-
-      .submenu .nav-link {
-        padding: var(--spacing-xs) var(--spacing-sm);
-        font-size: 0.8rem;
-        margin-left: 0;
-      }
-
-      .submenu .nav-link.active {
-        background: var(--success-color);
-        box-shadow: 0 2px 8px rgba(5, 150, 105, 0.3);
-      }
-
-      /* Footer del Sidebar */
-      .sidebar-footer {
-        padding: var(--spacing-lg);
-        border-top: 1px solid var(--border-color);
-        background: rgba(248, 250, 252, 0.8);
-        backdrop-filter: blur(10px);
-      }
-
-      .user-profile {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-sm);
-        padding: var(--spacing-sm);
-        background: white;
-        border-radius: var(--radius-md);
-        box-shadow: var(--shadow-sm);
-        margin-bottom: var(--spacing-sm);
-        transition: all var(--transition);
-      }
-
-      .user-profile:hover {
-        box-shadow: var(--shadow-md);
-        transform: translateY(-1px);
-      }
-
-      .user-avatar {
-        width: 36px;
-        height: 36px;
+      .user-info-elegant .user-avatar {
+        width: 32px;
+        height: 32px;
         background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        border: 2px solid rgba(255, 255, 255, 0.5);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: white;
         font-weight: 700;
-        font-size: 0.9rem;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: white;
+        flex-shrink: 0;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .user-info-elegant .user-details {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .user-info-elegant .user-name {
+        font-weight: 600;
+        font-size: 0.85rem;
+        line-height: 1.2;
+        margin: 0;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .user-info-elegant .version-inline {
+        font-size: 0.65rem;
+        font-weight: 500;
+        color: var(--primary-color);
+        font-family: 'Monaco', 'Menlo', monospace;
+        opacity: 0.8;
+        line-height: 1;
+        margin-top: 2px;
+      }
+
+      /* Bloque compacto de usuario y sistema */
+      .compact-user-block {
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: var(--radius-lg);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        box-shadow: var(--shadow-sm);
+        padding: 8px 10px;
+        transition: all var(--transition-normal);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .compact-user-block:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
+      }
+
+      .user-main-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+
+      .user-avatar {
+        width: 28px;
+        height: 28px;
+        background: rgba(255, 255, 255, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
         flex-shrink: 0;
       }
 
-      .user-info {
+      .user-details {
         flex: 1;
         min-width: 0;
-        transition: opacity var(--transition);
-      }
-
-      .sidebar.collapsed .user-info {
-        opacity: 0;
-        width: 0;
       }
 
       .user-name {
         font-weight: 600;
-        font-size: 0.85rem;
-        color: var(--text-primary);
+        font-size: 0.75rem;
+        line-height: 1.1;
         margin: 0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
 
-      .user-role {
-        font-size: 0.7rem;
-        color: var(--text-muted);
-        font-family: 'Monaco', monospace;
+      .version-inline {
+        font-size: 0.6rem;
+        font-weight: 500;
+        color: var(--primary-color);
+        font-family: 'Monaco', 'Menlo', monospace;
+        opacity: 0.8;
+        line-height: 1;
+        margin-top: 1px;
       }
 
-      .payment-status {
-        background: white;
-        border-radius: var(--radius-md);
-        padding: var(--spacing-sm);
+      .payment-info {
         text-align: center;
-        box-shadow: var(--shadow-sm);
-        margin-bottom: var(--spacing-sm);
-        transition: opacity var(--transition);
+        padding: 4px 6px;
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+        margin-bottom: 6px;
       }
 
-      .sidebar.collapsed .payment-status {
-        opacity: 0;
-        height: 0;
+      .payment-info .label {
+        font-size: 0.55rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        margin-bottom: 1px;
+        text-transform: uppercase;
+        letter-spacing: 0.2px;
+        line-height: 1;
+      }
+
+      .payment-info .amount {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: var(--danger-color);
+        line-height: 1;
+      }
+
+      .creator-info {
+        text-align: center;
+        font-size: 0.55rem;
+        color: var(--text-muted);
+        opacity: 0.7;
+        transition: opacity var(--transition-fast);
+        font-weight: 400;
+        letter-spacing: 0.2px;
+        line-height: 1.1;
         margin: 0;
         padding: 0;
       }
 
-      .payment-label {
-        font-size: 0.65rem;
-        color: var(--text-muted);
-        text-transform: uppercase;
-        font-weight: 600;
-        letter-spacing: 0.5px;
-        margin-bottom: var(--spacing-xs);
+      .creator-info:hover {
+        opacity: 1;
       }
 
-      .payment-amount {
-        font-size: 0.9rem;
-        font-weight: 700;
-        color: var(--danger-color);
+      .sidebar .logo {
+        font-size: 2rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-align: center;
+        margin-bottom: var(--spacing-xl);
+        letter-spacing: -1px;
+        position: relative;
+        animation: fadeInUp 0.7s ease-out;
       }
 
-      .logout-btn {
-        width: 100%;
+      .sidebar .logo::after {
+        content: '';
+        position: absolute;
+        bottom: -8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 3px;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        border-radius: 2px;
+      }
+
+      .sidebar .nav-link {
         display: flex;
         align-items: center;
-        justify-content: center;
         gap: var(--spacing-sm);
-        padding: var(--spacing-sm);
-        background: linear-gradient(135deg, var(--danger-color) 0%, #b91c1c 100%);
-        color: white;
-        border: none;
+        padding: 8px 12px;
         border-radius: var(--radius-md);
-        font-weight: 600;
-        font-size: 0.85rem;
-        cursor: pointer;
-        transition: all var(--transition);
+        color: var(--text-primary);
         text-decoration: none;
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(10px);
+        box-shadow: var(--shadow-sm);
+        transition: all var(--transition-normal);
+        margin-bottom: 6px;
+        font-weight: 500;
+        font-size: 0.85rem;
+        position: relative;
+        overflow: hidden;
+        min-height: 36px;
       }
 
-      .logout-btn:hover {
-        background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
-        transform: translateY(-1px);
+      .sidebar .nav-link::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+        transition: left 0.6s ease;
+      }
+
+      .sidebar .nav-link:hover::before {
+        left: 100%;
+      }
+
+      .sidebar .nav-link:hover {
+        transform: translateX(8px) translateY(-2px);
         box-shadow: var(--shadow-md);
+        background: rgba(255, 255, 255, 0.9);
+        border-color: rgba(102, 126, 234, 0.3);
+      }
+
+      .sidebar .nav-link.active {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: white;
+        box-shadow: var(--shadow-md);
+        transform: translateX(4px);
+        border-color: transparent;
+      }
+
+      .sidebar .nav-link.menu-main-active {
+        background: linear-gradient(135deg, var(--accent-color) 0%, #ff7043 100%) !important;
+        color: white !important;
+        box-shadow: var(--shadow-lg);
+        transform: translateX(4px);
+        border-color: transparent;
+      }
+
+      .sidebar .nav-link.active:not(.menu-main-active) {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
         color: white;
       }
 
-      .logout-text {
-        transition: opacity var(--transition);
+      .sidebar .nav-link i {
+        font-size: 1rem;
+        width: 18px;
+        text-align: center;
+        flex-shrink: 0;
       }
 
-      .sidebar.collapsed .logout-text {
-        opacity: 0;
-        width: 0;
+      /* Estilos compactos para submenús */
+      .sidebar .nav.flex-column .nav-link {
+        padding: 6px 12px;
+        margin-bottom: 4px;
+        font-size: 0.8rem;
+        min-height: 30px;
+        margin-left: 8px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.5);
+        transition: all var(--transition-normal);
       }
 
-      /* Contenido Principal */
+      .sidebar .nav.flex-column .nav-link:hover {
+        transform: translateX(4px);
+        background: rgba(255, 255, 255, 0.8);
+        box-shadow: var(--shadow-sm);
+      }
+
+      /* Estilo elegante para submenús activos - Verde distintivo */
+      .sidebar .nav.flex-column .nav-link.active {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+        color: white !important;
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+        transform: translateX(6px) !important;
+        border: 1px solid rgba(5, 150, 105, 0.3) !important;
+        font-weight: 600 !important;
+      }
+
+      .sidebar .nav.flex-column .nav-link.active:hover {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
+        transform: translateX(8px) translateY(-1px) !important;
+      }
+
       .content {
-        margin-left: var(--sidebar-width);
+        margin-left: 260px;
         min-height: 100vh;
         padding: var(--spacing-xl);
-        transition: margin-left var(--transition);
-      }
-
-      .sidebar.collapsed + .content {
-        margin-left: var(--sidebar-collapsed);
+        background: var(--bg-secondary);
+        animation: fadeInUp 0.6s ease-out 0.2s both;
       }
 
       .container-glass {
-        background: rgba(255, 255, 255, 0.95);
-        backdrop-filter: blur(20px);
+        background: rgba(255, 255, 255, 0.97);
+        backdrop-filter: blur(24px) saturate(180%);
         border-radius: var(--radius-xl);
         box-shadow: var(--shadow-lg);
         padding: var(--spacing-xl);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-      }
-
-      .page-title {
-        font-size: 2.5rem;
-        font-weight: 800;
-        color: var(--primary-color);
-        margin-bottom: var(--spacing-xl);
-        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-        padding: var(--spacing-lg);
-        border-radius: var(--radius-lg);
-        text-align: center;
-        border: 1px solid var(--border-color);
+        border: 1px solid var(--border-light);
         position: relative;
-        overflow: hidden;
+        overflow: visible;
+        animation: fadeInUp 0.6s ease-out 0.4s both;
       }
 
-      .page-title::before {
+      .container-glass::before {
         content: '';
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
-        height: 3px;
-        background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
-      }
-
-      /* Tooltip para modo colapsado */
-      .nav-tooltip {
-        position: absolute;
-        left: calc(100% + 10px);
-        top: 50%;
-        transform: translateY(-50%);
-        background: rgba(0, 0, 0, 0.9);
-        color: white;
-        padding: var(--spacing-xs) var(--spacing-sm);
-        border-radius: var(--radius-sm);
-        font-size: 0.75rem;
-        white-space: nowrap;
-        opacity: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.02) 0%, rgba(118, 75, 162, 0.02) 100%);
         pointer-events: none;
-        transition: opacity var(--transition);
-        z-index: 1001;
       }
 
-      .sidebar.collapsed .nav-link:hover .nav-tooltip {
+      /* TITULO MODULO MEJORADO - Estilo SOMYL Limpio y Moderno */
+      .titulo-modulo {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: var(--primary-color);
+        letter-spacing: -1px;
+        margin-bottom: var(--spacing-xl);
+        margin-top: 0;
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        border-radius: 16px;
+        padding: var(--spacing-lg) var(--spacing-xl);
+        display: block;
+        width: 100%;
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--border-light);
+        border-top: 4px solid var(--primary-color);
+        transition: all var(--transition-smooth);
+        position: relative;
+        overflow: hidden;
+        line-height: 1.1;
+        text-align: center;
+      }
+
+      .titulo-modulo::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, 
+          var(--primary-color) 0%, 
+          #764ba2 50%,
+          var(--primary-color) 100%);
+      }
+
+      .titulo-modulo::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, 
+          transparent, 
+          rgba(102, 126, 234, 0.03), 
+          transparent);
+        transition: left 1s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .titulo-modulo:hover::after {
+        left: 100%;
+      }
+
+      .titulo-modulo:hover {
+        box-shadow: 
+          0 12px 40px rgba(0, 0, 0, 0.08),
+          0 2px 8px rgba(0, 0, 0, 0.06),
+          inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        transform: translateY(-2px);
+        border-color: rgba(102, 126, 234, 0.15);
+      }
+
+      /* Estilos para títulos con icono/logo (estilo SOMYL) */
+      .titulo-modulo-con-icono {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--spacing-md);
+      }
+
+      .titulo-modulo-con-icono .icono-modulo {
+        width: 42px;
+        height: 42px;
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.5rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        transition: all var(--transition-smooth);
+      }
+
+      .titulo-modulo:hover .icono-modulo {
+        transform: scale(1.05);
+        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+      }
+
+      /* Variante simplificada para títulos sin icono pero con estilo SOMYL */
+      .titulo-modulo.somyl-style {
+        background: linear-gradient(135deg, #ffffff 0%, #fafbfc 50%, #f8fafc 100%);
+        border: 1px solid rgba(102, 126, 234, 0.06);
+        border-top: 3px solid transparent;
+        border-image: linear-gradient(90deg, var(--primary-color), var(--secondary-color)) 1;
+      }
+
+      .titulo-modulo.somyl-style::before {
+        background: linear-gradient(90deg, 
+          var(--primary-color) 0%, 
+          #667eea 20%,
+          #764ba2 40%,
+          #667eea 60%,
+          var(--primary-color) 80%,
+          var(--secondary-color) 100%);
+      }
+
+      /* Alerts mejorados */
+      .alert {
+        border: none;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-sm);
+        padding: var(--spacing-lg);
+        margin-bottom: var(--spacing-lg);
+        font-weight: 500;
+        backdrop-filter: blur(10px);
+        animation: slideInRight 0.5s ease-out;
+      }
+
+      .alert-success {
+        background: rgba(72, 187, 120, 0.1);
+        color: #2f855a;
+        border-left: 4px solid var(--success-color);
+      }
+
+      .alert-danger {
+        background: rgba(245, 101, 101, 0.1);
+        color: #c53030;
+        border-left: 4px solid var(--danger-color);
+      }
+
+      .alert-warning {
+        background: rgba(237, 137, 54, 0.1);
+        color: #c05621;
+        border-left: 4px solid var(--warning-color);
+      }
+
+      .alert-info {
+        background: rgba(66, 153, 225, 0.1);
+        color: #2b6cb0;
+        border-left: 4px solid var(--info-color);
+      }
+
+      /* Botones mejorados */
+      .btn {
+        border-radius: var(--radius-md);
+        font-weight: 600;
+        padding: var(--spacing-sm) var(--spacing-lg);
+        transition: all var(--transition-normal);
+        border: none;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.6s ease;
+      }
+
+      .btn:hover::before {
+        left: 100%;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+        color: white;
+      }
+
+      /* Forms mejorados */
+      .form-control, .form-select {
+        border: 2px solid rgba(226, 232, 240, 0.8);
+        border-radius: var(--radius-md);
+        padding: var(--spacing-sm) var(--spacing-md);
+        transition: all var(--transition-normal);
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+      }
+
+      .form-control:focus, .form-select:focus {
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        background: white;
+      }
+
+      /* Tables mejoradas */
+      .table {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        border: 1px solid rgba(226, 232, 240, 0.5);
+      }
+
+      .table th {
+        background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        font-weight: 700;
+        color: var(--text-primary);
+        border-bottom: 2px solid rgba(102, 126, 234, 0.2);
+        padding: var(--spacing-lg);
+      }
+
+      .table td {
+        padding: var(--spacing-md);
+        border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+      }
+
+      /* Sidebar animación submenú mejorado */
+      .sidebar.sidebar-submenu-only .sidebar-nav > nav > .nav-link:not(.menu-main-active),
+      .sidebar.sidebar-submenu-only .sidebar-nav > nav > .collapse:not(.show) {
+        max-height: 0 !important;
+        opacity: 0;
+        margin: 0 !important;
+        padding: 0 !important;
+        pointer-events: none;
+        transform: translateY(-20px);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        display: none !important;
+      }
+
+      .sidebar.sidebar-submenu-only .sidebar-nav > nav > .menu-main-active {
+        margin-top: 0 !important;
         opacity: 1;
+        max-height: 500px;
+        transform: translateY(0);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex !important;
+        order: 0;
+        margin-bottom: var(--spacing-sm);
+        animation: pulse 0.6s ease-out;
+      }
+
+      .sidebar.sidebar-submenu-only .sidebar-nav > nav > .collapse.show {
+        order: 1;
+        animation: fadeInUp 0.4s ease-out 0.2s both;
+      }
+
+      .sidebar.sidebar-submenu-only .sidebar-nav > nav {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .sidebar.sidebar-submenu-only .menu-main-active {
+        order: 0;
+        margin-bottom: var(--spacing-sm);
+      }
+
+      .sidebar.sidebar-submenu-only .collapse.show {
+        order: 1;
+      }
+
+      .sidebar.sidebar-submenu-only .submenu-header {
+        display: none !important;
       }
 
       /* Responsive */
       @media (max-width: 768px) {
         .sidebar {
-          transform: translateX(-100%);
-          width: var(--sidebar-width);
+          position: fixed;
+          left: 0;
+          top: 0;
+          width: 100vw;
+          height: 60px;
+          flex-direction: row;
+          z-index: 1001;
+          box-shadow: var(--shadow-md);
+          border-right: none;
+          border-bottom: 1px solid var(--border-color);
+          padding: 0 var(--spacing-md);
+          background: rgba(255,255,255,0.98);
         }
-
-        .sidebar.mobile-open {
-          transform: translateX(0);
+        .sidebar .logo {
+          font-size: 1.3rem;
+          margin-bottom: 0;
         }
-
         .content {
           margin-left: 0;
+          padding: var(--spacing-md);
         }
-
-        .mobile-toggle {
-          position: fixed;
-          top: 20px;
-          left: 20px;
-          z-index: 1001;
-          background: var(--primary-color);
-          color: white;
-          border: none;
-          border-radius: 50%;
-          width: 50px;
-          height: 50px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: var(--shadow-lg);
-          cursor: pointer;
+        .container-glass {
+          padding: var(--spacing-md);
         }
-
-        .sidebar-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.5);
-          z-index: 999;
-          opacity: 0;
-          pointer-events: none;
-          transition: opacity var(--transition);
-        }
-
-        .sidebar-overlay.show {
-          opacity: 1;
-          pointer-events: all;
+        .titulo-modulo {
+          font-size: 1.5rem;
+          padding: var(--spacing-md);
         }
       }
 
-      @media (min-width: 769px) {
-        .mobile-toggle {
-          display: none;
-        }
+      /* Loading states */
+      .loading {
+        position: relative;
+        pointer-events: none;
       }
 
-      /* Animaciones de entrada */
-      @keyframes slideInFromLeft {
-        from { transform: translateX(-100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-      }
-
-      @keyframes slideInFromRight {
-        from { transform: translateX(20px); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-      }
-
-      .sidebar {
-        animation: slideInFromLeft 0.6s ease-out;
-      }
-
-      .content {
-        animation: slideInFromRight 0.6s ease-out 0.2s both;
-      }
-
-      /* Badge para notificaciones */
-      .nav-badge {
+      .loading::after {
+        content: '';
         position: absolute;
-        top: -2px;
-        right: -2px;
-        background: var(--danger-color);
-        color: white;
+        top: 50%;
+        left: 50%;
+        width: 20px;
+        height: 20px;
+        margin: -10px 0 0 -10px;
+        border: 2px solid transparent;
+        border-top: 2px solid var(--primary-color);
         border-radius: 50%;
-        width: 18px;
-        height: 18px;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      /* Micro interactions */
+      .clickable {
+        cursor: pointer;
+        transition: all var(--transition-fast);
+      }
+
+      .clickable:hover {
+        transform: scale(1.02);
+      }
+
+      .clickable:active {
+        transform: scale(0.98);
+      }
+
+      /* Tooltips mejorados */
+      [data-tooltip] {
+        position: relative;
+      }
+
+      [data-tooltip]:hover::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(45, 55, 72, 0.9);
+        color: white;
+        padding: var(--spacing-xs) var(--spacing-sm);
+        border-radius: var(--radius-sm);
+        font-size: 0.8rem;
+        white-space: nowrap;
+        z-index: 1000;
+        backdrop-filter: blur(10px);
+      }
+
+      /* Botón de cerrar sesión elegante */
+      .logout-section {
+        margin-bottom: 12px;
+      }
+
+      .logout-btn {
         display: flex;
         align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        transition: all var(--transition-normal);
+        box-shadow: var(--shadow-sm);
+        position: relative;
+        overflow: hidden;
+        text-align: center;
         justify-content: center;
-        font-size: 0.7rem;
+      }
+
+      .logout-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.6s ease;
+      }
+
+      .logout-btn:hover::before {
+        left: 100%;
+      }
+
+      .logout-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+        color: white;
+        text-decoration: none;
+      }
+
+      .logout-btn:active {
+        transform: translateY(0);
+        box-shadow: var(--shadow-sm);
+      }
+
+      .logout-btn i {
+        font-size: 0.9rem;
+      }
+
+      .logout-btn span {
         font-weight: 600;
       }
     </style>
   </head>
 
   <body>
-    <!-- Mobile Toggle -->
-    <button class="mobile-toggle d-md-none" onclick="toggleMobileSidebar()">
-      <i class="bi bi-list"></i>
-    </button>
+<script>
+  (function() {
+    const submenuKey = localStorage.getItem('sidebarSubmenu');
+    if (submenuKey) {
+      document.addEventListener('DOMContentLoaded', function() {
+        const btn = document.getElementById(submenuKey);
+        if (btn) btn.classList.add('menu-main-active');
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar) sidebar.classList.add('sidebar-submenu-only');
+      });
+    }
+  })();
+</script>
 
-    <!-- Sidebar Overlay (móvil) -->
-    <div class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+    {% set current = request.path %}
 
-    <!-- Sidebar -->
-    <aside class="sidebar" id="sidebar">
-      <!-- Header -->
-      <div class="sidebar-header">
-        <div class="logo-container">
-          <div class="logo-icon">S</div>
-          <div class="logo-text">SOMYL</div>
-        </div>
-      </div>
-      <button class="toggle-btn d-none d-md-flex" onclick="toggleSidebar()" id="sidebarToggleBtn">
-        <i class="bi bi-chevron-left"></i>
-      </button>
-
-      <!-- Navegación -->
-      <nav class="sidebar-nav">
-        <!-- Sección: Gestión -->
-        <div class="nav-section">
-          <div class="nav-section-title">Gestión</div>
-          <div class="nav-item">
-            <a href="{{ url_for('usuarios.list_usuarios') }}" class="nav-link{% if request.path.startswith('/usuarios') %} active{% endif %}">
-              <div class="nav-icon"><i class="bi bi-person-plus"></i></div>
-              <span class="nav-text">Usuarios</span>
-              <span class="nav-tooltip">Usuarios</span>
-            </a>
-          </div>
-          <div class="nav-item">
-            <a href="{{ url_for('ordenes.new_orden') }}" class="nav-link{% if request.path == url_for('ordenes.new_orden') %} active{% endif %}">
-              <div class="nav-icon"><i class="bi bi-cart-plus"></i></div>
-              <span class="nav-text">Orden de Compra</span>
-              <span class="nav-tooltip">Orden de Compra</span>
-            </a>
-          </div>
-          {% if 'ingresos' in modulos_usuario %}
-          <div class="nav-item">
-            <a href="{{ url_for('ingresos.list_ingresos') }}" class="nav-link{% if request.path == url_for('ingresos.list_ingresos') %} active{% endif %}">
-              <div class="nav-icon"><i class="bi bi-arrow-down-circle"></i></div>
-              <span class="nav-text">Ingresos</span>
-              <span class="nav-tooltip">Ingresos</span>
-            </a>
-          </div>
-          {% endif %}
-        </div>
-
-        <!-- Sección: Pagos -->
-        <div class="nav-section">
-          <div class="nav-section-title">Pagos y Registros</div>
-          
-          <div class="nav-item">
-            {% set pagos_active = request.path == url_for('ordenes_pago.list_ordenes_pago')
-              or request.path == url_for('ordenes_pago_pendientes.list_pendientes')
-              or request.path == url_for('pagos.list_pagos') %}
-            <a href="#pagosSubmenu" class="nav-link{% if pagos_active %} active{% endif %}" data-bs-toggle="collapse" data-bs-target="#pagosSubmenu" aria-expanded="{{ 'true' if pagos_active else 'false' }}">
-              <div class="nav-icon"><i class="bi bi-cash-stack"></i></div>
-              <span class="nav-text">Pagos</span>
-              <i class="bi bi-chevron-down nav-arrow"></i>
-              <span class="nav-tooltip">Pagos y registros</span>
-            </a>
-          </div>
-          <div class="submenu{% if pagos_active %} show{% endif %}" id="pagosSubmenu">
-            <a href="{{ url_for('ordenes_pago.list_ordenes_pago') }}" class="nav-link{% if request.path == url_for('ordenes_pago.list_ordenes_pago') %} active{% endif %}">
-              <div class="nav-icon"><i class="bi bi-file-earmark-text"></i></div>
-              <span class="nav-text">Orden de Pago</span>
-            </a>
-            <a href="{{ url_for('ordenes_pago_pendientes.list_pendientes') }}" class="nav-link{% if request.path == url_for('ordenes_pago_pendientes.list_pendientes') %} active{% endif %}">
-              <div class="nav-icon"><i class="bi bi-exclamation-circle"></i></div>
-              <span class="nav-text">Sin Factura</span>
-              {% if total_pendientes_sin_factura and total_pendientes_sin_factura > 0 %}
-                <span class="nav-badge" style="position:absolute; right:18px; top:50%; transform:translateY(-50%); font-size:1.15rem; min-width:34px; height:34px; line-height:34px; background:#dc2626; color:#fff; text-align:center; display:inline-flex; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(220,38,38,0.18); font-weight:700; border-radius:50%; border:3px solid #fff; transition:all 0.2s; z-index:2; letter-spacing:-1px;">{{ total_pendientes_sin_factura }}</span>
-              {% endif %}
-            </a>
-            <a href="{{ url_for('pagos.list_pagos') }}" class="nav-link{% if request.path == url_for('pagos.list_pagos') %} active{% endif %}">
-              <div class="nav-icon"><i class="bi bi-graph-up"></i></div>
-              <span class="nav-text">Informe de Pagos</span>
-            </a>
-          </div>
-        </div>
-
-        <!-- Sección: Configuración -->
-        <div class="nav-section">
-          <div class="nav-section-title">Configuración</div>
-          
-          <div class="nav-item">
-            {% set parametros_active = request.path == url_for('proveedores.list_proveedores')
-              or request.path == url_for('materiales.list_materiales')
-              or request.path == url_for('items.list_items')
-              or request.path == url_for('trabajadores.list_trabajadores')
-              or request.path == url_for('proyectos.list_proyectos') %}
-            <a href="#parametrosSubmenu" class="nav-link{% if parametros_active %} active{% endif %}" data-bs-toggle="collapse" data-bs-target="#parametrosSubmenu" aria-expanded="{{ 'true' if parametros_active else 'false' }}">
-              <div class="nav-icon"><i class="bi bi-gear"></i></div>
-              <span class="nav-text">Parámetros</span>
-              <i class="bi bi-chevron-down nav-arrow"></i>
-              <span class="nav-tooltip">Parámetros</span>
-            </a>
-          </div>
-          <div class="submenu{% if parametros_active %} show{% endif %}" id="parametrosSubmenu">
-            <a href="{{ url_for('proveedores.list_proveedores') }}" class="nav-link{% if request.path == url_for('proveedores.list_proveedores') %} active{% endif %}">
-              <div class="nav-icon"><i class="bi bi-building"></i></div>
-              <span class="nav-text">Proveedores</span>
-            </a>
-            <a href="{{ url_for('materiales.list_materiales') }}" class="nav-link{% if request.path == url_for('materiales.list_materiales') %} active{% endif %}">
-              <div class="nav-icon"><i class="bi bi-box"></i></div>
-              <span class="nav-text">Materiales</span>
-            </a>
-            <a href="{{ url_for('items.list_items') }}" class="nav-link{% if request.path == url_for('items.list_items') %} active{% endif %}">
-              <div class="nav-icon"><i class="bi bi-list-ul"></i></div>
-              <span class="nav-text">Ítems</span>
-            </a>
-            <a href="{{ url_for('trabajadores.list_trabajadores') }}" class="nav-link{% if request.path == url_for('trabajadores.list_trabajadores') %} active{% endif %}">
-              <div class="nav-icon"><i class="bi bi-people"></i></div>
-              <span class="nav-text">Trabajadores</span>
-            </a>
-            <a href="{{ url_for('proyectos.list_proyectos') }}" class="nav-link{% if request.path == url_for('proyectos.list_proyectos') %} active{% endif %}">
-              <div class="nav-icon"><i class="bi bi-diagram-3"></i></div>
-              <span class="nav-text">Proyectos</span>
-            </a>
-          </div>
-        </div>
-
-        <!-- Sección: Presupuesto -->
-        <div class="nav-section">
-          <div class="nav-section-title">Presupuesto</div>
-          <div class="nav-item">
-            {% set presupuesto_active = request.path == url_for('presupuestos.form_presupuesto')
-              or request.path == url_for('gastos_directos.form_gastos_directos')
-              or request.path == url_for('estado_presupuesto.show_estado') %}
-            <a href="#presupuestoSubmenu" class="nav-link{% if presupuesto_active %} active{% endif %}" data-bs-toggle="collapse" data-bs-target="#presupuestoSubmenu" aria-expanded="{{ 'true' if presupuesto_active else 'false' }}">
-              <div class="nav-icon"><i class="bi bi-clipboard-data"></i></div>
-              <span class="nav-text">Presupuesto</span>
-              <i class="bi bi-chevron-down nav-arrow"></i>
-              <span class="nav-tooltip">Presupuesto</span>
-            </a>
-          </div>
-          <div class="submenu{% if presupuesto_active %} show{% endif %}" id="presupuestoSubmenu">
-            <a href="{{ url_for('presupuestos.form_presupuesto') }}" class="nav-link{% if request.path == url_for('presupuestos.form_presupuesto') %} active{% endif %}">
-              <div class="nav-icon"><i class="bi bi-calendar-check"></i></div>
-              <span class="nav-text">Planificación</span>
-            </a>
-            <a href="{{ url_for('gastos_directos.form_gastos_directos') }}" class="nav-link{% if request.path == url_for('gastos_directos.form_gastos_directos') %} active{% endif %}">
-              <div class="nav-icon"><i class="bi bi-receipt"></i></div>
-              <span class="nav-text">Gastos Directos</span>
-            </a>
-            <a href="{{ url_for('estado_presupuesto.show_estado') }}" class="nav-link{% if request.path == url_for('estado_presupuesto.show_estado') %} active{% endif %}">
-              <div class="nav-icon"><i class="bi bi-bar-chart"></i></div>
-              <span class="nav-text">Estado Presupuesto</span>
-            </a>
-          </div>
-        </div>
-      <!-- Footer -->
-      <div class="sidebar-footer">
-        <!-- Perfil de Usuario -->
-        <div class="user-profile">
-          <div class="user-avatar" style="background: linear-gradient(135deg, #6d28d9, #6366f1);">
-            {% if current_user.is_authenticated and current_user.nombre %}
-              {{ current_user.nombre[:2].upper() }}
-            {% else %}
-              <i class="bi bi-person"></i>
-            {% endif %}
-          </div>
-          <div class="user-info">
-            <div class="user-name">
-              {% if current_user.is_authenticated and current_user.nombre %}
-                {{ current_user.nombre }}
-              {% else %}
-                Usuario
-              {% endif %}
+    {% if current_user.is_authenticated and request.endpoint != 'auth.login' %}
+      <aside class="sidebar">
+        <div class="logo">Compras Somyl</div>
+        
+        <!-- Bloque de usuario elegante (separado del cuadro de pagos) -->
+        <div class="user-info-elegant">
+          <div class="user-main-row">
+            <div class="user-avatar">{{ current_user.nombre[0].upper() if current_user.nombre else 'U' }}</div>
+            <div class="user-details">
+              <div class="user-name">{{ current_user.nombre or 'Usuario' }}</div>
+              <div class="version-inline">SOMYL v1.0.0</div>
             </div>
-            <div class="user-role">SOMYL <span style="color:#9ca3af; font-size:0.95em;">v1.0.0</span></div>
           </div>
         </div>
+        
+        <div class="sidebar-nav">
+          <nav>
+            <!-- 1. Usuarios -->
+            <a class="nav-link{% if current.startswith('/usuarios') %} active{% endif %}"
+               href="{{ url_for('usuarios.list_usuarios') }}">
+              <i class="bi bi-person-plus"></i> Usuarios
+            </a>
 
-        <!-- Estado de Pagos (dinámico) -->
-        <div class="payment-status">
-          <div class="payment-label">Pendiente por pagar</div>
-          <div class="payment-amount">${{ "{:,.0f}".format(total_pendiente) }}</div>
+            <!-- 2. Crear O.Compra. -->
+            <a href="{{ url_for('ordenes.new_orden') }}"
+               class="nav-link{% if current == url_for('ordenes.new_orden') %} active{% endif %}">
+              <i class="bi bi-cart-plus"></i> Orden de Compra
+            </a>
+
+            <!-- 3. Ingresos -->
+            <a href="{{ url_for('ingresos.list_ingresos') }}"
+               class="nav-link{% if current == url_for('ingresos.list_ingresos') %} active{% endif %}">
+              <i class="bi bi-arrow-down-circle"></i> Ingresos
+            </a>
+
+            <!-- 4. Órdenes de Pago (con submenú) -->
+            <a class="nav-link d-flex justify-content-between align-items-center menu-main"
+               id="menu-ordenes"
+               data-bs-toggle="collapse" href="#collapseOrdenes">
+               <span><i class="bi bi-cash-stack"></i> Pagos y registros</span>
+               <i class="bi bi-chevron-down small"></i>
+             </a>
+            <div class="collapse {% if
+                  current == url_for('ordenes_pago.list_ordenes_pago') or
+                  current == url_for('ordenes_pago_pendientes.list_pendientes') or
+                  current == url_for('pagos.list_pagos')
+                %}show{% endif %}"
+                 id="collapseOrdenes"
+                 data-bs-parent=".sidebar nav">
+              <div class="submenu-header" data-back="sidebar">
+                Pagos y registros
+              </div>
+              <nav class="nav flex-column ms-3">
+                <a href="{{ url_for('ordenes_pago.list_ordenes_pago') }}"
+                   class="nav-link{% if current == url_for('ordenes_pago.list_ordenes_pago') %} active{% endif %}">
+                  Orden de Pago.
+                </a>
+                <a href="{{ url_for('ordenes_pago_pendientes.list_pendientes') }}"
+                   class="nav-link{% if current == url_for('ordenes_pago_pendientes.list_pendientes') %} active{% endif %}">
+                  Sin Factura
+                </a>
+                <a href="{{ url_for('pagos.list_pagos') }}"
+                   class="nav-link{% if current == url_for('pagos.list_pagos') %} active{% endif %}">
+                  Informe de Pagos
+                </a>
+              </nav>
+            </div>
+
+            <!-- 5. Parámetros (con submenú) -->
+            <a class="nav-link d-flex justify-content-between align-items-center menu-main"
+               id="menu-parametros"
+               data-bs-toggle="collapse" href="#collapseParams" role="button" aria-expanded="false">
+              <span><i class="bi bi-gear"></i> Parámetros</span>
+              <i class="bi bi-chevron-down small"></i>
+            </a>
+            <div class="collapse {% if
+                  current.startswith(url_for('proveedores.list_proveedores')) or
+                  current.startswith(url_for('materiales.list_materiales')) or
+                  current.startswith(url_for('trabajadores.list_trabajadores')) or
+                  current.startswith(url_for('proyectos.list_proyectos'))
+                %}show{% endif %}"
+                 id="collapseParams"
+                 data-bs-parent=".sidebar nav">
+                <div class="submenu-header" data-back="sidebar">
+                  <i class="bi bi-arrow-left"></i> Parámetros
+                </div>
+                <nav class="nav flex-column ms-3">
+                  {% if 'proveedores' in modulos_usuario %}
+                    <a href="{{ url_for('proveedores.list_proveedores') }}"
+                       class="nav-link{% if current == url_for('proveedores.list_proveedores') %} active{% endif %}">
+                      Proveedores
+                    </a>
+                  {% endif %}
+                  {% if 'materiales' in modulos_usuario %}
+                    <a href="{{ url_for('materiales.list_materiales') }}"
+                       class="nav-link{% if current == url_for('materiales.list_materiales') %} active{% endif %}">
+                      Materiales
+                    </a>
+                  {% endif %}
+                  {% if 'items' in modulos_usuario %}
+                    <a href="{{ url_for('items.list_items') }}"
+                       class="nav-link{% if current == url_for('items.list_items') %} active{% endif %}">
+                      Ítems
+                    </a>
+                  {% endif %}
+                  {% if 'trabajadores' in modulos_usuario %}
+                    <a href="{{ url_for('trabajadores.list_trabajadores') }}"
+                       class="nav-link{% if current == url_for('trabajadores.list_trabajadores') %} active{% endif %}">
+                      Trabajadores
+                    </a>
+                  {% endif %}
+                  {% if 'proyectos' in modulos_usuario %}
+                    <a href="{{ url_for('proyectos.list_proyectos') }}"
+                       class="nav-link{% if current == url_for('proyectos.list_proyectos') %} active{% endif %}">
+                      Proyectos
+                    </a>
+                  {% endif %}
+                </nav>
+              </div>
+
+            <!-- Presupuesto y otros menús siguen igual... -->
+            <a class="nav-link d-flex justify-content-between align-items-center menu-main"
+               id="menu-presupuesto"
+               data-bs-toggle="collapse" href="#collapsePresupuesto" role="button" aria-expanded="false">
+              <span><i class="bi bi-clipboard-data"></i> Presupuesto</span>
+              <i class="bi bi-chevron-down small"></i>
+            </a>
+            <div class="collapse {% if
+                  current == url_for('presupuestos.form_presupuesto') or
+                  current == url_for('estado_presupuesto.show_estado') or
+                  current == url_for('gastos_directos.form_gastos_directos')
+                %}show{% endif %}" id="collapsePresupuesto"
+                 data-bs-parent=".sidebar nav">
+              <div class="submenu-header" data-back="sidebar">
+                <i class="bi bi-arrow-left"></i> Presupuesto
+              </div>
+              <nav class="nav flex-column ms-3">
+                <a href="{{ url_for('presupuestos.form_presupuesto') }}"
+                   class="nav-link{% if current == url_for('presupuestos.form_presupuesto') %} active{% endif %}">
+                  Planificación
+                </a>
+                {% if 'gastos_directos' in modulos_usuario %}
+                <a href="{{ url_for('gastos_directos.form_gastos_directos') }}"
+                   class="nav-link{% if current == url_for('gastos_directos.form_gastos_directos') %} active{% endif %}">
+                  Gastos Directos
+                </a>
+                {% endif %}
+                <a href="{{ url_for('estado_presupuesto.show_estado') }}"
+                   class="nav-link{% if current == url_for('estado_presupuesto.show_estado') %} active{% endif %}">
+                  Estado Presupuesto
+                </a>
+              </nav>
+            </div>
+          </nav>
         </div>
 
-        <!-- Botón de Cerrar Sesión -->
-        <a href="{{ url_for('auth.logout') }}" class="logout-btn">
-          <i class="bi bi-box-arrow-right"></i>
-          <span class="logout-text">Cerrar sesión</span>
-        </a>
-      </div>
-    </aside>
+        <!-- Footer fijo del sidebar -->
+        <div class="sidebar-footer">
+          <!-- Botón de cerrar sesión elegante -->
+          <div class="logout-section">
+            <a href="{{ url_for('auth.logout') }}" class="logout-btn">
+              <i class="bi bi-box-arrow-right"></i>
+              <span>Cerrar sesión</span>
+            </a>
+          </div>
+          
+          <!-- Bloque compacto solo de pagos pendientes -->
+          <div class="compact-user-block">
+            <!-- Información de pagos pendientes -->
+            <div class="payment-info">
+              <div class="label">Pendiente por pagar</div>
+              <div class="amount">${{ "{:,.0f}".format(total_pendiente) }}</div>
+            </div>
 
-    <!-- Contenido Principal -->
-    <main class="content">
-      <div class="container-glass">
+            <!-- Información del creador -->
+            <div class="creator-info">
+              Desarrollado por Carlos Alegría | SOMYL 2025
+            </div>
+          </div>
+        </div>
+      </aside>
+    {% endif %}
+
+    <main class="{% if not (current_user.is_authenticated and request.endpoint != 'auth.login') %}content d-flex justify-content-center align-items-center{% else %}content{% endif %}" {% if not (current_user.is_authenticated and request.endpoint != 'auth.login') %}style="min-height:100vh;"{% endif %}>
+      <div class="{% if not (current_user.is_authenticated and request.endpoint != 'auth.login') %}container-glass w-100{% else %}container-glass{% endif %}" {% if not (current_user.is_authenticated and request.endpoint != 'auth.login') %}style="max-width:600px;"{% endif %}>
+        <div id="flash-container" style="min-height:60px;">
+          {% with msgs = get_flashed_messages(with_categories=true) %}
+            {% if msgs %}
+              {% for cat, msg in msgs %}
+                <div class="alert alert-{{ cat }}">
+                  <i class="bi bi-exclamation-circle-fill me-2"></i>{{ msg }}
+                </div>
+              {% endfor %}
+            {% endif %}
+          {% endwith %}
+        </div>
         {% block content %}{% endblock %}
       </div>
     </main>
 
-    <!-- Bootstrap JS -->
+    <!-- Bootstrap JS (necesario para modales etc.) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- jQuery y Select2 -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
+
+    <!-- Fix global para limpiar backdrop y modal-open si quedan atascados -->
     <script>
-      // Toggle sidebar colapsado (mejorado: siempre alterna)
-      function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const toggleBtn = document.getElementById('sidebarToggleBtn').querySelector('i');
-        const isCollapsed = sidebar.classList.contains('collapsed');
-        if (isCollapsed) {
-          sidebar.classList.remove('collapsed');
-          toggleBtn.className = 'bi bi-chevron-left';
-        } else {
-          sidebar.classList.add('collapsed');
-          toggleBtn.className = 'bi bi-chevron-right';
-        }
-        // Mover el botón según el estado
-        updateToggleBtnPosition();
-        localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed') ? 'true' : 'false');
+      // Llama esto después de cerrar cualquier modal, o periódicamente
+      function limpiarBackdropAtascado() {
+        // Elimina cualquier backdrop que quede
+        document.querySelectorAll('.modal-backdrop').forEach(e => e.remove());
+        // Quita la clase modal-open del body
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
       }
+      // Observa eventos de cierre de modales para limpiar si es necesario
+      document.addEventListener('hidden.bs.modal', function() {
+        setTimeout(limpiarBackdropAtascado, 30);
+      });
+      // Por si algún modal queda atascado, limpiar cada 5 segundos
+      setInterval(limpiarBackdropAtascado, 5000);
+    </script>
 
-      function updateToggleBtnPosition() {
-        const sidebar = document.getElementById('sidebar');
-        const btn = document.getElementById('sidebarToggleBtn');
-        if (sidebar.classList.contains('collapsed')) {
-          btn.style.left = '58px'; // var(--sidebar-collapsed) - 12px
-        } else {
-          btn.style.left = '268px'; // var(--sidebar-width) - 12px
-        }
-      }
+    <!-- Aquí se inyecta el JS específico de cada vista -->
+    {% block extra_js %}{% endblock %}
 
-      // Toggle sidebar móvil
-      function toggleMobileSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.querySelector('.sidebar-overlay');
-        
-        sidebar.classList.toggle('mobile-open');
-        overlay.classList.toggle('show');
-      }
-
-      function closeMobileSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        const overlay = document.querySelector('.sidebar-overlay');
-        
-        sidebar.classList.remove('mobile-open');
-        overlay.classList.remove('show');
-      }
-
-      // Manejar submenús
+    {# Toastr para mensajes flash #}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    <div aria-live="polite" aria-atomic="true" class="position-relative">
+      <div class="toast-container position-absolute top-0 end-0 p-3">
+        {% for category, msg in messages %}
+        <div class="toast align-items-center text-bg-{{ 'success' if category=='success' else 'danger' }} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+          <div class="d-flex">
+            <div class="toast-body">{{ msg }}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    <script>
       document.addEventListener('DOMContentLoaded', function() {
-        // Restaurar estado del sidebar
-        const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-        if (isCollapsed) {
-          document.getElementById('sidebar').classList.add('collapsed');
-          document.getElementById('sidebarToggleBtn').querySelector('i').className = 'bi bi-chevron-right';
-        }
-        updateToggleBtnPosition();
-
-        // Toggle real: si está abierto lo cierra, si está cerrado lo abre y cierra los demás
-        document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(function(element) {
-          element.addEventListener('click', function(e) {
-            e.preventDefault();
-            const targetId = this.getAttribute('data-bs-target');
-            const target = document.querySelector(targetId);
-            const isExpanded = this.getAttribute('aria-expanded') === 'true';
-            if (isExpanded) {
-              // Si ya está abierto, ciérralo
-              target.classList.remove('show');
-              this.setAttribute('aria-expanded', 'false');
-              return;
-            }
-            // Si estaba cerrado, cierra todos los demás y abre este
-            document.querySelectorAll('.submenu').forEach(function(submenu) {
-              submenu.classList.remove('show');
-              const parentLink = document.querySelector(`[data-bs-target="#${submenu.id}"]`);
-              if (parentLink) {
-                parentLink.setAttribute('aria-expanded', 'false');
-              }
-            });
-            target.classList.add('show');
-            this.setAttribute('aria-expanded', 'true');
-          });
-        });
-        
-        // Auto-cerrar sidebar móvil al hacer click en enlaces
-        document.querySelectorAll('.nav-link:not([data-bs-toggle])').forEach(function(link) {
-          link.addEventListener('click', function() {
-            if (window.innerWidth <= 768) {
-              closeMobileSidebar();
-            }
-          });
-        });
-
-        // Cerrar sidebar móvil al redimensionar
-        window.addEventListener('resize', function() {
-          if (window.innerWidth > 768) {
-            closeMobileSidebar();
-          }
-        });
-
-        // Smooth scrolling para navegación
-        document.querySelectorAll('.nav-link[href^="#"]').forEach(function(link) {
-          link.addEventListener('click', function(e) {
-            e.preventDefault();
-            // Aquí puedes agregar lógica de navegación smooth
-          });
-        });
-
-        // Tooltips para modo colapsado
-        if (window.innerWidth > 768) {
-          const sidebar = document.getElementById('sidebar');
-          
-          sidebar.addEventListener('mouseenter', function() {
-            if (this.classList.contains('collapsed')) {
-              document.querySelectorAll('.nav-tooltip').forEach(function(tooltip) {
-                tooltip.style.display = 'block';
-              });
-            }
-          });
-          
-          sidebar.addEventListener('mouseleave', function() {
-            document.querySelectorAll('.nav-tooltip').forEach(function(tooltip) {
-              tooltip.style.display = 'none';
-            });
-          });
-        }
-
-        // Animación de entrada escalonada para elementos del nav
-        const navItems = document.querySelectorAll('.nav-item');
-        navItems.forEach(function(item, index) {
-          item.style.opacity = '0';
-          item.style.transform = 'translateX(-20px)';
-          
-          setTimeout(function() {
-            item.style.transition = 'all 0.3s ease-out';
-            item.style.opacity = '1';
-            item.style.transform = 'translateX(0)';
-          }, index * 50);
-        });
-
-        // Efecto hover mejorado para nav-links
-        document.querySelectorAll('.nav-link').forEach(function(link) {
-          link.addEventListener('mouseenter', function() {
-            this.style.transform = 'translateX(4px)';
-          });
-          
-          link.addEventListener('mouseleave', function() {
-            if (!this.classList.contains('active')) {
-              this.style.transform = 'translateX(0)';
-            }
-          });
-        });
-
-        // Actualizar badges dinámicamente (ejemplo)
-        function updateBadges() {
-          // Simular actualización de badges
-          const badge = document.querySelector('.nav-badge');
-          if (badge) {
-            const count = Math.floor(Math.random() * 10) + 1;
-            badge.textContent = count;
-            
-            // Animación de pulso para nuevas notificaciones
-            badge.style.animation = 'pulse 0.6s ease-out';
-            setTimeout(() => {
-              badge.style.animation = '';
-            }, 600);
-          }
-        }
-
-        // Actualizar badges cada 30 segundos (ejemplo)
-        setInterval(updateBadges, 30000);
-
-        // Keyboard navigation
-        document.addEventListener('keydown', function(e) {
-          // Esc para cerrar sidebar móvil
-          if (e.key === 'Escape' && window.innerWidth <= 768) {
-            closeMobileSidebar();
-          }
-          
-          // Ctrl + B para toggle sidebar en desktop
-          if (e.ctrlKey && e.key === 'b' && window.innerWidth > 768) {
-            e.preventDefault();
-            toggleSidebar();
-          }
-        });
-
-        // Mejorar accesibilidad
-        document.querySelectorAll('.nav-link').forEach(function(link) {
-          link.addEventListener('focus', function() {
-            this.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          });
-        });
-
-        // Loading state para enlaces de navegación
-        document.querySelectorAll('.nav-link:not([data-bs-toggle])').forEach(function(link) {
-          link.addEventListener('click', function() {
-            // Mostrar estado de carga
-            const icon = this.querySelector('.nav-icon i');
-            const originalClass = icon.className;
-            
-            icon.className = 'bi bi-arrow-clockwise';
-            icon.style.animation = 'spin 1s linear infinite';
-            
-            // Simular carga (en producción esto sería la navegación real)
-            setTimeout(function() {
-              icon.className = originalClass;
-              icon.style.animation = '';
-            }, 1000);
-          });
+        document.querySelectorAll('.toast').forEach(function(t) {
+          new bootstrap.Toast(t).show();
         });
       });
+    </script>
+    {% endwith %}
 
-      // Utilidad para mostrar notificaciones toast
-      function showToast(message, type = 'info') {
-        // Esta función se puede integrar con tu sistema de toast existente
-        console.log(`${type.toUpperCase()}: ${message}`);
-      }
+   
 
-      // Función para destacar enlace activo dinámicamente
-      function setActiveLink(href) {
-        document.querySelectorAll('.nav-link').forEach(function(link) {
-          link.classList.remove('active');
-        });
-        
-        const activeLink = document.querySelector(`.nav-link[href="${href}"]`);
-        if (activeLink) {
-          activeLink.classList.add('active');
-          
-          // Si está en un submenú, abrir el submenú padre
-          const submenu = activeLink.closest('.submenu');
-          if (submenu) {
-            submenu.classList.add('show');
-            const parentLink = document.querySelector(`[data-bs-target="#${submenu.id}"]`);
-            if (parentLink) {
-              parentLink.setAttribute('aria-expanded', 'true');
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const sidebar = document.querySelector('.sidebar');
+      // Restaurar estado del sidebar si estaba en modo submenú
+      const submenuKey = localStorage.getItem('sidebarSubmenu');
+      if (submenuKey) {
+        sidebar.classList.add('sidebar-submenu-only');
+        // Abrir el submenú correspondiente
+        const btn = document.getElementById(submenuKey);
+        if (btn) {
+          btn.classList.add('menu-main-active'); // <-- fuerza la clase SIEMPRE
+          // Asegura que el menú padre esté visible aunque el template no lo marque activo
+          const collapseId = btn.getAttribute('href');
+          if (collapseId) {
+            const collapse = document.querySelector(collapseId);
+            if (collapse && !collapse.classList.contains('show')) {
+              new bootstrap.Collapse(collapse, {toggle: true});
             }
           }
         }
       }
 
-      // CSS dinámico para animación de spin
-      const style = document.createElement('style');
-      style.textContent = `
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+      // Al hacer clic en un menú principal con submenú
+      document.querySelectorAll('.menu-main').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+          // Si ya está en modo submenú y se hace clic en el menú padre activo, volver al menú principal
+          if (sidebar.classList.contains('sidebar-submenu-only') &&
+              this.classList.contains('menu-main-active')) {
+            sidebar.classList.remove('sidebar-submenu-only');
+            localStorage.removeItem('sidebarSubmenu');
+            // Quita la clase activa de todos los menús padres
+            document.querySelectorAll('.menu-main').forEach(function(btn) {
+              btn.classList.remove('menu-main-active');
+            });          // Cierra todos los submenús
+          document.querySelectorAll('.collapse').forEach(function(c) {
+            if (c.classList.contains('show')) {
+              new bootstrap.Collapse(c, {toggle: true});
+            }
+          });
+          e.preventDefault();
+          e.stopPropagation();
+          return;
         }
-        
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.1); }
+        // Si no, activar modo submenú solo si tiene submenú
+        if (this.getAttribute('data-bs-toggle') === 'collapse') {
+          this.classList.add('menu-main-active');
+          setTimeout(() => {
+            sidebar.classList.add('sidebar-submenu-only');
+            localStorage.setItem('sidebarSubmenu', this.id);
+          }, 350);
         }
-      `;
-      document.head.appendChild(style);
+      });
+    });
+
+    // Al hacer clic en un hijo, mantener el modo submenú (no limpiar localStorage)
+    document.querySelectorAll('.sidebar-nav .collapse .nav-link').forEach(function(childLink) {
+      childLink.addEventListener('click', function(e) {
+        // Nada, solo mantener el modo submenú
+      });
+    });
+
+      // Oculta el header del submenú (opcional: puedes eliminarlo del HTML)
+      document.querySelectorAll('.submenu-header').forEach(function(header) {
+        header.style.display = 'none';
+      });
+
+      // Mejorar experiencia visual con animaciones suaves
+      setTimeout(() => {
+        const content = document.querySelector('.content');
+        if (content) {
+          content.style.opacity = '1';
+          content.style.transform = 'translateY(0)';
+        }
+      }, 200);
+
+      // Agregar efecto hover mejorado a botones
+      document.querySelectorAll('.btn').forEach(function(btn) {
+        btn.addEventListener('mouseenter', function() {
+          this.style.transform = 'translateY(-2px)';
+        });
+        btn.addEventListener('mouseleave', function() {
+          this.style.transform = 'translateY(0)';
+        });
+      });
+    });
     </script>
+    <!-- Version: 2025.01.08.4 - UI Enhanced -->
   </body>
 </html>
+
+
+
