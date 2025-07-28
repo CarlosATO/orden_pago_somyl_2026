@@ -342,11 +342,29 @@
         <i class="bi bi-lock input-icon"></i>
       </div>
       
-      <button type="submit" class="btn-login">
+      <button type="submit" class="btn-login" id="btn-login">
         <i class="bi bi-box-arrow-in-right me-2"></i>
         Acceder al Sistema
       </button>
+      <div id="login-loading" style="display:none; text-align:center; margin-top:16px;">
+        <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+        <span style="margin-left:8px; color:#667eea; font-weight:500;">Ingresando...</span>
+      </div>
     </form>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('.login-form form');
+        const btn = document.getElementById('btn-login');
+        const loading = document.getElementById('login-loading');
+        if (form) {
+          form.addEventListener('submit', function() {
+            btn.disabled = true;
+            btn.style.opacity = '0.6';
+            loading.style.display = 'block';
+          });
+        }
+      });
+    </script>
 
     <!-- Nota de seguridad -->
     <div class="security-note">
