@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Debug: fechas_de_pagos_op (todas las filas)</h2>
+<table border="1" cellpadding="5">
+    <thead>
+        <tr>
+            <th>orden_numero</th>
+            <th>fecha_pago</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for row in fechas %}
+        <tr>
+            <td>{{ row.orden_numero }}</td>
+            <td>{{ row.fecha_pago }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+<p>Total registros: {{ fechas|length }}</p>
+{% endblock %}

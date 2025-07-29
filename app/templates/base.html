@@ -16,6 +16,81 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <style>
+      /* Botón hamburguesa */
+      .hamburger-btn {
+        position: fixed;
+        top: 24px;
+        left: 260px;
+        z-index: 1200;
+        width: 44px;
+        height: 44px;
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: 50%;
+        box-shadow: var(--shadow-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: left var(--transition-normal), background var(--transition-fast);
+      }
+      .hamburger-btn:hover {
+        background: var(--bg-secondary);
+      }
+      .hamburger-btn .hamburger-icon {
+        width: 24px;
+        height: 24px;
+        display: inline-block;
+        position: relative;
+      }
+      .hamburger-btn .hamburger-icon span {
+        display: block;
+        position: absolute;
+        height: 3px;
+        width: 100%;
+        background: var(--primary-color);
+        border-radius: 2px;
+        opacity: 1;
+        left: 0;
+        transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+      }
+      .hamburger-btn .hamburger-icon span:nth-child(1) { top: 3px; }
+      .hamburger-btn .hamburger-icon span:nth-child(2) { top: 10px; }
+      .hamburger-btn .hamburger-icon span:nth-child(3) { top: 17px; }
+      .sidebar-collapsed .sidebar {
+        transform: translateX(-270px);
+        box-shadow: none;
+        transition: transform var(--transition-normal);
+      }
+      .sidebar-collapsed .hamburger-btn {
+        left: 16px;
+      }
+      .sidebar-collapsed .content {
+        margin-left: 0 !important;
+        transition: margin-left var(--transition-normal);
+      }
+      @media (max-width: 900px) {
+        .hamburger-btn {
+          left: 16px;
+          top: 16px;
+        }
+        .sidebar {
+          left: 0;
+          width: 220px;
+        }
+        .content {
+          margin-left: 0;
+        }
+      }
+      @media (max-width: 768px) {
+        .hamburger-btn {
+          left: 12px;
+          top: 12px;
+        }
+        .sidebar {
+          width: 90vw;
+        }
+      }
       :root {
         --primary-color: #3b82f6;
         --primary-dark: #2563eb;
@@ -527,6 +602,7 @@
         padding: var(--spacing-xl);
         background: var(--bg-secondary);
         animation: fadeInUp 0.6s ease-out 0.2s both;
+        transition: margin-left var(--transition-normal);
       }
 
       .container-glass {
@@ -995,6 +1071,13 @@
     {% set current = request.path %}
 
     {% if current_user.is_authenticated and request.endpoint != 'auth.login' %}
+      <div class="hamburger-btn" id="hamburgerBtn" data-tooltip="Mostrar/ocultar menú">
+        <div class="hamburger-icon">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+      </div>
       <aside class="sidebar">
         <div class="logo">Compras Somyl</div>
         
@@ -1203,6 +1286,16 @@
 
     <!-- Fix global para limpiar backdrop y modal-open si quedan atascados -->
     <script>
+    // Hamburguesa para mostrar/ocultar sidebar
+    document.addEventListener('DOMContentLoaded', function() {
+      const hamburgerBtn = document.getElementById('hamburgerBtn');
+      const body = document.body;
+      if (hamburgerBtn) {
+        hamburgerBtn.addEventListener('click', function() {
+          body.classList.toggle('sidebar-collapsed');
+        });
+      }
+    });
       // Llama esto después de cerrar cualquier modal, o periódicamente
       function limpiarBackdropAtascado() {
         // Elimina cualquier backdrop que quede

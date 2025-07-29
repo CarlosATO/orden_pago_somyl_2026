@@ -428,9 +428,11 @@
     <!-- Botones de acción -->
     <div class="p-3 border-bottom" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
       <div class="d-flex flex-wrap gap-2 align-items-center">
+        {% if puede_editar %}
         <button type="submit" class="btn btn-primary-modern btn-modern">
           <i class="bi bi-floppy me-2"></i>Guardar Fechas de Pago
         </button>
+        {% endif %}
         <a href="{{ url_for('pagos.export_pagos') }}" class="btn btn-secondary-modern btn-modern">
           <i class="bi bi-file-earmark-excel me-2"></i>Exportar a Excel
         </a>
@@ -507,7 +509,8 @@
                        value="{{ p.fecha_pago or '' }}"
                        min="1900-01-01"
                        max="{{ fecha_maxima }}"
-                       title="Fecha de pago para orden {{ p.orden_numero }}">
+                       title="Fecha de pago para orden {{ p.orden_numero }}"
+                       {% if not puede_editar %}disabled{% endif %}>
               </td>
               <td class="col-proyecto">
                 <span class="badge bg-secondary">{{ p.proyecto }}</span>

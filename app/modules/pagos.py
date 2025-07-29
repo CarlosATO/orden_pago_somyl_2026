@@ -10,16 +10,45 @@ from openpyxl import Workbook
 from app.modules.usuarios import require_modulo
 import json
 from app.utils.static_data import get_cached_proveedores, get_cached_proyectos_with_id
-
+from flask_login import current_user
+from app.modules.usuarios import get_modulos_usuario
 bp_pagos = Blueprint(
     "pagos", __name__,
     template_folder="../templates"
 )
 
+@login_required
+@bp_pagos.route('/debug_fechas', methods=['GET'])
+@require_modulo('pagos')
+def debug_fechas():
+    supabase = current_app.config["SUPABASE"]
+    page_size = 1000
+    offset = 0
+    all_fechas = []
+    while True:
+        batch = (
+            supabase
+            .table("fechas_de_pagos_op")
+            .select("orden_numero, fecha_pago")
+            .order("orden_numero")
+            .range(offset, offset + page_size - 1)
+            .execute()
+            .data or []
+        )
+        all_fechas.extend(batch)
+        if len(batch) < page_size:
+            break
+        offset += page_size
+    # print("\n--- DEBUG: fechas_de_pagos_op (TODOS) ---")
+    # for row in all_fechas:
+    #     print(f"orden_numero: {row.get('orden_numero')}, fecha_pago: {row.get('fecha_pago')}")
+    # print(f"Total registros: {len(all_fechas)}")
+    return "Consulta impresa en terminal. Revisa la consola de VS Code."
+
 def get_pagos(filtros=None):
     supabase = current_app.config["SUPABASE"]
     # Trae y agrupa igual que la vista
-    # Traer todos los registros usando paginación manual
+    # Restaurar paginación manual robusta
     page_size = 1000
     offset = 0
     all_rows = []
@@ -39,8 +68,7 @@ def get_pagos(filtros=None):
             break
         offset += page_size
 
-    # Print temporal para diagnóstico
-    print("[DEBUG] Total registros traídos:", len(all_rows))
+    # ...
 
 
 
@@ -85,16 +113,30 @@ def get_pagos(filtros=None):
     pagos_ordenados = [pagos[k] for k in sorted(pagos.keys(), reverse=True)]
 
     # Fechas de pago existentes
-    pagos_guardados = (
-        supabase
-        .table("fechas_de_pagos_op")
-        .select("orden_numero, fecha_pago")
-        .execute()
-        .data or []
-    )
-    fecha_map = {p["orden_numero"]: p["fecha_pago"] for p in pagos_guardados}
+
+    # Paginación para traer todos los registros de fechas_de_pagos_op (lógica funcional para la app)
+    page_size = 1000
+    offset = 0
+    pagos_guardados = []
+    while True:
+        batch = (
+            supabase
+            .table("fechas_de_pagos_op")
+            .select("orden_numero, fecha_pago")
+            .order("orden_numero")
+            .range(offset, offset + page_size - 1)
+            .execute()
+            .data or []
+        )
+        pagos_guardados.extend(batch)
+        if len(batch) < page_size:
+            break
+        offset += page_size
+
+    # Diccionario de fechas de pago para la app
+    fecha_map = {str(row.get("orden_numero")): row.get("fecha_pago") for row in pagos_guardados}
     for data in pagos_ordenados:
-        data["fecha_pago"] = fecha_map.get(data["orden_numero"])
+        data["fecha_pago"] = fecha_map.get(str(data["orden_numero"]))
 
     # Cuentas corrientes de proveedores - usar datos cacheados
     provs = get_cached_proveedores()
@@ -109,6 +151,7 @@ def get_pagos(filtros=None):
         proj_id = data.get("proyecto")
         data["proyecto"] = proyecto_map.get(proj_id, proj_id)
 
+    # ...
     # Retorna la lista ordenada
     return pagos_ordenados
 
@@ -116,6 +159,12 @@ def get_pagos(filtros=None):
 @bp_pagos.route("/pagos", methods=["GET"])
 @require_modulo('pagos')
 def list_pagos():
+    # Bloquear acceso a usuarios sin el módulo 'pagos'
+    modulos_usuario = [m.strip().lower() for m in get_modulos_usuario()]
+    if 'pagos' not in modulos_usuario:
+        flash('No tienes permiso para acceder a esta sección.', 'danger')
+        return render_template('sin_permisos.html')
+
     # Recoger filtros de la URL
     filtros = {}
     proveedor = request.args.get("proveedor", "").strip()
@@ -123,7 +172,7 @@ def list_pagos():
     estado = request.args.get("estado", "").strip()  # pagado, pendiente, vencido
     fecha_desde = request.args.get("fecha_desde", "").strip()
     fecha_hasta = request.args.get("fecha_hasta", "").strip()
-    
+
     if proveedor:
         filtros["proveedor"] = proveedor
     if proyecto:
@@ -134,7 +183,7 @@ def list_pagos():
         filtros["fecha_desde"] = fecha_desde
     if fecha_hasta:
         filtros["fecha_hasta"] = fecha_hasta
-    
+
     pagos = get_pagos(filtros)
 
     # Calcular el total pendiente igual que en la plantilla
@@ -147,6 +196,9 @@ def list_pagos():
     # Calcular fecha máxima para el input de fecha (hoy + 7 días)
     fecha_maxima = (date.today() + timedelta(days=7)).isoformat()
 
+    # Permisos: solo puede editar si tiene el módulo 'pagos'
+    puede_editar = 'pagos' in modulos_usuario
+
     return render_template(
         "pagos.html",
         pagos=pagos,
@@ -154,7 +206,8 @@ def list_pagos():
         proveedores_unicos=proveedores_unicos,
         proyectos_unicos=proyectos_unicos,
         filtros_activos=filtros,
-        total_pendiente=total_pendiente
+        total_pendiente=total_pendiente,
+        puede_editar=puede_editar
     )
 
 @login_required
@@ -167,6 +220,7 @@ def update_pagos():
     any_error = False
     upserts = []
     deletes = []
+   
 
     for i, num in enumerate(nums):
         fpago = fechas[i].strip() if i < len(fechas) else ""
@@ -247,4 +301,3 @@ def export_pagos():
         as_attachment=True,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-    # Log temporal eliminado

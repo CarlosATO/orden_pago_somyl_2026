@@ -304,7 +304,6 @@ def toggle_modulo_permiso():
 
 @bp.route('/editar/<int:id>', methods=['GET', 'POST'])
 @login_required
-@require_modulo('Usuarios')
 def editar_usuario(id):
     supabase = current_app.config['SUPABASE']
 
@@ -320,6 +319,11 @@ def editar_usuario(id):
     # Obtener módulos a los que el usuario tiene acceso
     permisos = supabase.table('usuario_modulo').select('modulo_id').eq('usuario_id', id).execute().data or []
     modulos_usuario = {int(p['modulo_id']) for p in permisos}
+
+    # Permitir acceso solo si el usuario actual tiene acceso al módulo Usuarios
+    modulos_actual = [m.strip().lower() for m in get_modulos_usuario()]
+    if 'usuarios' not in modulos_actual:
+        return render_template('sin_permisos.html'), 403
 
     # Actualizar datos básicos del usuario (nombre/email)
     if request.method == 'POST':

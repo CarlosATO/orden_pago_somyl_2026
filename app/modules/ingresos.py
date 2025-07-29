@@ -12,9 +12,10 @@ bp = Blueprint("ingresos", __name__, template_folder="../templates/ingresos")
 
 @bp.route("/", methods=["GET"])
 def list_ingresos():
-    if 'ingresos' not in get_modulos_usuario():
-        flash('No tienes permiso para acceder a este módulo.', 'danger')
-        return redirect(url_for('index'))
+    # Normalizar nombres de módulos para comparación robusta
+    modulos_usuario = [m.strip().lower() for m in get_modulos_usuario()]
+    if 'ingresos' not in modulos_usuario:
+        return render_template('sin_permisos.html')
 
     supabase = current_app.config["SUPABASE"]
     oc = request.args.get("oc", type=int)
