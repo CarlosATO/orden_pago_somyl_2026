@@ -46,6 +46,7 @@ def debug_fechas():
     return "Consulta impresa en terminal. Revisa la consola de VS Code."
 
 def get_pagos(filtros=None):
+    # ...
     supabase = current_app.config["SUPABASE"]
     # Trae y agrupa igual que la vista
     # Restaurar paginación manual robusta
@@ -67,9 +68,6 @@ def get_pagos(filtros=None):
         if len(batch) < page_size:
             break
         offset += page_size
-
-    # ...
-
 
 
 
@@ -112,6 +110,23 @@ def get_pagos(filtros=None):
     # Ordenar de mayor a menor por orden_numero
     pagos_ordenados = [pagos[k] for k in sorted(pagos.keys(), reverse=True)]
 
+    # Obtener todos los orden_compra únicos de los pagos
+    ordenes_compra_unicas = set(r["orden_compra"] for r in pagos_ordenados if r.get("orden_compra"))
+    # Consultar items únicos para cada orden_compra
+    items_por_orden = {}
+    if ordenes_compra_unicas:
+        batch_size = 100
+        ordenes_list = list(ordenes_compra_unicas)
+        for i in range(0, len(ordenes_list), batch_size):
+            batch_ordenes = ordenes_list[i:i+batch_size]
+            batch_items = supabase.table("orden_de_compra").select("orden_compra,item").in_("orden_compra", batch_ordenes).execute().data or []
+            for oc in batch_ordenes:
+                items = set(row["item"] for row in batch_items if row["orden_compra"] == oc and row.get("item"))
+                items_por_orden[oc] = ", ".join(sorted(items)) if items else ""
+    # Agregar campo 'item' a cada pago
+    for data in pagos_ordenados:
+        oc = data.get("orden_compra")
+        data["item"] = items_por_orden.get(oc, "")
     # Fechas de pago existentes
 
     # Paginación para traer todos los registros de fechas_de_pagos_op (lógica funcional para la app)
@@ -267,13 +282,13 @@ def export_pagos():
     headers = [
         "fecha", "orden_numero", "proveedor_nombre", "detalle_compra",
         "factura", "total_pago", "fecha_pago", "proyecto", "orden_compra",
-        "condicion_pago", "cuenta", "vencimiento", "fecha_factura"
+        "item", "condicion_pago", "vencimiento", "fecha_factura"
     ]
 
     col_names = [
         "FECHA OP", "O.PAGO", "PROVEEDOR", "DETALLE O.PAGO",
         "FACTURA ASOCIADA", "TOTAL PAGO", "FECHA DE PAGO", "PROYECTO",
-        "O. DE COMPRA", "CONDICIÓN DE PAGO", "CTA CTE PROVEEDOR",
+        "O. DE COMPRA", "ITEM(S)", "CONDICIÓN DE PAGO",
         "VENCIMIENTO FAC.", "FECHA DE FAC."
     ]
 

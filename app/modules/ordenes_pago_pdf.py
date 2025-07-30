@@ -1,9 +1,6 @@
 from flask import Blueprint, request, current_app, render_template, make_response
 from datetime import date
 import pdfkit
-from flask_mail import Message
-import pdfkit
-from flask import render_template
 
 bp_pdf = Blueprint(
     'ordenes_pago_pdf',
@@ -31,7 +28,62 @@ def safe_int(value, default=0):
 
 @bp_pdf.route('/ordenes_pago/pdf', methods=['POST'], endpoint='pdf')
 def generar_pdf():
+
     supabase = current_app.config['SUPABASE']
+    # Listas de detalle (ya vienen filtradas y sin duplicados desde el JS)
+    ocs           = request.form.getlist('orden_compra[]')
+    guias         = request.form.getlist('guia_recepcion[]')
+    descripciones = request.form.getlist('descripcion[]')
+
+    # --- Obtener nombres de proyectos asociados a las OCs ---
+    proyecto_ids = set()
+    if ocs:
+        oc_numbers = [int(oc) for oc in ocs if str(oc).isdigit()]
+        # Paginación manual para orden_de_compra
+        page_size = 1000
+        offset = 0
+        while True:
+            batch = (
+                supabase.table('orden_de_compra')
+                    .select('orden_compra, proyecto')
+                    .in_('orden_compra', oc_numbers)
+                    .range(offset, offset + page_size - 1)
+                    .execute()
+                    .data or []
+            )
+            for row in batch:
+                pid = row.get('proyecto')
+                if pid:
+                    proyecto_ids.add(pid)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+
+    # Buscar nombres de proyectos en tabla proyectos
+    proyectos_nombres = set()
+    if proyecto_ids:
+        page_size = 1000
+        offset = 0
+        ids_list = list(proyecto_ids)
+        while True:
+            batch = (
+                supabase.table('proyectos')
+                    .select('id, proyecto')
+                    .in_('id', ids_list)
+                    .range(offset, offset + page_size - 1)
+                    .execute()
+                    .data or []
+            )
+            for row in batch:
+                nombre = row.get('proyecto')
+                if nombre:
+                    proyectos_nombres.add(nombre)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+    if not proyectos_nombres:
+        proyectos_nombres = {'Sin proyecto'}
+    proyectos_str = ' - '.join(sorted(proyectos_nombres, key=lambda x: x.lower()))
     f = request.form
 
     # 1) Lectura de datos del formulario
@@ -43,20 +95,13 @@ def generar_pdf():
     autoriza_nombre  = f.get('autoriza_input', '')
     autoriza_email   = f.get('autoriza_email', '')
 
-    # Listas de detalle (ya vienen filtradas y sin duplicados desde el JS)
-    ocs           = f.getlist('orden_compra[]')
-    guias         = f.getlist('guia_recepcion[]')
-    descripciones = f.getlist('descripcion[]')
-
     # Totales (verificar si son sin IVA consultando las órdenes de compra originales)
     total_neto  = safe_float(f.get('total_neto', '0'))
     total_iva   = safe_float(f.get('total_iva', '0'))
     total_pagar = safe_float(f.get('total_pagar', '0'))
-    
+
     # Verificar si las órdenes de compra originales son sin IVA
     sin_iva = False
-    ocs = f.getlist('orden_compra[]')
-    
     if ocs:
         try:
             # Convertir OCs a enteros y verificar si alguna es sin IVA
@@ -66,7 +111,6 @@ def generar_pdf():
                     oc_numbers.append(int(oc))
                 except (ValueError, TypeError):
                     continue
-            
             if oc_numbers:
                 # Consultar las órdenes de compra para verificar fac_sin_iva
                 oc_rows = (
@@ -76,23 +120,16 @@ def generar_pdf():
                             .execute()
                             .data
                 ) or []
-                
                 # Si alguna orden de compra es sin IVA, toda la orden de pago es sin IVA
                 for oc_row in oc_rows:
                     if oc_row.get('fac_sin_iva', 0):
                         sin_iva = True
                         break
-                        
         except Exception as e:
             current_app.logger.error(f"Error verificando IVA: {e}")
             sin_iva = False
-    
-    # Recalcular totales si es sin IVA
-    if sin_iva:
-        total_iva = 0
-        total_pagar = total_neto
-    
-    # Recalcular IVA basado en si es sin IVA o no
+
+    # Recalcular IVA y total a pagar según si es sin IVA
     if sin_iva:
         total_iva = 0
         total_pagar = total_neto
@@ -179,7 +216,8 @@ def generar_pdf():
         'total_pagar': total_pagar,
         'sin_iva': sin_iva,  # Agregar información de si es sin IVA
         'autorizador': autorizador,
-        'fecha_emision': date.today().isoformat()
+        'fecha_emision': date.today().isoformat(),
+        'proyectos_str': proyectos_str
     }
 
     # 8) Renderizar HTML y generar PDF

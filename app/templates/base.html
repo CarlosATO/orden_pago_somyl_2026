@@ -19,44 +19,47 @@
       /* Botón hamburguesa */
       .hamburger-btn {
         position: fixed;
-        top: 24px;
-        left: 260px;
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%) translateX(-50%);
         z-index: 1200;
-        width: 44px;
-        height: 44px;
-        background: white;
-        border: 1px solid var(--border-color);
+        width: 54px;
+        height: 54px;
+        background: #fff;
+        border: 1.5px solid #e0e7ef;
         border-radius: 50%;
-        box-shadow: var(--shadow-md);
+        box-shadow: 0 4px 16px 0 rgba(60, 60, 120, 0.10);
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        transition: left var(--transition-normal), background var(--transition-fast);
+        transition: box-shadow 0.2s, background 0.2s, left var(--transition-normal);
+        outline: none;
       }
-      .hamburger-btn:hover {
-        background: var(--bg-secondary);
+      .hamburger-btn:hover, .hamburger-btn:focus {
+        background: #f3f4f6;
+        box-shadow: 0 8px 24px 0 rgba(60, 60, 120, 0.16);
       }
       .hamburger-btn .hamburger-icon {
-        width: 24px;
-        height: 24px;
+        width: 32px;
+        height: 32px;
         display: inline-block;
         position: relative;
       }
       .hamburger-btn .hamburger-icon span {
         display: block;
         position: absolute;
-        height: 3px;
+        height: 4px;
         width: 100%;
-        background: var(--primary-color);
-        border-radius: 2px;
+        background: linear-gradient(90deg, #3b82f6 60%, #8b5cf6 100%);
+        border-radius: 3px;
         opacity: 1;
         left: 0;
         transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
       }
-      .hamburger-btn .hamburger-icon span:nth-child(1) { top: 3px; }
-      .hamburger-btn .hamburger-icon span:nth-child(2) { top: 10px; }
-      .hamburger-btn .hamburger-icon span:nth-child(3) { top: 17px; }
+      .hamburger-btn .hamburger-icon span:nth-child(1) { top: 6px; }
+      .hamburger-btn .hamburger-icon span:nth-child(2) { top: 14px; }
+      .hamburger-btn .hamburger-icon span:nth-child(3) { top: 22px; }
       .sidebar-collapsed .sidebar {
         transform: translateX(-270px);
         box-shadow: none;
@@ -1071,7 +1074,7 @@
     {% set current = request.path %}
 
     {% if current_user.is_authenticated and request.endpoint != 'auth.login' %}
-      <div class="hamburger-btn" id="hamburgerBtn" data-tooltip="Mostrar/ocultar menú">
+      <div class="hamburger-btn shadow" id="hamburgerBtn" data-tooltip="Mostrar/ocultar menú" tabindex="0" aria-label="Mostrar/ocultar menú">
         <div class="hamburger-icon">
           <span></span>
           <span></span>

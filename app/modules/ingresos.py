@@ -206,7 +206,24 @@ def save_ingresos():
     proveedor_id = int(f.get("proveedor_id", 0))
     factura      = f.get("factura", "")  # Documento principal (factura)
     guia         = f.get("guia_recepcion", "")  # Guía de recepción (opcional)
-    
+
+    # Validar factura duplicada para el mismo proveedor (ignorando mayúsculas/minúsculas y espacios)
+    if factura:
+        factura_normalizada = (factura or '').strip().lower()
+        # Buscar facturas existentes para este proveedor
+        facturas_existentes = (
+            supabase.table("ingresos")
+            .select("factura")
+            .eq("proveedor", proveedor_id)
+            .execute().data or []
+        )
+        # Normalizar y comparar
+        for fct in facturas_existentes:
+            fct_val = (fct.get("factura") or '').strip().lower()
+            if fct_val and fct_val == factura_normalizada:
+                flash(f"La factura '{factura}' para este proveedor ya fue ingresada.", "warning")
+                return redirect(url_for("ingresos.list_ingresos", oc=oc_val))
+
     # ADVERTENCIA si no hay número de documento
     if not factura:
         flash("Acaba de registrar un ingreso sin número de factura. Quedará pendiente en el módulo Doc Pendientes.", "warning")
@@ -216,6 +233,7 @@ def save_ingresos():
     netos        = f.getlist("neto_linea[]")
     recs         = f.getlist("recibido_linea[]")
     art_corrs    = f.getlist("art_corr_linea[]")
+    fac_pendiente = f.get("fac_pendiente")  # Será '1' si está marcado, None si no
 
     # 4) Calcular próximo n_ingreso
     last = (
@@ -297,7 +315,7 @@ def save_ingresos():
         tipo_id = tipo_to_id.get(mat.get("tipo")) if mat else None
         fac_sin = 1 if ocd.get("fac_sin_iva") else 0
 
-        to_insert.append({
+        insert_data = {
             "orden_compra":    oc_val,
             "id_or_compra":    orden_id,
             "fecha":           hoy,
@@ -313,7 +331,10 @@ def save_ingresos():
             "item":            mat.get("item") if mat else None,
             "proveedor":       proveedor_id,
             "n_ingreso":       next_n
-        })
+        }
+        if fac_pendiente == '1':
+            insert_data["fac_pendiente"] = '1'
+        to_insert.append(insert_data)
 
     # 7) Insertar en 'ingresos'
     if to_insert:

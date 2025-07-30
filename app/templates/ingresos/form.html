@@ -136,6 +136,13 @@
           <small class="form-text text-muted">
             <i class="bi bi-exclamation-triangle me-1"></i>Puede dejarse vacío para pagos urgentes. Se completará después en "Doc Pendientes"
           </small>
+          <div class="form-check mt-2">
+            <input class="form-check-input" type="checkbox" value="1" id="facPendienteCheck" name="fac_pendiente">
+            <label class="form-check-label fw-medium" for="facPendienteCheck">
+              <i class="bi bi-clipboard-check me-1"></i>Fac. Compra
+            </label>
+            <small class="form-text text-muted ms-2">Marque si la factura queda pendiente de compra.</small>
+          </div>
         </div>
         <div class="col-md-6">
           <label class="form-label fw-medium">
@@ -280,6 +287,7 @@
     function checkCompleto() {
       const totalPend = Array.from(document.querySelectorAll('tbody tr'))
         .reduce((sum,r) => sum + (parseInt(r.dataset.pendiente,10)||0), 0);
+      const facPendienteCheck = document.getElementById('facPendienteCheck');
       if (totalPend === 0) {
         document.getElementById('headerBox').classList.add('complete');
         if (!document.getElementById('badgeComplete')) {
@@ -288,6 +296,9 @@
         }
         document.querySelectorAll('input[name="recibido_linea[]"]').forEach(i=>i.disabled=true);
         document.getElementById('btnSave').disabled = true;
+        if (facPendienteCheck) facPendienteCheck.disabled = true;
+      } else {
+        if (facPendienteCheck) facPendienteCheck.disabled = false;
       }
     }
     

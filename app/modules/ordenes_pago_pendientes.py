@@ -52,6 +52,29 @@ def list_pendientes():
             'ordenes_unicas': len(set(f['orden_numero'] for f in filas))
         }
         
+        # Buscar OC únicas para consulta eficiente
+        oc_list = list(set(f['orden_compra'] for f in filas if f.get('orden_compra')))
+        fac_pendientes_map = {}
+        if oc_list:
+            # Traer ingresos con fac_pendiente=1 para las OC relevantes
+            ingresos = (
+                supabase
+                .table("ingresos")
+                .select("orden_compra, fac_pendiente")
+                .in_("orden_compra", oc_list)
+                .eq("fac_pendiente", 1)
+                .execute()
+                .data or []
+            )
+            # Mapear OC con fac_pendiente=1
+            for ing in ingresos:
+                oc = ing.get('orden_compra')
+                if oc:
+                    fac_pendientes_map[str(oc)] = True
+        # Agregar info a cada fila
+        for f in filas:
+            f['fac_compra'] = fac_pendientes_map.get(str(f.get('orden_compra')), False)
+
         # Ordenar filas por 'orden_numero' de mayor a menor (O.PAGO)
         filas.sort(key=lambda f: f.get('orden_numero', 0), reverse=True)
         return render_template(

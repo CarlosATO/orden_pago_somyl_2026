@@ -464,8 +464,8 @@
               <th class="col-fecha-pago">FECHA DE<br>PAGO</th>
               <th class="col-proyecto">PROYECTO</th>
               <th class="col-orden-compra">O.COMPRA</th>
+              <th class="col-item">ITEM(S)</th>
               <th class="col-condicion">CONDICIÓN<br>PAGO</th>
-              <th class="col-cuenta">CTA CTE<br>PROVEEDOR</th>
               <th class="col-vencimiento">VENCIMIENTO<br>FAC.</th>
               <th class="col-fecha-factura">FECHA<br>FAC.</th>
             </tr>
@@ -522,12 +522,19 @@
                   <span class="text-muted">-</span>
                 {% endif %}
               </td>
+              <td class="col-item">
+                {% if p.item %}
+                  <span title="{{ p.item }}">{{ p.item }}</span>
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
               <td class="col-condicion">
                 <small>{{ p.condicion_pago or '-' }}</small>
               </td>
-              <td class="col-cuenta">
+              <!-- <td class="col-cuenta">
                 <small>{{ p.cuenta or '-' }}</small>
-              </td>
+              </td> -->
               <td class="col-vencimiento">
                 {% if p.vencimiento %}
                   <small class="text-muted">{{ p.vencimiento }}</small>

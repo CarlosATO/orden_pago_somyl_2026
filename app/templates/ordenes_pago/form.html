@@ -616,15 +616,20 @@
           const btn = e.target;
           const guia = btn.dataset.guia;
           const oc   = btn.dataset.oc;
-          
+
           console.log("Botón seleccionar clickeado:", { guia, oc });
-          
+
+          // Feedback visual: mostrar cargando en el botón
+          const originalBtnHtml = btn.innerHTML;
+          btn.disabled = true;
+          btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Cargando...';
+
           // Manejar valores "SIN_DOCUMENTO"
           const guiaParam = guia === "SIN_DOCUMENTO" ? "SIN_DOCUMENTO" : guia;
           const url = `{{ url_for('ordenes_pago.list_ordenes_pago') }}?detail=1&guia=${encodeURIComponent(guiaParam)}&oc=${encodeURIComponent(oc)}`;
-          
+
           console.log("URL de consulta:", url);
-          
+
           fetch(url)
             .then(res => {
               console.log("Respuesta del servidor:", res.status);
@@ -635,12 +640,15 @@
             })
             .then(data => {
               console.log("Datos recibidos:", data);
-              
+
               if (!Array.isArray(data)) {
                 console.error("Los datos recibidos no son un array:", data);
+                // Restaurar botón
+                btn.innerHTML = originalBtnHtml;
+                btn.disabled = false;
                 return;
               }
-              
+
               const body = document.getElementById("selected-body");
               data.forEach(ln => {
                 // evita duplicados
@@ -715,6 +723,9 @@
             })
             .catch(error => {
               console.error("Error en fetch:", error);
+              // Restaurar botón
+              btn.innerHTML = originalBtnHtml;
+              btn.disabled = false;
               alert("Error al cargar los datos. Por favor, revisa la consola para más detalles.");
             });
         });
@@ -793,7 +804,7 @@
               console.log('PDF principal falló, intentando con ReportLab...');
               
               // Intentar con ReportLab
-              tempForm.action = '{{ url_for("ordenes_pago_pdf_reportlab.pdf_reportlab") }}';
+              tempForm.action = '{{ url_for("ordenes_pago_pdf.pdf") }}';
               tempForm.target = '_blank';
               tempForm.submit();
               
@@ -885,7 +896,7 @@
           // Crear formulario temporal para enviar datos al PDF con ReportLab
           const tempForm = document.createElement('form');
           tempForm.method = 'POST';
-          tempForm.action = '{{ url_for("ordenes_pago_pdf_reportlab.pdf_reportlab") }}';
+          tempForm.action = '{{ url_for("ordenes_pago_pdf.pdf") }}';
           tempForm.target = '_blank';
           tempForm.style.display = 'none';
           
