@@ -27,8 +27,9 @@ def list_pendientes():
     supabase = current_app.config["SUPABASE"]
     
     try:
-        # Consultar filas pendientes con más información
-        filas = (
+
+        # 1. Traer todas las líneas pendientes
+        all_lines = (
             supabase
             .table("orden_de_pago")
             .select(
@@ -41,22 +42,47 @@ def list_pendientes():
             .execute()
             .data
         ) or []
-        
-        current_app.logger.info(f"Documentos pendientes encontrados: {len(filas)}")
-        
-        # Agrupar estadísticas
+
+        # 2. Agrupar por orden_compra
+        grouped = {}
+        for l in all_lines:
+            oc = l["orden_compra"]
+            if oc not in grouped:
+                grouped[oc] = []
+            grouped[oc].append(l)
+
+        filas = []
+        for oc, lines in grouped.items():
+            first = lines[0]
+            # Resumen de materiales
+            materiales = [str(l.get("material_nombre") or "") for l in lines]
+            resumen = ", ".join([m for m in materiales if m])
+            if len(resumen) > 50:
+                resumen = resumen[:47] + "..."
+            # Sumar totales
+            total_costo = sum(float(l.get("costo_final_con_iva", 0) or 0) for l in lines)
+            fila = {
+                **first,
+                "material_nombre": resumen,
+                "costo_final_con_iva": total_costo,
+                "ids": [l["id"] for l in lines],
+            }
+            filas.append(fila)
+
+        current_app.logger.info(f"Órdenes pendientes encontradas: {len(filas)}")
+
+        # Estadísticas por orden
         stats = {
             'total_pendientes': len(filas),
             'total_monto': sum(float(f.get('costo_final_con_iva', 0) or 0) for f in filas),
             'proveedores_unicos': len(set(f['proveedor_nombre'] for f in filas)),
             'ordenes_unicas': len(set(f['orden_numero'] for f in filas))
         }
-        
+
         # Buscar OC únicas para consulta eficiente
-        oc_list = list(set(f['orden_compra'] for f in filas if f.get('orden_compra')))
+        oc_list = list(grouped.keys())
         fac_pendientes_map = {}
         if oc_list:
-            # Traer ingresos con fac_pendiente=1 para las OC relevantes
             ingresos = (
                 supabase
                 .table("ingresos")
@@ -66,16 +92,13 @@ def list_pendientes():
                 .execute()
                 .data or []
             )
-            # Mapear OC con fac_pendiente=1
             for ing in ingresos:
                 oc = ing.get('orden_compra')
                 if oc:
                     fac_pendientes_map[str(oc)] = True
-        # Agregar info a cada fila
         for f in filas:
             f['fac_compra'] = fac_pendientes_map.get(str(f.get('orden_compra')), False)
 
-        # Ordenar filas por 'orden_numero' de mayor a menor (O.PAGO)
         filas.sort(key=lambda f: f.get('orden_numero', 0), reverse=True)
         return render_template(
             "ordenes_pago/pendientes.html",
@@ -106,67 +129,64 @@ def update_pendiente():
     
     try:
         # Si es AJAX JSON
+
         if request.is_json:
             data = request.get_json()
             updates = data.get("updates", [])
             results = []
-            
             current_app.logger.info(f"Procesando {len(updates)} actualizaciones via AJAX")
-            
             for upd in updates:
-                op_id = upd.get("id")
+                orden_compra = upd.get("orden_compra")
                 factura = upd.get("factura", "").strip()
                 proveedor_nombre = upd.get("proveedor_nombre", "").strip()
-                
+                # Si no viene orden_compra, intentar obtenerla desde id
+                if not orden_compra and upd.get("id"):
+                    try:
+                        res = supabase.table("orden_de_pago").select("orden_compra").eq("id", upd["id"]).single().execute()
+                        orden_compra = res.data["orden_compra"] if res and res.data else None
+                    except Exception as e:
+                        current_app.logger.error(f"No se pudo obtener orden_compra desde id {upd.get('id')}: {e}")
+                        orden_compra = None
                 # Validaciones
-                if not op_id:
-                    results.append({"id": op_id, "success": False, "msg": "ID de orden requerido"})
+                if not orden_compra:
+                    results.append({"orden_compra": orden_compra, "success": False, "msg": "Orden de compra requerida"})
                     continue
-                    
                 if not factura or not factura.isdigit() or int(factura) <= 0:
-                    results.append({"id": op_id, "success": False, "msg": "Número de documento inválido"})
+                    results.append({"orden_compra": orden_compra, "success": False, "msg": "Número de documento inválido"})
                     continue
-                
                 try:
-                    # Verificar que la orden existe y está pendiente
-                    orden_actual = (
+                    # Verificar que la orden existe y está pendiente (al menos una línea)
+                    pendientes = (
                         supabase
                         .table("orden_de_pago")
                         .select("id, proveedor_nombre, estado_documento")
-                        .eq("id", op_id)
-                        .single()
+                        .eq("orden_compra", orden_compra)
+                        .eq("estado_documento", "pendiente")
                         .execute()
+                        .data or []
                     )
-                    
-                    if not orden_actual.data:
-                        results.append({"id": op_id, "success": False, "msg": "Orden no encontrada"})
+                    if not pendientes:
+                        results.append({"orden_compra": orden_compra, "success": False, "msg": "Orden no encontrada o ya procesada"})
                         continue
-                        
-                    if orden_actual.data.get("estado_documento") != "pendiente":
-                        results.append({"id": op_id, "success": False, "msg": "Orden ya procesada"})
-                        continue
-                    
-                    # Validar duplicado de factura para el mismo proveedor
+                    # Validar duplicado de factura para el mismo proveedor SOLO en pendientes
                     duplicado = (
                         supabase
                         .table("orden_de_pago")
                         .select("id")
                         .eq("proveedor_nombre", proveedor_nombre)
                         .eq("factura", factura)
-                        .neq("id", op_id)
+                        .eq("estado_documento", "pendiente")
                         .execute()
                         .data
                     )
-                    
                     if duplicado:
                         results.append({
-                            "id": op_id, 
-                            "success": False, 
-                            "msg": f"El documento {factura} ya existe para este proveedor"
+                            "orden_compra": orden_compra,
+                            "success": False,
+                            "msg": "Esta factura ya está registrada para este proveedor"
                         })
                         continue
-                    
-                    # Actualizar la orden
+                    # Actualizar todas las líneas de la orden
                     update_result = (
                         supabase
                         .table("orden_de_pago")
@@ -174,20 +194,18 @@ def update_pendiente():
                             "factura": factura,
                             "estado_documento": "completado"
                         })
-                        .eq("id", op_id)
+                        .eq("orden_compra", orden_compra)
+                        .eq("estado_documento", "pendiente")
                         .execute()
                     )
-                    
-                    if update_result.data:
-                        results.append({"id": op_id, "success": True, "msg": "Documento guardado exitosamente"})
-                        current_app.logger.info(f"Documento actualizado: OP={op_id}, Factura={factura}")
+                    if getattr(update_result, "data", None):
+                        results.append({"orden_compra": orden_compra, "success": True, "msg": "Documento guardado exitosamente"})
+                        current_app.logger.info(f"Documento actualizado: OC={orden_compra}, Factura={factura}")
                     else:
-                        results.append({"id": op_id, "success": False, "msg": "Error al actualizar documento"})
-                        
+                        results.append({"orden_compra": orden_compra, "success": False, "msg": "Error al actualizar documento"})
                 except Exception as e:
-                    current_app.logger.error(f"Error al procesar actualización {op_id}: {e}")
-                    results.append({"id": op_id, "success": False, "msg": "Error interno del servidor"})
-            
+                    current_app.logger.error(f"Error al procesar actualización {orden_compra}: {e}")
+                    results.append({"orden_compra": orden_compra, "success": False, "msg": "Error interno del servidor"})
             return jsonify(results)
 
         # Si es form normal (fallback)
