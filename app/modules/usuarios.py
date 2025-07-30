@@ -1,7 +1,8 @@
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify, get_flashed_messages
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify, get_flashed_messages, request as flask_request
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_required, current_user
+from utils.logger import registrar_log_actividad
 from functools import wraps
 from datetime import datetime, date
 import secrets
@@ -117,13 +118,19 @@ def nuevo_usuario():
             current_app.logger.info(f"Insertando usuario: {user_data}")
             
             res = supabase.table('usuarios').insert(user_data).execute()
-            
             current_app.logger.info(f"Respuesta Supabase usuarios: {res}")
-            
             if res.data:
                 usuario_id = res.data[0]['id']
                 current_app.logger.info(f"Usuario creado con ID: {usuario_id}")
-                
+                # Log de actividad
+                registrar_log_actividad(
+                    accion="crear",
+                    tabla_afectada="usuarios",
+                    registro_id=usuario_id,
+                    descripcion=f"Usuario '{nombre}' creado.",
+                    datos_antes=None,
+                    datos_despues=user_data
+                )
                 # Insertar módulos seleccionados
                 modulos_insertados = 0
                 for modulo_id in modulos_seleccionados:
@@ -137,9 +144,7 @@ def nuevo_usuario():
                         modulos_insertados += 1
                     except Exception as e:
                         current_app.logger.error(f"Error insertando módulo {modulo_id}: {e}")
-                
                 current_app.logger.info(f"Módulos insertados: {modulos_insertados}")
-                
                 flash(f'Usuario creado correctamente con {modulos_insertados} módulos asignados', 'success')
                 return redirect(url_for('usuarios.list_usuarios'))
             else:
@@ -329,7 +334,18 @@ def editar_usuario(id):
     if request.method == 'POST':
         nombre = request.form['nombre']
         email = request.form['email']
+        # Guardar datos antes
+        datos_antes = usuario.copy() if usuario else None
         supabase.table('usuarios').update({'nombre': nombre, 'email': email}).eq('id', id).execute()
+        # Log de actividad
+        registrar_log_actividad(
+            accion="actualizar",
+            tabla_afectada="usuarios",
+            registro_id=id,
+            descripcion=f"Usuario '{nombre}' actualizado.",
+            datos_antes=datos_antes,
+            datos_despues={'nombre': nombre, 'email': email}
+        )
         flash('Datos actualizados', 'success')
         return redirect(url_for('usuarios.editar_usuario', id=id))
 
@@ -355,11 +371,15 @@ def toggle_estado_usuario(id):
     
     # Actualizar estado
     supabase.table('usuarios').update({'activo': nuevo_estado}).eq('id', id).execute()
-    
-    # Log de auditoría
-    accion = f"Usuario {'activado' if nuevo_estado else 'desactivado'}: {usuario['nombre']}"
-    current_app.logger.info(accion)
-    
+    # Log de actividad
+    registrar_log_actividad(
+        accion="actualizar",
+        tabla_afectada="usuarios",
+        registro_id=id,
+        descripcion=f"Usuario {'activado' if nuevo_estado else 'desactivado'}: {usuario['nombre']}",
+        datos_antes=usuario,
+        datos_despues={**usuario, 'activo': nuevo_estado}
+    )
     return jsonify(success=True, message=f"Usuario {'activado' if nuevo_estado else 'desactivado'} correctamente")
 
 @bp.route('/toggle_bloqueo/<int:id>', methods=['POST'])
@@ -380,11 +400,15 @@ def toggle_bloqueo_usuario(id):
         'bloqueado': bloqueado,
         'intentos_fallidos': 0 if not bloqueado else usuario.get('intentos_fallidos', 0)
     }).eq('id', id).execute()
-    
-    # Log de auditoría
-    accion = f"Usuario {'bloqueado' if bloqueado else 'desbloqueado'}: {usuario['nombre']}"
-    current_app.logger.info(accion)
-    
+    # Log de actividad
+    registrar_log_actividad(
+        accion="actualizar",
+        tabla_afectada="usuarios",
+        registro_id=id,
+        descripcion=f"Usuario {'bloqueado' if bloqueado else 'desbloqueado'}: {usuario['nombre']}",
+        datos_antes=usuario,
+        datos_despues={**usuario, 'bloqueado': bloqueado, 'intentos_fallidos': 0 if not bloqueado else usuario.get('intentos_fallidos', 0)}
+    )
     return jsonify(success=True, message=f"Usuario {'bloqueado' if bloqueado else 'desbloqueado'} correctamente")
 
 @bp.route('/reset_password/<int:id>', methods=['POST'])
@@ -409,10 +433,15 @@ def reset_password_usuario(id):
         'bloqueado': False,
         'motivo_bloqueo': 'CONTRASEÑA_TEMPORAL'
     }).eq('id', id).execute()
-    
-    # Log de auditoría
-    current_app.logger.info(f"Contraseña restablecida para usuario: {usuario['nombre']}")
-    
+    # Log de actividad
+    registrar_log_actividad(
+        accion="actualizar",
+        tabla_afectada="usuarios",
+        registro_id=id,
+        descripcion=f"Contraseña restablecida para usuario: {usuario['nombre']}",
+        datos_antes=usuario,
+        datos_despues={**usuario, 'password': '[HASHED]', 'motivo_bloqueo': 'CONTRASEÑA_TEMPORAL'}
+    )
     return jsonify(success=True, message="Contraseña restablecida", password_temp=password_temp)
 
 @bp.route('/dashboard')

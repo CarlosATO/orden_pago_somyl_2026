@@ -1,7 +1,9 @@
 # app/modules/proyectos.py
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify, request as flask_request
 from app.modules.usuarios import require_modulo
+from flask_login import current_user
+from utils.logger import registrar_log_actividad
 import logging
 
 bp = Blueprint("proyectos", __name__, template_folder="../templates/proyectos")
@@ -71,14 +73,22 @@ def new_proyecto():
         }
         
         result = current_app.config['SUPABASE'].table("proyectos").insert(payload).execute()
-        
         if result.data:
+            proyecto_id = result.data[0]["id"] if isinstance(result.data, list) and result.data else None
             current_app.logger.info(f"Proyecto creado: {proyecto_val}")
+            # Log de actividad
+            registrar_log_actividad(
+                accion="crear",
+                tabla_afectada="proyectos",
+                registro_id=proyecto_id,
+                descripcion=f"Proyecto '{proyecto_val}' creado.",
+                datos_antes=None,
+                datos_despues=payload
+            )
             flash(f"Proyecto '{proyecto_val}' creado exitosamente.", "success")
         else:
             current_app.logger.error(f"Error al crear proyecto: {result}")
             flash("Error al crear el proyecto. Intente nuevamente.", "danger")
-            
         return redirect(url_for("proyectos.list_proyectos"))
         
     except Exception as e:
@@ -175,14 +185,21 @@ def edit_proyecto(id):
                 .eq("id", id)
                 .execute()
             )
-            
             if result.data:
                 current_app.logger.info(f"Proyecto actualizado: {nuevos['proyecto']} (ID: {id})")
+                # Log de actividad
+                registrar_log_actividad(
+                    accion="actualizar",
+                    tabla_afectada="proyectos",
+                    registro_id=id,
+                    descripcion=f"Proyecto '{nuevos['proyecto']}' actualizado.",
+                    datos_antes=proyecto,
+                    datos_despues=payload
+                )
                 flash(f"Proyecto '{nuevos['proyecto']}' actualizado exitosamente.", "success")
             else:
                 current_app.logger.error(f"Error al actualizar proyecto ID {id}: {result}")
                 flash("Error al actualizar el proyecto. Intente nuevamente.", "danger")
-                
             return redirect(url_for("proyectos.list_proyectos"))
 
         # GET: mostrar formulario de edición

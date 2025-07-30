@@ -8,6 +8,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from datetime import date, datetime
 from app.modules.usuarios import require_modulo
 from app.utils.static_data import get_cached_proyectos, get_cached_items, get_cached_trabajadores
+from utils.logger import registrar_log_actividad
 
 bp_presupuestos = Blueprint("presupuestos", __name__, url_prefix="/presupuestos")
 
@@ -74,6 +75,18 @@ def form_presupuesto():
                         "mes_nombre": mes_nombre,
                         "anio": anio
                     }).execute()
+                    registrar_log_actividad(
+                        accion="insert",
+                        tabla_afectada="presupuesto",
+                        descripcion=f"Creó presupuesto para proyecto {proyecto}, item {item}, fecha {fecha}",
+                        datos_despues={
+                            "proyecto": proyecto,
+                            "item": item,
+                            "detalle": detalle,
+                            "fecha": fecha,
+                            "monto": monto_int
+                        }
+                    )
                     flash("Presupuesto guardado correctamente", "success")
                     return redirect(url_for("presupuestos.form_presupuesto"))
             except (ValueError, TypeError):
@@ -181,10 +194,15 @@ def actualizar_gasto():
             .update({campo: valor}) \
             .eq("id", gasto_id) \
             .execute()
-        
         if hasattr(res, 'error') and res.error:
             return jsonify({"success": False, "error": "Error al actualizar"}), 500
-        
+        registrar_log_actividad(
+            accion="update",
+            tabla_afectada="presupuesto",
+            registro_id=gasto_id,
+            descripcion=f"Actualizó campo {campo} del gasto {gasto_id}",
+            datos_despues={campo: valor}
+        )
         return jsonify({"success": True})
         
     except ValueError as e:
@@ -211,10 +229,14 @@ def eliminar_gasto():
             .delete() \
             .eq("id", gasto_id) \
             .execute()
-        
         if hasattr(res, 'error') and res.error:
             return jsonify({"success": False, "error": "Error al eliminar"}), 500
-        
+        registrar_log_actividad(
+            accion="delete",
+            tabla_afectada="presupuesto",
+            registro_id=gasto_id,
+            descripcion=f"Eliminó el gasto {gasto_id}"
+        )
         return jsonify({"success": True})
         
     except Exception as e:
@@ -367,6 +389,12 @@ def importar_presupuesto():
     if records:
         try:
             supabase.table("presupuesto").insert(records).execute()
+            registrar_log_actividad(
+                accion="import",
+                tabla_afectada="presupuesto",
+                descripcion=f"Importó {len(records)} presupuestos desde Excel.",
+                datos_despues=f"{len(records)} registros"
+            )
             flash(f"Importación exitosa: {len(records)} registros guardados.", "success")
         except Exception as e:
             current_app.logger.error(f"Error en importación: {e}")
@@ -436,6 +464,11 @@ def exportar_presupuesto():
         fecha_actual = datetime.now().strftime("%Y%m%d_%H%M")
         filename = f"presupuestos_{fecha_actual}.xlsx"
         
+        registrar_log_actividad(
+            accion="export",
+            tabla_afectada="presupuesto",
+            descripcion=f"Exportó presupuestos a Excel. Total: {len(presupuestos)} registros."
+        )
         return send_file(
             output,
             as_attachment=True,

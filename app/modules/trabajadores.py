@@ -1,7 +1,9 @@
 # app/modules/trabajadores.py
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify, request as flask_request
 from app.modules.usuarios import require_modulo
+from flask_login import current_user
+from utils.logger import registrar_log_actividad
 import re
 import logging
 
@@ -105,13 +107,21 @@ def new_trabajador():
         }
         
         insert_response = supabase.table("trabajadores").insert(payload).execute()
-        
         if hasattr(insert_response, 'error') and insert_response.error:
             current_app.logger.error(f"Error al crear trabajador: {insert_response.error}")
             flash("Error al crear el trabajador. Intente nuevamente.", "danger")
             return redirect(url_for("trabajadores.list_trabajadores"))
-        
+        trabajador_id = insert_response.data[0]["id"] if insert_response.data and isinstance(insert_response.data, list) else None
         current_app.logger.info(f"Trabajador creado exitosamente: {nombre} ({correo})")
+        # Log de actividad
+        registrar_log_actividad(
+            accion="crear",
+            tabla_afectada="trabajadores",
+            registro_id=trabajador_id,
+            descripcion=f"Trabajador '{nombre}' creado.",
+            datos_antes=None,
+            datos_despues=payload
+        )
         flash(f"Trabajador '{nombre}' creado exitosamente.", "success")
         return redirect(url_for("trabajadores.list_trabajadores"))
         
@@ -192,13 +202,20 @@ def edit_trabajador(id):
             }
             
             update_response = supabase.table("trabajadores").update(payload).eq("id", id).execute()
-            
             if hasattr(update_response, 'error') and update_response.error:
                 current_app.logger.error(f"Error al actualizar trabajador {id}: {update_response.error}")
                 flash("Error al actualizar el trabajador. Intente nuevamente.", "danger")
                 return redirect(url_for("trabajadores.edit_trabajador", id=id))
-            
             current_app.logger.info(f"Trabajador {id} actualizado exitosamente: {nombre_new} ({correo_new})")
+            # Log de actividad
+            registrar_log_actividad(
+                accion="actualizar",
+                tabla_afectada="trabajadores",
+                registro_id=id,
+                descripcion=f"Trabajador '{nombre_new}' actualizado.",
+                datos_antes=trabajador,
+                datos_despues=payload
+            )
             flash(f"Trabajador '{nombre_new}' actualizado exitosamente.", "success")
             return redirect(url_for("trabajadores.list_trabajadores"))
         

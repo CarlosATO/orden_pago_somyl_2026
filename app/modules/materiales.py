@@ -1,6 +1,8 @@
 # app/modules/materiales.py
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask_login import current_user
+from utils.logger import registrar_log_actividad
 from app.modules.usuarios import require_modulo
 
 bp = Blueprint('materiales', __name__) 
@@ -59,7 +61,16 @@ def new_material():
         "tipo":     tipo,
         "item":     item
     }
-    current_app.config['SUPABASE'].table("materiales").insert(payload).execute()
+    result = current_app.config['SUPABASE'].table("materiales").insert(payload).execute()
+    mat_id = result.data[0]["id"] if result.data and isinstance(result.data, list) else None
+    registrar_log_actividad(
+        accion="crear",
+        tabla_afectada="materiales",
+        registro_id=mat_id,
+        descripcion=f"Material '{material}' creado.",
+        datos_antes=None,
+        datos_despues=payload
+    )
     flash("Material creado exitosamente.", "success")
     return redirect(url_for("materiales.list_materiales"))
 
@@ -123,6 +134,14 @@ def edit_material(id):
             .update(payload)
             .eq("id", id)
             .execute()
+        )
+        registrar_log_actividad(
+            accion="actualizar",
+            tabla_afectada="materiales",
+            registro_id=id,
+            descripcion=f"Material '{material_new}' actualizado.",
+            datos_antes=mat,
+            datos_despues=payload
         )
         flash("Material actualizado exitosamente.", "success")
         return redirect(url_for("materiales.list_materiales"))

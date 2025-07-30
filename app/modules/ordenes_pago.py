@@ -6,7 +6,8 @@ from flask import (
     url_for,
     flash,
     current_app,
-    jsonify
+    jsonify,
+    request as flask_request
 )
 from datetime import date
 from flask_mail import Message
@@ -14,7 +15,9 @@ import pdfkit
 from flask import render_template
 import logging
 from app.modules.usuarios import require_modulo
-from app.utils.cache import get_select2_cached_results, cache_select2_results  # <-- Agrega esta línea
+from app.utils.cache import get_select2_cached_results, cache_select2_results
+from flask_login import current_user
+from utils.logger import registrar_log_actividad
 
 bp = Blueprint(
     "ordenes_pago", __name__,
@@ -307,7 +310,7 @@ def new_orden_pago():
             try:
                 fecha_actual = date.today().isoformat()
                 anio = date.today().year
-                result = supabase.table("orden_de_pago").insert({
+                payload = {
                     "ingreso_id":           int(ingreso_id),
                     "orden_compra":         orden_compra_int,  # Guardar número de OC, no el ID
                     "doc_recep":            doc_recep,
@@ -336,15 +339,23 @@ def new_orden_pago():
                     "item":                item_val,
                     "fecha":                fecha_actual,
                     "anio":                 anio
-                }).execute()
-                
+                }
+                result = supabase.table("orden_de_pago").insert(payload).execute()
                 if hasattr(result, 'error') and result.error:
                     current_app.logger.error(f"Error en inserción Supabase: {result.error}")
                     flash(f"Error al insertar línea {i+1}: {result.error}", "danger")
                     continue
-                    
+                # Log de actividad
+                op_id = result.data[0]["id"] if result.data and isinstance(result.data, list) else None
+                registrar_log_actividad(
+                    accion="crear",
+                    tabla_afectada="orden_de_pago",
+                    registro_id=op_id,
+                    descripcion=f"Orden de pago creada (línea {i+1}) para proveedor {proveedor_nombre}.",
+                    datos_antes=None,
+                    datos_despues=payload
+                )
                 current_app.logger.info(f"Línea {i+1} insertada exitosamente")
-                
             except Exception as e:
                 current_app.logger.error(f"Error insertando línea {i+1}: {e}")
                 flash(f"Error al insertar línea {i+1}: {str(e)}", "danger")

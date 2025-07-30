@@ -12,6 +12,7 @@ import json
 from app.utils.static_data import get_cached_proveedores, get_cached_proyectos_with_id
 from flask_login import current_user
 from app.modules.usuarios import get_modulos_usuario
+from utils.logger import registrar_log_actividad
 bp_pagos = Blueprint(
     "pagos", __name__,
     template_folder="../templates"
@@ -258,10 +259,24 @@ def update_pagos():
     # Upsert masivo si hay datos válidos
     if upserts:
         supabase.table("fechas_de_pagos_op").upsert(upserts, on_conflict=["orden_numero"]).execute()
+        # Log de actualización de fechas de pago
+        registrar_log_actividad(
+            accion="update",
+            tabla_afectada="fechas_de_pagos_op",
+            descripcion=f"Actualizó fechas de pago para OPs: {[u['orden_numero'] for u in upserts]}",
+            datos_despues=upserts
+        )
 
     # Eliminar filas completas para las fechas borradas en una sola consulta
     if deletes:
         supabase.table("fechas_de_pagos_op").delete().in_("orden_numero", deletes).execute()
+        # Log de eliminación de fechas de pago
+        registrar_log_actividad(
+            accion="delete",
+            tabla_afectada="fechas_de_pagos_op",
+            descripcion=f"Eliminó fechas de pago para OPs: {deletes}",
+            datos_antes=deletes
+        )
 
     if not any_error:
         flash("Fechas de pago actualizadas con éxito", "success")
@@ -304,6 +319,14 @@ def export_pagos():
     # Agregar total al final (columna TOTAL PAGO)
     ws.append([])
     ws.append(["", "", "", "TOTAL GENERAL", "", sum(row["total_pago"] for row in pagos)])
+
+    # Log de exportación de pagos
+    registrar_log_actividad(
+        accion="export",
+        tabla_afectada="pagos",
+        descripcion=f"Exportó pagos a Excel. Filtros: {filtros}",
+        datos_despues=f"{len(pagos)} pagos exportados"
+    )
 
     # Guardar y descargar
     output_bytes = io.BytesIO()

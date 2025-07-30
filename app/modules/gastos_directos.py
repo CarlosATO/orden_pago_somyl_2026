@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
 from flask_login import login_required, current_user
+from utils.logger import registrar_log_actividad
 from app.modules.usuarios import require_modulo
 from app.utils.static_data import get_cached_proyectos_with_id, get_cached_items_with_id
 from datetime import date, datetime
@@ -70,7 +71,6 @@ def guardar_gastos_directos():
                 if not all([gasto.get("item_id"), gasto.get("mes"), gasto.get("monto")]):
                     errores.append(f"Gasto {i+1}: Faltan campos obligatorios")
                     continue
-                
                 # Validar monto
                 try:
                     monto = int(gasto["monto"])
@@ -80,17 +80,15 @@ def guardar_gastos_directos():
                 except (ValueError, TypeError):
                     errores.append(f"Gasto {i+1}: Monto inválido")
                     continue
-                
                 # Validar que el item existe
                 item_check = supabase.table("item").select("id").eq("id", gasto["item_id"]).limit(1).execute()
                 if not item_check.data:
                     errores.append(f"Gasto {i+1}: El ítem seleccionado no existe")
                     continue
-                
                 # Insertar gasto
                 fecha_actual = date.today().isoformat()
                 anio = date.today().year
-                resultado = supabase.table("gastos_directos").insert({
+                insert_payload = {
                     "fecha": fecha_actual,
                     "proyecto_id": int(proyecto_id),
                     "item_id": int(gasto["item_id"]),
@@ -99,13 +97,21 @@ def guardar_gastos_directos():
                     "monto": monto,
                     "usuario_id": usuario_id,
                     "anio": anio
-                }).execute()
-                
+                }
+                resultado = supabase.table("gastos_directos").insert(insert_payload).execute()
                 if resultado.data:
+                    gasto_id = resultado.data[0]["id"] if isinstance(resultado.data, list) else None
+                    registrar_log_actividad(
+                        accion="crear",
+                        tabla_afectada="gastos_directos",
+                        registro_id=gasto_id,
+                        descripcion=f"Gasto directo creado para proyecto {proyecto_id} (línea {i+1}).",
+                        datos_antes=None,
+                        datos_despues=insert_payload
+                    )
                     gastos_guardados += 1
                 else:
                     errores.append(f"Gasto {i+1}: Error al guardar en la base de datos")
-                    
             except Exception as e:
                 errores.append(f"Gasto {i+1}: {str(e)}")
         
@@ -162,13 +168,22 @@ def eliminar_gasto(gasto_id):
         if not gasto_check.data:
             return jsonify(success=False, message="El gasto no existe"), 404
         
+        # Obtener datos antes de eliminar
+        gasto_antes = gasto_check.data[0] if gasto_check.data and isinstance(gasto_check.data, list) else None
         # Eliminar gasto
         resultado = supabase.table("gastos_directos") \
             .delete() \
             .eq("id", gasto_id) \
             .execute()
-        
         if resultado.data:
+            registrar_log_actividad(
+                accion="eliminar",
+                tabla_afectada="gastos_directos",
+                registro_id=gasto_id,
+                descripcion=f"Gasto directo eliminado (ID: {gasto_id}).",
+                datos_antes=gasto_antes,
+                datos_despues=None
+            )
             current_app.logger.info(f"Usuario {current_user.nombre} eliminó el gasto directo {gasto_id}")
             return jsonify(success=True, message="Gasto eliminado correctamente")
         else:

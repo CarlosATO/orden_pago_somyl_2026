@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from app.modules.usuarios import require_modulo
 import logging
 import re
+from utils.logger import registrar_log_actividad
 
 bp = Blueprint("proveedores", __name__, template_folder="../templates/proveedores")
 
@@ -121,14 +122,18 @@ def new_proveedor():
         
         # Insertar nuevo proveedor
         result = supabase.table("proveedores").insert(data).execute()
-        
         if hasattr(result, 'error') and result.error:
             current_app.logger.error(f"Error al crear proveedor: {result.error}")
             flash("Error al crear el proveedor", "danger")
         else:
             current_app.logger.info(f"Proveedor creado: {data['nombre']} - {data['rut']}")
             flash(f"Proveedor '{data['nombre']}' creado exitosamente", "success")
-        
+            registrar_log_actividad(
+                accion="insert",
+                tabla_afectada="proveedores",
+                descripcion=f"Creó proveedor {data['nombre']} ({data['rut']})",
+                datos_despues=data
+            )
         return redirect(url_for("proveedores.list_proveedores"))
         
     except Exception as e:
@@ -188,14 +193,19 @@ def edit_proveedor(id):
             
             # Actualizar proveedor
             result = supabase.table("proveedores").update(data).eq("id", id).execute()
-            
             if hasattr(result, 'error') and result.error:
                 current_app.logger.error(f"Error al actualizar proveedor: {result.error}")
                 flash("Error al actualizar el proveedor", "danger")
             else:
                 current_app.logger.info(f"Proveedor actualizado: {data['nombre']} - {data['rut']}")
                 flash(f"Proveedor '{data['nombre']}' actualizado exitosamente", "success")
-            
+                registrar_log_actividad(
+                    accion="update",
+                    tabla_afectada="proveedores",
+                    registro_id=id,
+                    descripcion=f"Actualizó proveedor {data['nombre']} ({data['rut']})",
+                    datos_despues=data
+                )
             return redirect(url_for("proveedores.list_proveedores"))
         
         # GET: mostrar formulario de edición

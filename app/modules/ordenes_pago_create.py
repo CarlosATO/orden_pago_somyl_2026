@@ -1,6 +1,8 @@
 # app/modules/ordenes_pago_create.py
 
 from flask import Blueprint, request, current_app, flash, redirect, url_for
+from flask_login import current_user
+from utils.logger import registrar_log_actividad
 from datetime import date
 
 bp_create = Blueprint('ordenes_pago_create', __name__)
@@ -133,7 +135,17 @@ def crear_orden_pago():
         return redirect(url_for('ordenes_pago.list_ordenes_pago', nombre_proveedor=nombre_proveedor))
 
     # 6) Insertar todas las líneas del payload
-    supabase.table('orden_de_pago').insert(payload).execute()
-
+    result = supabase.table('orden_de_pago').insert(payload).execute()
+    # Log de actividad por cada línea insertada
+    if hasattr(result, 'data') and result.data:
+        for i, linea in enumerate(result.data):
+            registrar_log_actividad(
+                accion="crear",
+                tabla_afectada="orden_de_pago",
+                registro_id=linea.get("id"),
+                descripcion=f"Orden de pago #{numero} creada (línea {i+1}) para proveedor {nombre_proveedor}.",
+                datos_antes=None,
+                datos_despues=payload[i] if i < len(payload) else None
+            )
     flash(f"Orden de pago #{numero} creada con {len(payload)} línea(s).", "success")
     return redirect(url_for('ordenes_pago.list_ordenes_pago', nombre_proveedor=nombre_proveedor))

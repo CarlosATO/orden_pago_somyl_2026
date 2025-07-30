@@ -5,6 +5,8 @@ from datetime import date
 from collections import defaultdict
 from app.modules.usuarios import get_modulos_usuario
 from app.utils.cache import get_select2_cached_results, cache_select2_results
+from flask_login import current_user
+from utils.logger import registrar_log_actividad
 
 # 1) Definimos el Blueprint ANTES de usar @bp.route
 bp = Blueprint("ingresos", __name__, template_folder="../templates/ingresos")
@@ -342,6 +344,17 @@ def save_ingresos():
         if getattr(res, "error", None):
             flash(f"Error al guardar ingreso: {res.error}", "danger")
         else:
+            # Log de actividad por cada ingreso registrado
+            if hasattr(res, 'data') and res.data:
+                for i, ingreso in enumerate(res.data):
+                    registrar_log_actividad(
+                        accion="crear",
+                        tabla_afectada="ingresos",
+                        registro_id=ingreso.get("id"),
+                        descripcion=f"Ingreso registrado para OC {oc_val} (línea {i+1}).",
+                        datos_antes=None,
+                        datos_despues=to_insert[i] if i < len(to_insert) else None
+                    )
             flash("Ingreso registrado con éxito.", "success")
     else:
         flash("No se ingresó ningún registro.", "warning")

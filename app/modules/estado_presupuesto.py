@@ -5,6 +5,8 @@ from collections import defaultdict
 import pandas as pd
 from io import BytesIO
 from app.modules.usuarios import require_modulo
+from flask_login import current_user
+from utils.logger import registrar_log_actividad
 
 bp_estado_presupuesto = Blueprint(
     'estado_presupuesto',
@@ -573,33 +575,27 @@ def update_presupuesto():
         proyecto_id = int(proyecto_id)
         item_id = int(item_id)
         monto = float(value)
-        
         # Parsear el mes para obtener fecha, mes_numero y año
         dt = datetime.strptime(month, '%b-%y')
         fecha_iso = dt.replace(day=1).date().isoformat()
         mes_numero = dt.month
         anio = dt.year
-        
     except (ValueError, TypeError) as e:
         return jsonify(success=False, error=f'Error en formato de datos: {str(e)}')
-    
+
     supabase = current_app.config['SUPABASE']
-    
+
     try:
         # Obtener información del proyecto para el campo 'proyecto' (varchar)
         proyecto_info = supabase.table('proyectos').select('proyecto').eq('id', proyecto_id).execute()
         if not proyecto_info.data:
             return jsonify(success=False, error='Proyecto no encontrado')
-        
         nombre_proyecto = proyecto_info.data[0]['proyecto']
-        
         # Obtener información del item para el campo 'item' (varchar)
         item_info = supabase.table('item').select('tipo').eq('id', item_id).execute()
         if not item_info.data:
             return jsonify(success=False, error='Item no encontrado')
-        
         nombre_item = item_info.data[0]['tipo']
-        
         # Primero verificar si ya existe un registro
         existing = supabase.table('presupuesto') \
             .select('id,monto') \
@@ -607,7 +603,6 @@ def update_presupuesto():
             .eq('item', str(item_id)) \
             .eq('fecha', fecha_iso) \
             .execute()
-        
         if existing.data:
             # Actualizar registro existente
             result = supabase.table('presupuesto') \
@@ -623,8 +618,24 @@ def update_presupuesto():
                 .eq('item', str(item_id)) \
                 .eq('fecha', fecha_iso) \
                 .execute()
-            
             action = 'actualizado'
+            # Log de actividad
+            presupuesto_id = existing.data[0]['id'] if isinstance(existing.data, list) else None
+            registrar_log_actividad(
+                accion="actualizar",
+                tabla_afectada="presupuesto",
+                registro_id=presupuesto_id,
+                descripcion=f"Presupuesto actualizado para proyecto {proyecto_id}, item {item_id}, mes {month}.",
+                datos_antes=existing.data[0] if isinstance(existing.data, list) else None,
+                datos_despues={
+                    'monto': int(monto),
+                    'mes_numero': mes_numero,
+                    'mes_nombre': dt.strftime('%B'),
+                    'anio': anio,
+                    'proyecto': nombre_proyecto,
+                    'item': str(item_id)
+                }
+            )
         else:
             # Crear nuevo registro
             result = supabase.table('presupuesto') \
@@ -641,18 +652,35 @@ def update_presupuesto():
                     'creado_por': 'Sistema'  # O el usuario actual si tienes esa info
                 }) \
                 .execute()
-            
             action = 'creado'
-        
+            # Log de actividad
+            presupuesto_id = result.data[0]['id'] if result.data and isinstance(result.data, list) else None
+            registrar_log_actividad(
+                accion="crear",
+                tabla_afectada="presupuesto",
+                registro_id=presupuesto_id,
+                descripcion=f"Presupuesto creado para proyecto {proyecto_id}, item {item_id}, mes {month}.",
+                datos_antes=None,
+                datos_despues={
+                    'proyecto_id': proyecto_id,
+                    'proyecto': nombre_proyecto,
+                    'item': str(item_id),
+                    'detalle': f'Presupuesto para {nombre_item} - {month}',
+                    'fecha': fecha_iso,
+                    'monto': int(monto),
+                    'mes_numero': mes_numero,
+                    'mes_nombre': dt.strftime('%B'),
+                    'anio': anio,
+                    'creado_por': 'Sistema'
+                }
+            )
         # Verificar si hubo errores en la respuesta de Supabase
         if hasattr(result, 'error') and result.error:
             print(f"Error de Supabase: {result.error}")
             return jsonify(success=False, error=f'Error en base de datos: {result.error}')
-        
         # Verificar si se afectaron filas
         if not result.data:
             return jsonify(success=False, error='No se pudo procesar la actualización')
-        
         return jsonify(
             success=True, 
             message=f'Presupuesto {action} correctamente',
@@ -664,7 +692,6 @@ def update_presupuesto():
                 'action': action
             }
         )
-        
     except Exception as e:
         print(f"Error inesperado en update_presupuesto: {str(e)}")
         return jsonify(success=False, error=f'Error inesperado: {str(e)}')

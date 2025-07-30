@@ -16,7 +16,9 @@ from reportlab.platypus import (
 )
 from reportlab.lib.units import mm
 from app.modules.usuarios import require_modulo
+
 from app.utils.cache import get_cached_data, set_cached_data, get_select2_cached_results, cache_select2_results
+from utils.logger import registrar_log_actividad
 
 bp = Blueprint("ordenes", __name__, template_folder="../templates/ordenes")
 
@@ -205,6 +207,14 @@ def new_orden():
             flash(f"Error al guardar: {res.error}", "danger")
         else:
             flash(f"Orden de Compra {orden_compra} guardada exitosamente.", "success")
+            # Registrar log de actividad
+            registrar_log_actividad(
+                accion="insert",
+                tabla_afectada="orden_de_compra",
+                registro_id=orden_compra,
+                descripcion=f"Creó la orden de compra {orden_compra}",
+                datos_despues=rows
+            )
 
         return redirect(url_for("ordenes.new_orden"))
 

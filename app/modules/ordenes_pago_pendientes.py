@@ -11,6 +11,8 @@ from flask import (
 from flask_login import login_required
 from datetime import datetime
 from app.modules.usuarios import require_modulo
+from flask_login import current_user
+from utils.logger import registrar_log_actividad
 
 bp_pending = Blueprint(
     "ordenes_pago_pendientes", __name__,
@@ -201,6 +203,16 @@ def update_pendiente():
                     if getattr(update_result, "data", None):
                         results.append({"orden_compra": orden_compra, "success": True, "msg": "Documento guardado exitosamente"})
                         current_app.logger.info(f"Documento actualizado: OC={orden_compra}, Factura={factura}")
+                        # Log de actividad
+                        for linea in pendientes:
+                            registrar_log_actividad(
+                                accion="actualizar",
+                                tabla_afectada="orden_de_pago",
+                                registro_id=linea["id"],
+                                descripcion=f"Factura '{factura}' registrada para OC {orden_compra} (pendiente completado)",
+                                datos_antes=linea,
+                                datos_despues={**linea, "factura": factura, "estado_documento": "completado"}
+                            )
                     else:
                         results.append({"orden_compra": orden_compra, "success": False, "msg": "Error al actualizar documento"})
                 except Exception as e:
