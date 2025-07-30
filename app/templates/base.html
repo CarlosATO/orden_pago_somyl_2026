@@ -19,22 +19,23 @@
       /* Botón hamburguesa */
       .hamburger-btn {
         position: fixed;
-        top: 50%;
+        top: 24px;
         left: 0;
-        transform: translateY(-50%) translateX(-50%);
-        z-index: 1200;
-        width: 54px;
-        height: 54px;
+        z-index: 4000;
+        width: 32px;
+        height: 32px;
         background: #fff;
-        border: 1.5px solid #e0e7ef;
-        border-radius: 50%;
-        box-shadow: 0 4px 16px 0 rgba(60, 60, 120, 0.10);
+        border: 1px solid #e0e7ef;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px 0 rgba(60, 60, 120, 0.10);
         display: flex;
         align-items: center;
         justify-content: center;
         cursor: pointer;
-        transition: box-shadow 0.2s, background 0.2s, left var(--transition-normal);
+        transition: background 0.2s, box-shadow 0.2s, left 0.3s;
         outline: none;
+        opacity: 0.92;
+        padding: 0;
       }
       .hamburger-btn:hover, .hamburger-btn:focus {
         background: #f3f4f6;
@@ -55,27 +56,97 @@
         border-radius: 3px;
         opacity: 1;
         left: 0;
-        transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+        transition: all 0.35s cubic-bezier(0.4,0,0.2,1);
       }
       .hamburger-btn .hamburger-icon span:nth-child(1) { top: 6px; }
       .hamburger-btn .hamburger-icon span:nth-child(2) { top: 14px; }
       .hamburger-btn .hamburger-icon span:nth-child(3) { top: 22px; }
-      .sidebar-collapsed .sidebar {
-        transform: translateX(-270px);
-        box-shadow: none;
-        transition: transform var(--transition-normal);
+
+      /* Animación elegante a X */
+      .sidebar-collapsed .hamburger-btn .hamburger-icon span:nth-child(1) {
+        top: 14px;
+        transform: rotate(45deg);
+        background: linear-gradient(90deg, #8b5cf6 60%, #3b82f6 100%);
       }
-      .sidebar-collapsed .hamburger-btn {
-        left: 16px;
+      .sidebar-collapsed .hamburger-btn .hamburger-icon span:nth-child(2) {
+        opacity: 0;
+        left: 50%;
+      }
+      .sidebar-collapsed .hamburger-btn .hamburger-icon span:nth-child(3) {
+        top: 14px;
+        transform: rotate(-45deg);
+        background: linear-gradient(90deg, #8b5cf6 60%, #3b82f6 100%);
+      }
+
+      /* Tooltip elegante */
+      .hamburger-btn[data-tooltip]:hover::after, .hamburger-btn[data-tooltip]:focus::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        left: 110%;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(60,60,120,0.95);
+        color: #fff;
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 500;
+        white-space: nowrap;
+        box-shadow: 0 2px 8px rgba(60,60,120,0.12);
+        z-index: 2000;
+        pointer-events: none;
+        opacity: 1;
+        transition: opacity 0.2s;
+      }
+      .hamburger-btn[data-tooltip]::after {
+        opacity: 0;
+      }
+      .sidebar-collapsed .sidebar {
+        width: 48px !important;
+        min-width: 48px !important;
+        max-width: 48px !important;
+        overflow-x: hidden;
+        box-shadow: var(--shadow-xl);
+        border-right: 1px solid var(--border-color);
+        transition: width var(--transition-normal);
+        transform: none !important;
+      }
+      .sidebar {
+        transition: width var(--transition-normal), left var(--transition-normal);
+      }
+      .sidebar-collapsed .sidebar .logo,
+      .sidebar-collapsed .sidebar .user-info-elegant,
+      .sidebar-collapsed .sidebar .sidebar-footer,
+      .sidebar-collapsed .sidebar .sidebar-nav nav span,
+      .sidebar-collapsed .sidebar .sidebar-nav nav i.bi-chevron-down,
+      .sidebar-collapsed .sidebar .sidebar-nav nav .submenu-header {
+        display: none !important;
+      }
+      .sidebar-collapsed .sidebar .nav-link {
+        justify-content: center;
+        padding: 8px 0 !important;
+        font-size: 0;
+      }
+      .sidebar-collapsed .sidebar .nav-link i {
+        font-size: 1.4rem;
+        margin: 0;
+        display: inline-block !important;
+      }
+      .sidebar-collapsed .sidebar .nav-link span,
+      .sidebar-collapsed .sidebar .nav-link .nav-link-text {
+        display: none !important;
+      }
+      .sidebar-collapsed .sidebar .collapse {
+        display: none !important;
       }
       .sidebar-collapsed .content {
-        margin-left: 0 !important;
+        margin-left: 48px !important;
         transition: margin-left var(--transition-normal);
       }
       @media (max-width: 900px) {
         .hamburger-btn {
-          left: 16px;
-          top: 16px;
+          left: 12px;
+          top: 12px;
         }
         .sidebar {
           left: 0;
@@ -87,8 +158,8 @@
       }
       @media (max-width: 768px) {
         .hamburger-btn {
-          left: 12px;
-          top: 12px;
+          left: 8px;
+          top: 8px;
         }
         .sidebar {
           width: 90vw;
@@ -1074,16 +1145,13 @@
     {% set current = request.path %}
 
     {% if current_user.is_authenticated and request.endpoint != 'auth.login' %}
-      <div class="hamburger-btn shadow" id="hamburgerBtn" data-tooltip="Mostrar/ocultar menú" tabindex="0" aria-label="Mostrar/ocultar menú">
-        <div class="hamburger-icon">
-          <span></span>
-          <span></span>
-          <span></span>
-        </div>
-      </div>
       <aside class="sidebar">
+        <!-- Botón minimalista para expandir/colapsar menú -->
+        <button id="sidebarToggleBtn" class="sidebar-toggle-btn" type="button" aria-label="Expandir/colapsar menú" tabindex="0" data-tooltip="Expandir/colapsar menú">
+          <span class="toggle-icon" id="toggleIcon">&laquo;</span>
+        </button>
         <div class="logo">Compras Somyl</div>
-        
+
         <!-- Bloque de usuario elegante (separado del cuadro de pagos) -->
         <div class="user-info-elegant">
           <div class="user-main-row">
@@ -1094,7 +1162,7 @@
             </div>
           </div>
         </div>
-        
+
         <div class="sidebar-nav">
           <nav>
             <!-- 1. Usuarios -->
@@ -1102,136 +1170,62 @@
                href="{{ url_for('usuarios.list_usuarios') }}">
               <i class="bi bi-person-plus"></i> Usuarios
             </a>
-
-            <!-- 2. Crear O.Compra. -->
+            <!-- 2. Orden de Compra -->
             <a href="{{ url_for('ordenes.new_orden') }}"
                class="nav-link{% if current == url_for('ordenes.new_orden') %} active{% endif %}">
               <i class="bi bi-cart-plus"></i> Orden de Compra
             </a>
-
             <!-- 3. Ingresos -->
             <a href="{{ url_for('ingresos.list_ingresos') }}"
                class="nav-link{% if current == url_for('ingresos.list_ingresos') %} active{% endif %}">
               <i class="bi bi-arrow-down-circle"></i> Ingresos
             </a>
 
-            <!-- 4. Órdenes de Pago (con submenú) -->
+            <!-- 4. Pagos y registros (submenú) -->
             <a class="nav-link d-flex justify-content-between align-items-center menu-main"
-               id="menu-ordenes"
-               data-bs-toggle="collapse" href="#collapseOrdenes">
-               <span><i class="bi bi-cash-stack"></i> Pagos y registros</span>
-               <i class="bi bi-chevron-down small"></i>
-             </a>
-            <div class="collapse {% if
-                  current == url_for('ordenes_pago.list_ordenes_pago') or
-                  current == url_for('ordenes_pago_pendientes.list_pendientes') or
-                  current == url_for('pagos.list_pagos')
-                %}show{% endif %}"
-                 id="collapseOrdenes"
-                 data-bs-parent=".sidebar nav">
-              <div class="submenu-header" data-back="sidebar">
-                Pagos y registros
-              </div>
-              <nav class="nav flex-column ms-3">
-                <a href="{{ url_for('ordenes_pago.list_ordenes_pago') }}"
-                   class="nav-link{% if current == url_for('ordenes_pago.list_ordenes_pago') %} active{% endif %}">
-                  Orden de Pago.
-                </a>
-                <a href="{{ url_for('ordenes_pago_pendientes.list_pendientes') }}"
-                   class="nav-link{% if current == url_for('ordenes_pago_pendientes.list_pendientes') %} active{% endif %}">
-                  Sin Factura
-                </a>
-                <a href="{{ url_for('pagos.list_pagos') }}"
-                   class="nav-link{% if current == url_for('pagos.list_pagos') %} active{% endif %}">
-                  Informe de Pagos
-                </a>
-              </nav>
+               id="menu-pagos"
+               data-bs-toggle="collapse" href="#collapsePagos">
+              <span><i class="bi bi-cash-stack"></i> Pagos y registros</span>
+              <i class="bi bi-chevron-down small"></i>
+            </a>
+            <div class="collapse {% if current == url_for('ordenes_pago.list_ordenes_pago') or current == url_for('ordenes_pago_pendientes.list_pendientes') or current == url_for('pagos.list_pagos') %}show{% endif %}"
+                 id="collapsePagos" data-bs-parent=".sidebar nav">
+              <div class="submenu-header" data-back="sidebar">Pagos y registros</div>
+              <a href="{{ url_for('ordenes_pago.list_ordenes_pago') }}" class="nav-link{% if current == url_for('ordenes_pago.list_ordenes_pago') %} active{% endif %}">Orden de Pago.</a>
+              <a href="{{ url_for('ordenes_pago_pendientes.list_pendientes') }}" class="nav-link{% if current == url_for('ordenes_pago_pendientes.list_pendientes') %} active{% endif %}">Sin Factura</a>
+              <a href="{{ url_for('pagos.list_pagos') }}" class="nav-link{% if current == url_for('pagos.list_pagos') %} active{% endif %}">Informe de Pagos</a>
             </div>
 
-            <!-- 5. Parámetros (con submenú) -->
+            <!-- 5. Parámetros (submenú) -->
             <a class="nav-link d-flex justify-content-between align-items-center menu-main"
                id="menu-parametros"
-               data-bs-toggle="collapse" href="#collapseParams" role="button" aria-expanded="false">
+               data-bs-toggle="collapse" href="#collapseParametros">
               <span><i class="bi bi-gear"></i> Parámetros</span>
               <i class="bi bi-chevron-down small"></i>
             </a>
-            <div class="collapse {% if
-                  current.startswith(url_for('proveedores.list_proveedores')) or
-                  current.startswith(url_for('materiales.list_materiales')) or
-                  current.startswith(url_for('trabajadores.list_trabajadores')) or
-                  current.startswith(url_for('proyectos.list_proyectos'))
-                %}show{% endif %}"
-                 id="collapseParams"
-                 data-bs-parent=".sidebar nav">
-                <div class="submenu-header" data-back="sidebar">
-                  <i class="bi bi-arrow-left"></i> Parámetros
-                </div>
-                <nav class="nav flex-column ms-3">
-                  {% if 'proveedores' in modulos_usuario %}
-                    <a href="{{ url_for('proveedores.list_proveedores') }}"
-                       class="nav-link{% if current == url_for('proveedores.list_proveedores') %} active{% endif %}">
-                      Proveedores
-                    </a>
-                  {% endif %}
-                  {% if 'materiales' in modulos_usuario %}
-                    <a href="{{ url_for('materiales.list_materiales') }}"
-                       class="nav-link{% if current == url_for('materiales.list_materiales') %} active{% endif %}">
-                      Materiales
-                    </a>
-                  {% endif %}
-                  {% if 'items' in modulos_usuario %}
-                    <a href="{{ url_for('items.list_items') }}"
-                       class="nav-link{% if current == url_for('items.list_items') %} active{% endif %}">
-                      Ítems
-                    </a>
-                  {% endif %}
-                  {% if 'trabajadores' in modulos_usuario %}
-                    <a href="{{ url_for('trabajadores.list_trabajadores') }}"
-                       class="nav-link{% if current == url_for('trabajadores.list_trabajadores') %} active{% endif %}">
-                      Trabajadores
-                    </a>
-                  {% endif %}
-                  {% if 'proyectos' in modulos_usuario %}
-                    <a href="{{ url_for('proyectos.list_proyectos') }}"
-                       class="nav-link{% if current == url_for('proyectos.list_proyectos') %} active{% endif %}">
-                      Proyectos
-                    </a>
-                  {% endif %}
-                </nav>
-              </div>
+            <div class="collapse {% if current.startswith('/proveedores') or current.startswith('/materiales') or current.startswith('/items') or current.startswith('/trabajadores') or current.startswith('/proyectos') %}show{% endif %}"
+                 id="collapseParametros" data-bs-parent=".sidebar nav">
+              <div class="submenu-header" data-back="sidebar">Parámetros</div>
+              <a href="{{ url_for('proveedores.list_proveedores') }}" class="nav-link{% if current.startswith('/proveedores') %} active{% endif %}">Proveedores</a>
+              <a href="{{ url_for('materiales.list_materiales') }}" class="nav-link{% if current.startswith('/materiales') %} active{% endif %}">Materiales</a>
+              <a href="{{ url_for('items.list_items') }}" class="nav-link{% if current.startswith('/items') %} active{% endif %}">Ítems</a>
+              <a href="{{ url_for('trabajadores.list_trabajadores') }}" class="nav-link{% if current.startswith('/trabajadores') %} active{% endif %}">Trabajadores</a>
+              <a href="{{ url_for('proyectos.list_proyectos') }}" class="nav-link{% if current.startswith('/proyectos') %} active{% endif %}">Proyectos</a>
+            </div>
 
-            <!-- Presupuesto y otros menús siguen igual... -->
+            <!-- 6. Presupuesto (submenú) -->
             <a class="nav-link d-flex justify-content-between align-items-center menu-main"
                id="menu-presupuesto"
-               data-bs-toggle="collapse" href="#collapsePresupuesto" role="button" aria-expanded="false">
-              <span><i class="bi bi-clipboard-data"></i> Presupuesto</span>
+               data-bs-toggle="collapse" href="#collapsePresupuesto">
+              <span><i class="bi bi-graph-up"></i> Presupuesto</span>
               <i class="bi bi-chevron-down small"></i>
             </a>
-            <div class="collapse {% if
-                  current == url_for('presupuestos.form_presupuesto') or
-                  current == url_for('estado_presupuesto.show_estado') or
-                  current == url_for('gastos_directos.form_gastos_directos')
-                %}show{% endif %}" id="collapsePresupuesto"
-                 data-bs-parent=".sidebar nav">
-              <div class="submenu-header" data-back="sidebar">
-                <i class="bi bi-arrow-left"></i> Presupuesto
-              </div>
-              <nav class="nav flex-column ms-3">
-                <a href="{{ url_for('presupuestos.form_presupuesto') }}"
-                   class="nav-link{% if current == url_for('presupuestos.form_presupuesto') %} active{% endif %}">
-                  Planificación
-                </a>
-                {% if 'gastos_directos' in modulos_usuario %}
-                <a href="{{ url_for('gastos_directos.form_gastos_directos') }}"
-                   class="nav-link{% if current == url_for('gastos_directos.form_gastos_directos') %} active{% endif %}">
-                  Gastos Directos
-                </a>
-                {% endif %}
-                <a href="{{ url_for('estado_presupuesto.show_estado') }}"
-                   class="nav-link{% if current == url_for('estado_presupuesto.show_estado') %} active{% endif %}">
-                  Estado Presupuesto
-                </a>
-              </nav>
+            <div class="collapse {% if current == url_for('presupuestos.form_presupuesto') or current == url_for('gastos_directos.form_gastos_directos') or current == url_for('estado_presupuesto.show_estado') %}show{% endif %}"
+                 id="collapsePresupuesto" data-bs-parent=".sidebar nav">
+              <div class="submenu-header" data-back="sidebar">Presupuesto</div>
+              <a href="{{ url_for('presupuestos.form_presupuesto') }}" class="nav-link{% if current == url_for('presupuestos.form_presupuesto') %} active{% endif %}">Planificación</a>
+              <a href="{{ url_for('gastos_directos.form_gastos_directos') }}" class="nav-link{% if current == url_for('gastos_directos.form_gastos_directos') %} active{% endif %}">Gastos Directos</a>
+              <a href="{{ url_for('estado_presupuesto.show_estado') }}" class="nav-link{% if current == url_for('estado_presupuesto.show_estado') %} active{% endif %}">Estado Presupuesto</a>
             </div>
           </nav>
         </div>
@@ -1289,14 +1283,32 @@
 
     <!-- Fix global para limpiar backdrop y modal-open si quedan atascados -->
     <script>
-    // Hamburguesa para mostrar/ocultar sidebar
+    // Botón minimalista para expandir/colapsar sidebar
     document.addEventListener('DOMContentLoaded', function() {
-      const hamburgerBtn = document.getElementById('hamburgerBtn');
+      const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
       const body = document.body;
-      if (hamburgerBtn) {
-        hamburgerBtn.addEventListener('click', function() {
+      const toggleIcon = document.getElementById('toggleIcon');
+      function updateIcon() {
+        if (body.classList.contains('sidebar-collapsed')) {
+          toggleIcon.innerHTML = '&raquo;';
+        } else {
+          toggleIcon.innerHTML = '&laquo;';
+        }
+      }
+      if (sidebarToggleBtn) {
+        sidebarToggleBtn.addEventListener('click', function() {
           body.classList.toggle('sidebar-collapsed');
+          updateIcon();
         });
+        sidebarToggleBtn.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            body.classList.toggle('sidebar-collapsed');
+            updateIcon();
+          }
+        });
+        // Inicializa el icono correctamente
+        updateIcon();
       }
     });
       // Llama esto después de cerrar cualquier modal, o periódicamente
