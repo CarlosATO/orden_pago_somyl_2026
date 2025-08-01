@@ -1,5 +1,5 @@
 {% extends "base_simple.html" %}
-{% block title %}Iniciar Sesión - Compras Somyl{% endblock %}
+{% block title %}Iniciar Sesión - Gestión Somyl{% endblock %}
 {% block content %}
 <style>
   body {
@@ -13,7 +13,7 @@
     overflow: hidden;
   }
 
-  /* Fondo sutil de documentos */
+  /* Fondo sutil con patrones de documentos financieros */
   body::before {
     content: '';
     position: fixed;
@@ -23,10 +23,29 @@
     bottom: 0;
     background-image: 
       linear-gradient(45deg, rgba(255,255,255,0.8) 20%, rgba(255,255,255,0.6) 21%, rgba(255,255,255,0.6) 35%, transparent 36%),
-      linear-gradient(-30deg, rgba(240,248,255,0.7) 65%, rgba(240,248,255,0.5) 66%, rgba(240,248,255,0.5) 80%, transparent 81%),
-      repeating-linear-gradient(0deg, transparent, transparent 25px, rgba(102, 126, 234, 0.015) 25px, rgba(102, 126, 234, 0.015) 26px);
+      linear-gradient(-30deg, rgba(236,254,255,0.7) 65%, rgba(236,254,255,0.5) 66%, rgba(236,254,255,0.5) 80%, transparent 81%),
+      repeating-linear-gradient(0deg, transparent, transparent 25px, rgba(14, 165, 233, 0.015) 25px, rgba(14, 165, 233, 0.015) 26px);
     pointer-events: none;
     z-index: 0;
+  }
+
+  /* Elementos decorativos flotantes */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 20%;
+    right: 15%;
+    width: 120px;
+    height: 120px;
+    background: radial-gradient(circle, rgba(14, 165, 233, 0.05) 0%, transparent 70%);
+    border-radius: 50%;
+    animation: float 6s ease-in-out infinite;
+    z-index: 1;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-15px) rotate(2deg); }
   }
 
   @keyframes slideInUp {
@@ -39,15 +58,20 @@
     to { transform: scale(1); opacity: 1; }
   }
 
+  @keyframes shimmer {
+    0% { background-position: -200px 0; }
+    100% { background-position: calc(200px + 100%) 0; }
+  }
+
   .login-container {
-    max-width: 370px;
+    max-width: 380px;
     width: 100%;
     background: rgba(255, 255, 255, 0.97);
     backdrop-filter: blur(16px) saturate(160%);
-    border-radius: 18px;
-    box-shadow: 0 8px 32px rgba(102,126,234,0.10), 0 1.5px 4px rgba(118,75,162,0.07);
-    border: 1px solid rgba(226,232,240,0.25);
-    padding: 22px 18px 18px 18px;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(14,165,233,0.12), 0 2px 6px rgba(59,130,246,0.08);
+    border: 1px solid rgba(226,232,240,0.3);
+    padding: 24px 20px 20px 20px;
     margin: 32px auto;
     position: relative;
     overflow: hidden;
@@ -67,32 +91,45 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.015) 0%, rgba(118, 75, 162, 0.015) 100%);
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.02) 0%, rgba(59, 130, 246, 0.02) 100%);
     pointer-events: none;
   }
 
   .login-header {
     text-align: center;
-    margin-bottom: 18px;
+    margin-bottom: 20px;
     position: relative;
     z-index: 1;
   }
 
   .company-logo {
-    width: 54px;
-    height: 54px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 14px;
+    width: 58px;
+    height: 58px;
+    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 50%, #1e40af 100%);
+    border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 10px;
+    margin: 0 auto 12px;
     color: white;
-    font-size: 1.45rem;
+    font-size: 1.5rem;
     font-weight: 800;
     letter-spacing: 0.5px;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.18);
+    box-shadow: 0 6px 16px rgba(14, 165, 233, 0.25);
     animation: fadeInScale 0.8s ease-out 0.2s both;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .company-logo::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+    animation: shimmer 3s infinite;
   }
 
   .company-info {
@@ -100,18 +137,37 @@
   }
 
   .company-title {
-    font-size: 1.5rem;
+    font-size: 1.55rem;
     font-weight: 700;
-    color: #2d3748;
+    color: #1e293b;
     margin-bottom: 6px;
     letter-spacing: -0.3px;
   }
 
   .company-subtitle {
-    font-size: 0.9rem;
+    font-size: 0.92rem;
     color: #64748b;
     font-weight: 500;
-    margin-bottom: 0;
+    margin-bottom: 8px;
+  }
+
+  .system-features {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 4px;
+    animation: slideInUp 0.8s ease-out 0.4s both;
+  }
+
+  .feature-badge {
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
+    color: #0369a1;
+    padding: 4px 8px;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border: 1px solid rgba(14, 165, 233, 0.2);
+    backdrop-filter: blur(10px);
   }
 
   .login-form {
@@ -121,33 +177,33 @@
   }
 
   .form-title {
-    font-size: 1.1rem;
+    font-size: 1.15rem;
     font-weight: 600;
     color: #374151;
     text-align: center;
-    margin-bottom: 24px;
+    margin-bottom: 26px;
     opacity: 0.9;
   }
 
   .form-group {
-    margin-bottom: 13px;
+    margin-bottom: 16px;
     position: relative;
   }
 
   .form-label {
     font-weight: 600;
     color: #4b5563;
-    margin-bottom: 6px;
+    margin-bottom: 7px;
     display: block;
-    font-size: 0.85rem;
+    font-size: 0.87rem;
   }
 
   .form-control {
     width: 100%;
-    padding: 12px 16px 12px 42px;
+    padding: 13px 16px 13px 44px;
     border: 2px solid rgba(226, 232, 240, 0.7);
-    border-radius: 10px;
-    font-size: 0.95rem;
+    border-radius: 12px;
+    font-size: 0.96rem;
     background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(10px);
     transition: all 0.3s ease;
@@ -156,40 +212,41 @@
 
   .form-control:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.08);
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
     background: white;
     transform: translateY(-1px);
   }
 
   .input-icon {
     position: absolute;
-    left: 13px;
-    top: 33px;
+    left: 14px;
+    top: 36px;
     color: #9ca3af;
-    font-size: 1rem;
+    font-size: 1.1rem;
     pointer-events: none;
     transition: color 0.3s ease;
   }
 
   .form-control:focus + .input-icon {
-    color: #667eea;
+    color: #0ea5e9;
   }
 
   .btn-login {
     width: 100%;
-    padding: 11px 18px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 13px 20px;
+    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 50%, #1e40af 100%);
     color: white;
     border: none;
-    border-radius: 10px;
-    font-size: 0.98rem;
+    border-radius: 12px;
+    font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
-    margin-top: 4px;
+    margin-top: 6px;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
   }
 
   .btn-login::before {
@@ -209,7 +266,7 @@
 
   .btn-login:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.35);
+    box-shadow: 0 8px 24px rgba(14, 165, 233, 0.3);
   }
 
   .btn-login:active {
@@ -218,9 +275,9 @@
 
   .alert {
     border: none;
-    border-radius: 10px;
-    padding: 10px 14px;
-    margin-bottom: 18px;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
     font-weight: 500;
     backdrop-filter: blur(10px);
     animation: slideInUp 0.5s ease-out;
@@ -228,78 +285,109 @@
   }
 
   .alert-info {
-    background: rgba(66, 153, 225, 0.08);
-    color: #2563eb;
-    border-left: 3px solid #3b82f6;
+    background: rgba(14, 165, 233, 0.08);
+    color: #0369a1;
+    border-left: 4px solid #0ea5e9;
   }
 
   .alert-danger {
     background: rgba(239, 68, 68, 0.08);
     color: #dc2626;
-    border-left: 3px solid #ef4444;
+    border-left: 4px solid #ef4444;
   }
 
   .security-note {
     text-align: center;
-    margin-top: 14px;
-    padding-top: 10px;
-    border-top: 1px solid rgba(226, 232, 240, 0.35);
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(226, 232, 240, 0.4);
     color: #718096;
-    font-size: 0.82rem;
+    font-size: 0.84rem;
     animation: slideInUp 0.8s ease-out 0.8s both;
   }
 
   .security-icon {
     color: #10b981;
-    margin-right: 5px;
-    font-size: 0.85rem;
+    margin-right: 6px;
+    font-size: 0.9rem;
   }
 
-  .feature-icons {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-bottom: 12px;
-    animation: slideInUp 0.8s ease-out 0.6s both;
+  /* Loading spinner */
+  .login-loading {
+    display: none;
+    text-align: center;
+    margin-top: 18px;
+    padding: 16px 12px;
+    background: rgba(14, 165, 233, 0.08);
+    border: 1px solid rgba(14, 165, 233, 0.15);
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    animation: slideInUp 0.3s ease-out;
+  }
+
+  .spinner {
+    width: 22px;
+    height: 22px;
+    border: 3px solid rgba(14, 165, 233, 0.2);
+    border-top: 3px solid #0ea5e9;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    margin-right: 10px;
+    vertical-align: middle;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
   }
 
   /* Responsive */
   @media (max-width: 480px) {
     .login-container {
-      margin: 8px;
-      padding: 14px 6px 10px 6px;
-      max-width: 98vw;
+      margin: 10px;
+      padding: 20px 16px 16px 16px;
+      max-width: 95vw;
     }
     
     .company-title {
-      font-size: 1.18rem;
+      font-size: 1.35rem;
     }
     
-    .feature-icons {
-      gap: 7px;
+    .system-features {
+      gap: 8px;
     }
     
-    .feature-icon {
-      width: 30px;
-      height: 30px;
-      font-size: 0.98rem;
+    .feature-badge {
+      font-size: 0.65rem;
+      padding: 3px 6px;
     }
   }
 
   @media (max-width: 360px) {
     .login-container {
-      padding: 24px 20px;
+      padding: 18px 14px;
+    }
+    
+    .form-control {
+      padding: 12px 14px 12px 40px;
     }
   }
 </style>
 
 <div class="login-container">
-  <!-- Header compacto -->
+  <!-- Header -->
   <div class="login-header">
     <div class="company-logo">S</div>
     <div class="company-info">
-      <h1 class="company-title">Compras Somyl S.A.</h1>
-      <p class="company-subtitle">Sistema de Gestión de Adquisiciones</p>
+      <h1 class="company-title">Gestión Somyl S.A.</h1>
+      <p class="company-subtitle">Sistema Integral de Administración</p>
+      <div class="system-features">
+        <span class="feature-badge">OC</span>
+        <span class="feature-badge">OP</span>
+        <span class="feature-badge">Presupuestos</span>
+        <span class="feature-badge">Producción</span>
+      </div>
     </div>
   </div>
 
@@ -316,7 +404,7 @@
 
   <!-- Formulario de login -->
   <div class="login-form">
-    <h2 class="form-title">Iniciar Sesión</h2>
+    <h2 class="form-title">Acceso al Sistema</h2>
     
     <form method="post">
       <div class="form-group">
@@ -327,8 +415,9 @@
                name="email" 
                required 
                autofocus
-               placeholder="usuario@somyl.cl">
-        <i class="bi bi-envelope input-icon"></i>
+               placeholder="usuario@somyl.cl"
+               autocomplete="email">
+        <i class="bi bi-person-circle input-icon"></i>
       </div>
       
       <div class="form-group">
@@ -338,30 +427,56 @@
                id="password" 
                name="password" 
                required
-               placeholder="••••••••">
-        <i class="bi bi-lock input-icon"></i>
+               placeholder="••••••••"
+               autocomplete="current-password">
+        <i class="bi bi-shield-lock input-icon"></i>
       </div>
       
       <button type="submit" class="btn-login" id="btn-login">
         <i class="bi bi-box-arrow-in-right me-2"></i>
-        Acceder al Sistema
+        Ingresar al Sistema
       </button>
-      <div id="login-loading" style="display:none; text-align:center; margin-top:16px;">
-        <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
-        <span style="margin-left:8px; color:#667eea; font-weight:500;">Ingresando...</span>
+      
+      <div class="login-loading" id="login-loading">
+        <div class="spinner"></div>
+        <span style="color:#0ea5e9; font-weight:500;">Validando credenciales...</span>
       </div>
     </form>
+
     <script>
       document.addEventListener('DOMContentLoaded', function() {
         const form = document.querySelector('.login-form form');
         const btn = document.getElementById('btn-login');
         const loading = document.getElementById('login-loading');
-        if (form) {
-          form.addEventListener('submit', function() {
+        
+        if (form && btn && loading) {
+          form.addEventListener('submit', function(e) {
+            // Mostrar estado de carga inmediatamente
             btn.disabled = true;
             btn.style.opacity = '0.6';
+            btn.style.transform = 'scale(0.98)';
+            btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Conectando...';
             loading.style.display = 'block';
+            
+            // Opcional: pequeño delay para que se vea el efecto
+            setTimeout(() => {
+              // El formulario se enviará normalmente después del delay
+            }, 200);
           });
+        }
+
+        // Efecto de typing en placeholder
+        const emailInput = document.getElementById('email');
+        if (emailInput) {
+          const placeholders = ['usuario@somyl.cl', 'admin@somyl.cl', 'gerencia@somyl.cl'];
+          let currentPlaceholder = 0;
+          
+          setInterval(() => {
+            if (!emailInput.value && document.activeElement !== emailInput) {
+              currentPlaceholder = (currentPlaceholder + 1) % placeholders.length;
+              emailInput.placeholder = placeholders[currentPlaceholder];
+            }
+          }, 3000);
         }
       });
     </script>
@@ -369,7 +484,7 @@
     <!-- Nota de seguridad -->
     <div class="security-note">
       <i class="bi bi-shield-check security-icon"></i>
-      Conexión segura y cifrada
+      Sistema protegido con cifrado de nivel empresarial
     </div>
   </div>
 </div>
