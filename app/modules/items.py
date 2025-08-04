@@ -37,6 +37,9 @@ def new_item():
 
     current_app.config['SUPABASE'].table("item").insert({"tipo": tipo}).execute()
     flash("Tipo creado exitosamente.", "success")
+    # Invalidar cache de items para búsquedas (Select2)
+    from app.utils.cache import invalidate_select2_cache
+    invalidate_select2_cache("items")
     return redirect(url_for("items.list_items"))
 
 @bp.route("/edit/<int:id>", methods=["GET", "POST"])

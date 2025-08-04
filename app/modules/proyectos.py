@@ -86,6 +86,9 @@ def new_proyecto():
                 datos_despues=payload
             )
             flash(f"Proyecto '{proyecto_val}' creado exitosamente.", "success")
+            # Invalidar cache de proyectos para búsquedas (Select2)
+            from app.utils.cache import invalidate_select2_cache
+            invalidate_select2_cache("proyectos")
         else:
             current_app.logger.error(f"Error al crear proyecto: {result}")
             flash("Error al crear el proyecto. Intente nuevamente.", "danger")

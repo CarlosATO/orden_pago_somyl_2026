@@ -146,6 +146,9 @@ def nuevo_usuario():
                         current_app.logger.error(f"Error insertando módulo {modulo_id}: {e}")
                 current_app.logger.info(f"Módulos insertados: {modulos_insertados}")
                 flash(f'Usuario creado correctamente con {modulos_insertados} módulos asignados', 'success')
+                # Invalidar cache de usuarios para búsquedas (Select2)
+                from app.utils.cache import invalidate_select2_cache
+                invalidate_select2_cache("usuarios")
                 return redirect(url_for('usuarios.list_usuarios'))
             else:
                 error_msg = f'Error al crear usuario: {res}'

@@ -123,6 +123,9 @@ def new_trabajador():
             datos_despues=payload
         )
         flash(f"Trabajador '{nombre}' creado exitosamente.", "success")
+        # Invalidar cache de trabajadores para búsquedas (Select2)
+        from app.utils.cache import invalidate_select2_cache
+        invalidate_select2_cache("trabajadores")
         return redirect(url_for("trabajadores.list_trabajadores"))
         
     except Exception as e:

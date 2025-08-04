@@ -72,6 +72,9 @@ def new_material():
         datos_despues=payload
     )
     flash("Material creado exitosamente.", "success")
+    # Invalidar cache de materiales para búsquedas (Select2)
+    from app.utils.cache import invalidate_select2_cache
+    invalidate_select2_cache("materiales")
     return redirect(url_for("materiales.list_materiales"))
 
 @bp.route("/edit/<int:id>", methods=["GET", "POST"])
