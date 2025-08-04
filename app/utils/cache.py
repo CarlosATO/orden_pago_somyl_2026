@@ -1,3 +1,7 @@
+# Función para invalidar el cache de Select2 por tabla
+def invalidate_select2_cache(table):
+    pattern = f"select2_{table}_"
+    clear_cache(pattern)
 # app/utils/cache.py
 
 from datetime import datetime, timedelta
