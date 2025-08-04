@@ -252,9 +252,14 @@ def new_orden_pago():
         fecha_factura     = f.get("fecha_factura")
         vencimiento       = f.get("vencimiento")
         estado_pago       = f.get("estado_pago")
-        detalle_compra    = f.get("detalle_compra", "")
-        
+        detalle_compra    = f.get("detalle_compra", "").strip()
+
         current_app.logger.info(f"Procesando orden {orden_numero} para proveedor {proveedor_nombre}")
+
+        # Validar que el detalle de compra no esté vacío
+        if not detalle_compra:
+            flash("El campo 'Detalle de Compra' es obligatorio. Debe ingresar al menos un comentario.", "danger")
+            return redirect(url_for("ordenes_pago.list_ordenes_pago"))
 
         # Listas de inputs múltiples
         ingreso_ids        = f.getlist("ingreso_id[]")
