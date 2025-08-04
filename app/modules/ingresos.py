@@ -375,11 +375,11 @@ def api_buscar_oc():
         return jsonify({"results": cached_results})
     
     try:
-        # Busca OCs que contengan el término - optimizado
+        # Busca OCs que contengan el término - optimizado con cast
         ocs = (
             supabase.table("orden_de_compra")
                      .select("orden_compra")
-                     .ilike("orden_compra", f"%{term}%")
+                     .ilike("orden_compra::text", f"%{term}%")
                      .order("orden_compra", desc=True)
                      .limit(20)
                      .execute().data or []

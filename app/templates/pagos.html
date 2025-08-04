@@ -1,8 +1,272 @@
+<!-- Modal para historial de abonos -->
+<div class="modal fade" id="abonosModal" tabindex="-1" aria-labelledby="abonosModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="abonosModalLabel">Historial de Abonos - OP <span id="modalOrdenNum"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formAbono" class="row g-2 mb-3" onsubmit="return registrarAbono(event)">
+          <input type="hidden" id="abonoOrdenNum" name="orden_numero">
+          <div class="col-md-3">
+            <input type="date" class="form-control form-control-sm" id="abonoFecha" name="fecha_abono" required value="{{ date.today().isoformat() }}">
+          </div>
+          <div class="col-md-3">
+            <input type="number" class="form-control form-control-sm" id="abonoMonto" name="monto_abono" min="1" step="any" placeholder="Monto abono" required>
+          </div>
+          <div class="col-md-4">
+            <input type="text" class="form-control form-control-sm" id="abonoObs" name="observacion" maxlength="100" placeholder="Observación">
+          </div>
+          <div class="col-md-2">
+            <button type="submit" id="btnRegistrarAbono" class="btn btn-success btn-sm w-100" disabled>Registrar abono</button>
+          </div>
+        </form>
+        <table class="table table-bordered table-sm">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Monto</th>
+              <th>Observación</th>
+              <th>Usuario</th>
+              <th>Registrado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="abonosTableBody">
+          </tbody>
+        </table>
+      </div>
+<script>
+let abonoEditandoId = null;
+function showAbonos(orden_numero) {
+  document.getElementById('abonoOrdenNum').value = orden_numero;
+  document.getElementById('btnRegistrarAbono').disabled = !orden_numero;
+  
+  // Agregar timestamp para evitar cache del navegador
+  const timestamp = new Date().getTime();
+  const url = `/pagos/abonos/${orden_numero}?_=${timestamp}`;
+  
+  fetch(url, {
+    method: 'GET',
+    headers: {
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache'
+    }
+  })
+    .then(resp => resp.json())
+    .then(data => {
+      document.getElementById('modalOrdenNum').innerText = orden_numero;
+      const tbody = document.getElementById('abonosTableBody');
+      tbody.innerHTML = '';
+      if (data.abonos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Sin abonos registrados</td></tr>';
+      } else {
+        data.abonos.forEach(ab => {
+          tbody.innerHTML += `<tr>
+            <td>${ab.fecha_abono || ''}</td>
+            <td>${abonoEditandoId === ab.id ? `<input type='number' id='editMonto' value='${ab.monto_abono}' min='1' step='any' class='form-control form-control-sm' style='width:90px;'>` : `$${ab.monto_abono.toLocaleString('es-CL')}`}</td>
+            <td>${abonoEditandoId === ab.id ? `<input type='text' id='editObs' value='${ab.observacion || ''}' maxlength='100' class='form-control form-control-sm'>` : (ab.observacion || '')}</td>
+            <td>${ab.usuario || ''}</td>
+            <td>${ab.created_at ? ab.created_at.substring(0, 19).replace('T', ' ') : ''}</td>
+            <td>
+              ${abonoEditandoId === ab.id ?
+                `<button class='btn btn-success btn-sm' onclick='guardarEdicionAbono(${ab.id}, ${ab.orden_numero})'>Guardar</button>
+                 <button class='btn btn-secondary btn-sm' onclick='cancelarEdicionAbono()'>Cancelar</button>` :
+                `<button class='btn btn-warning btn-sm' onclick='editarAbono(${ab.id}, ${ab.monto_abono}, "${ab.observacion ? ab.observacion.replace(/"/g, '&quot;') : ''}")'>Editar</button>
+                 <button class='btn btn-danger btn-sm' onclick='eliminarAbono(${ab.id}, ${ab.orden_numero})'>Eliminar</button>`}
+            </td>
+          </tr>`;
+        });
+      }
+      var modal = new bootstrap.Modal(document.getElementById('abonosModal'));
+      modal.show();
+    })
+    .catch(error => {
+      console.error('Error al cargar abonos:', error);
+    });
+}
+
+function editarAbono(id, monto, obs) {
+  abonoEditandoId = id;
+  showAbonos(document.getElementById('abonoOrdenNum').value);
+}
+function cancelarEdicionAbono() {
+  abonoEditandoId = null;
+  showAbonos(document.getElementById('abonoOrdenNum').value);
+}
+function guardarEdicionAbono(id, orden_numero) {
+  const monto = document.getElementById('editMonto').value;
+  const obs = document.getElementById('editObs').value;
+  
+  // Validar que el monto sea válido
+  if (!monto || parseFloat(monto) <= 0) {
+    alert('El monto debe ser mayor a cero');
+    return;
+  }
+  
+  fetch(`/pagos/abonos/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ monto_abono: monto, observacion: obs })
+  })
+  .then(resp => {
+    if (!resp.ok) {
+      throw new Error(`HTTP error! status: ${resp.status}`);
+    }
+    return resp.json();
+  })
+  .then(data => {
+    abonoEditandoId = null;
+    if (data.success) {
+      // Actualizar solo esta fila en lugar de recargar todo
+      showAbonos(orden_numero);
+      // Marcar que necesitamos recargar la página al cerrar el modal
+      window.needsPageReload = true;
+    } else {
+      alert('Error: ' + (data.error || 'No se pudo editar abono.'));
+    }
+  })
+  .catch(error => {
+    console.error('Error al editar abono:', error);
+    alert('Error de conexión al editar el abono. Inténtalo de nuevo.');
+    abonoEditandoId = null;
+  });
+}
+function eliminarAbono(id, orden_numero) {
+  if (!confirm('¿Seguro que deseas eliminar este abono?')) return;
+  
+  fetch(`/pagos/abonos/${id}`, { 
+    method: 'DELETE',
+    headers: {
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache'
+    }
+  })
+    .then(resp => {
+      if (!resp.ok) {
+        throw new Error(`HTTP error! status: ${resp.status}`);
+      }
+      return resp.json();
+    })
+    .then(data => {
+      if (data.success) {
+        // Eliminar inmediatamente la fila del DOM
+        const tableBody = document.getElementById('abonosTableBody');
+        const rows = tableBody.querySelectorAll('tr');
+        
+        rows.forEach(row => {
+          const deleteButton = row.querySelector(`button[onclick*="eliminarAbono(${id}"]`);
+          if (deleteButton) {
+            row.remove();
+          }
+        });
+        
+        // Verificar si quedan filas, si no, mostrar mensaje
+        const remainingRows = tableBody.querySelectorAll('tr');
+        if (remainingRows.length === 0) {
+          tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Sin abonos registrados</td></tr>';
+        }
+        
+        // Marcar que necesitamos recargar la página al cerrar el modal
+        window.needsPageReload = true;
+        
+        // Limpiar cualquier cache del navegador para esta OP
+        if ('caches' in window) {
+          caches.delete(`abonos-${orden_numero}`);
+        }
+        
+        console.log('Abono eliminado exitosamente');
+      } else {
+        alert('Error: ' + (data.error || 'No se pudo eliminar abono.'));
+      }
+    })
+    .catch(error => {
+      console.error('Error al eliminar abono:', error);
+      alert('Error de conexión al eliminar el abono. Inténtalo de nuevo.');
+    });
+}
+function registrarAbono(event) {
+  event.preventDefault();
+  console.log('[DEBUG] document:', document);
+  const abonoInput = document.getElementById('abonoOrdenNum');
+  console.log('[DEBUG] abonoOrdenNum input:', abonoInput);
+  const orden_numero = abonoInput ? abonoInput.value : null;
+  console.log('[DEBUG] Valor de orden_numero antes de registrar:', orden_numero);
+  if (!orden_numero) {
+    alert('Error: No se ha seleccionado una orden de pago.');
+    return false;
+  }
+  const monto = document.getElementById('abonoMonto').value;
+  const fecha = document.getElementById('abonoFecha').value;
+  const obs = document.getElementById('abonoObs').value;
+  fetch(`/pagos/abonos/${orden_numero}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ monto_abono: monto, fecha_abono: fecha, observacion: obs })
+  })
+  .then(resp => resp.json())
+  .then(data => {
+    if (data.success) {
+      showAbonos(orden_numero);
+      document.getElementById('formAbono').reset();
+      document.getElementById('btnRegistrarAbono').disabled = true;
+      // Marcar que necesitamos recargar la página al cerrar el modal
+      window.needsPageReload = true;
+      // Cerrar el modal automáticamente
+      setTimeout(() => {
+        var modalEl = document.getElementById('abonosModal');
+        var modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+        modal.hide();
+      }, 500);
+    } else {
+      alert('Error: ' + (data.error || 'No se pudo registrar abono.'));
+    }
+  });
+  return false;
+}
+
+// Agregar event listener para recargar la página cuando se cierre el modal si hubo cambios
+document.addEventListener('DOMContentLoaded', function() {
+  const modalEl = document.getElementById('abonosModal');
+  if (modalEl) {
+    modalEl.addEventListener('hidden.bs.modal', function () {
+      if (window.needsPageReload) {
+        window.needsPageReload = false;
+        // Recargar la página para actualizar los totales
+        window.location.reload();
+      }
+    });
+  }
+});
+</script>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ...eliminada duplicidad de showAbonos...
+</script>
 {% extends 'base.html' %}
 
 {% block title %}Informe de Pagos - SOMYL{% endblock %}
 
 {% block content %}
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="container mt-3">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
 <style>
   /* Estilos modernos para la tabla de pagos */
   .payment-table {
@@ -215,6 +479,19 @@
   
   .stats-pending { background-color: #dc3545; }
   .stats-paid { background-color: #28a745; }
+  
+  /* Estilos para filas de pagos */
+  .row-paid {
+    background-color: #d4edda !important; /* Verde suave para pagadas */
+  }
+  
+  .row-partial {
+    background-color: #fff3cd !important; /* Amarillo suave para abonos parciales */
+  }
+  
+  .row-paid:hover, .row-partial:hover {
+    filter: brightness(0.95); /* Efecto hover para filas coloreadas */
+  }
   
   /* Mejoras para búsqueda y filtros */
   .search-highlight {
@@ -461,6 +738,9 @@
               <th class="col-detalle">DETALLE O.PAGO</th>
               <th class="col-factura">FACTURA<br>ASOCIADA</th>
               <th class="col-total-pago">TOTAL<br>PAGO</th>
+              <th>ABONADO</th>
+              <th>SALDO<br>PENDIENTE</th>
+              <th>HISTORIAL<br>ABONOS</th>
               <th class="col-fecha-pago">FECHA DE<br>PAGO</th>
               <th class="col-proyecto">PROYECTO</th>
               <th class="col-orden-compra">O.COMPRA</th>
@@ -472,7 +752,7 @@
           </thead>
           <tbody>
             {% for p in pagos %}
-            <tr class="{% if p.fecha_pago %}row-paid{% endif %}" data-orden="{{ p.orden_numero }}">
+            <tr class="{% if p.fecha_pago %}row-paid{% elif p.total_abonado > 0 and p.saldo_pendiente > 0 %}row-partial{% endif %}" data-orden="{{ p.orden_numero }}">
               <td class="col-fecha-op">
                 <small class="text-muted">{{ p.fecha }}</small>
               </td>
@@ -497,11 +777,20 @@
                   <span class="text-muted">-</span>
                 {% endif %}
               </td>
-              <td class="col-total-pago">
-                <strong class="text-{% if p.fecha_pago %}success{% else %}danger{% endif %}">
-                  ${{ "{:,.0f}".format(p.total_pago).replace(',', '.') }}
-                </strong>
-              </td>
+            <td class="col-total-pago">
+              <strong class="text-{% if p.fecha_pago %}success{% else %}danger{% endif %}">
+                ${{ "{:,.0f}".format(p.total_pago).replace(',', '.') }}
+              </strong>
+            </td>
+            <td>
+              <span class="text-primary">${{ "{:,.0f}".format(p.total_abonado).replace(',', '.') }}</span>
+            </td>
+            <td>
+              <span class="text-danger">${{ "{:,.0f}".format(p.saldo_pendiente).replace(',', '.') }}</span>
+            </td>
+            <td>
+              <button type="button" class="btn btn-outline-info btn-sm" onclick="showAbonos({{ p.orden_numero }})">Ver</button>
+            </td>
               <td class="col-fecha-pago">
                 <input type="date"
                        name="fecha_pago[]"
@@ -699,12 +988,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Confirmación antes de enviar formulario
   const form = document.querySelector('form');
+  let isSubmitting = false; // Protección contra envío duplicado
+  
   form.addEventListener('submit', function(e) {
+    // Prevenir envío duplicado
+    if (isSubmitting) {
+      e.preventDefault();
+      return false;
+    }
+    
     const changedDates = Array.from(dateInputs).filter(input => input.value && input.style.backgroundColor).length;
     if (changedDates > 0) {
       if (!confirm(`¿Confirma guardar ${changedDates} fecha(s) de pago?`)) {
         e.preventDefault();
+        return false;
       }
+    }
+    
+    // Marcar como enviando para prevenir duplicados
+    isSubmitting = true;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
     }
   });
 

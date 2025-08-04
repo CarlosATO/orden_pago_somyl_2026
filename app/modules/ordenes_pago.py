@@ -58,15 +58,19 @@ def list_ordenes_pago():
             offset += page_size
         return all_rows
 
+    # LÓGICA ORIGINAL RESTAURADA: traer todas, agrupar, luego filtrar pendientes
     pagos_all = fetch_all_rows("orden_de_pago", "id, ingreso_id, orden_numero, proveedor_nombre, fecha, factura, estado_documento", "orden_numero")
+    
     # Agrupar por orden_numero y quedarnos sólo con el primero de cada OP
     pagos_unicos = {}
     for p in pagos_all:
         num = p["orden_numero"]
         if num not in pagos_unicos:
             pagos_unicos[num] = p
+    
     # Sólo pendientes de documento
     pagos = [p for p in pagos_unicos.values() if p["estado_documento"] == "pendiente"]
+    
     providers = fetch_all_rows("proveedores", "id, nombre")
     trabajadores = fetch_all_rows("trabajadores", "id, nombre, correo")
 
@@ -117,7 +121,7 @@ def list_ordenes_pago():
         
         current_app.logger.info(f"Materiales encontrados: {len(mat_map)}")
 
-        # ingresos ya usados en OP
+        # ingresos ya usados en OP - LÓGICA ORIGINAL RESTAURADA
         pagados_ids = {p["ingreso_id"] for p in pagos_all if p.get("ingreso_id")}
         current_app.logger.info(f"Ingresos ya pagados: {len(pagados_ids)}")
 
@@ -189,6 +193,7 @@ def list_ordenes_pago():
                 .data
             ) or []
 
+            # ingresos ya usados en OP - LÓGICA ORIGINAL RESTAURADA
             pagados_ids = {p["ingreso_id"] for p in pagos_all if p.get("ingreso_id")}
             pendientes = [i for i in ingresos if i["id"] not in pagados_ids]
 

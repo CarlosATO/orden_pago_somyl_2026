@@ -16,6 +16,39 @@ load_dotenv()
 def create_app():
     app = Flask(__name__)
 
+    @app.context_processor
+    def inject_total_pendientes_sin_factura():
+        """Optimizado con cache - no ejecuta DB en cada request"""
+        from app.utils.cache import get_cached_data, set_cached_data
+        try:
+            # Cache por 5 minutos
+            cached_total = get_cached_data("total_pendientes_sin_factura", ttl=300)
+            if cached_total is not None:
+                return dict(total_pendientes_sin_factura=cached_total)
+            
+            supabase = app.config.get("SUPABASE")
+            if supabase:
+                count = (
+                    supabase
+                    .table("orden_de_pago")
+                    .select("id", count='exact')
+                    .eq("estado_documento", "pendiente")
+                    .execute()
+                )
+                total = getattr(count, 'count', None)
+                if total is None and isinstance(count, dict):
+                    total = count.get('count', 0)
+                if total is None:
+                    total = 0
+                
+                # Cachear resultado
+                set_cached_data("total_pendientes_sin_factura", total)
+            else:
+                total = 0
+        except Exception:
+            total = 0
+        return dict(total_pendientes_sin_factura=total)
+    
     # Configuración optimizada para producción
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000  # 1 año para assets estáticos
     app.config['TEMPLATES_AUTO_RELOAD'] = False  # Deshabilitado en producción
@@ -110,6 +143,27 @@ def create_app():
         if current_user.is_authenticated:
             return {'modulos_usuario': get_modulos_usuario()}
         return {'modulos_usuario': []}
+
+    from app.utils.pendiente_global import get_total_pendiente_global
+
+    @app.context_processor
+    def inject_total_pendiente():
+        """Optimizado con cache - no ejecuta DB pesada en cada request"""
+        from app.utils.cache import get_cached_data, set_cached_data
+        try:
+            # Cache por 10 minutos (menos crítico que pendientes)
+            cached_total = get_cached_data("total_pendiente_global", ttl=600)
+            if cached_total is not None:
+                return dict(total_pendiente=cached_total)
+            
+            from app.utils.pendiente_global import get_total_pendiente_global
+            total = get_total_pendiente_global()
+            
+            # Cachear resultado
+            set_cached_data("total_pendiente_global", total)
+        except Exception:
+            total = 0
+        return dict(total_pendiente=total)
 
     # Headers optimizados para performance y cache inteligente
     @app.after_request

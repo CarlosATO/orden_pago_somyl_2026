@@ -137,17 +137,98 @@ def api_gastos_proyecto(proyecto_id):
     try:
         supabase = current_app.config["SUPABASE"]
         
-        # Obtener gastos del proyecto
-        gastos = supabase.table("gastos_directos") \
+        current_app.logger.info(f"🔍 Consultando gastos para proyecto: {proyecto_id}")
+        
+        # Primero verificar cuántos registros hay en total
+        count_result = supabase.table("gastos_directos") \
+            .select("id", count="exact") \
+            .eq("proyecto_id", proyecto_id) \
+            .execute()
+        
+        total_count = count_result.count if hasattr(count_result, 'count') else len(count_result.data or [])
+        current_app.logger.info(f"📊 Total de registros en BD para proyecto {proyecto_id}: {total_count}")
+        
+        # Obtener gastos del proyecto SIN LÍMITE
+        result = supabase.table("gastos_directos") \
             .select("*, item:item_id(tipo)") \
             .eq("proyecto_id", proyecto_id) \
             .order("fecha", desc=True) \
-            .execute().data or []
+            .order("id", desc=True) \
+            .execute()
         
-        return jsonify(success=True, gastos=gastos)
+        gastos = result.data or []
+        
+        current_app.logger.info(f"� Query ejecutado. Resultados obtenidos: {len(gastos)} de {total_count} totales")
+        
+        # Log detallado de cada gasto
+        for i, gasto in enumerate(gastos):
+            current_app.logger.info(f"💼 Gasto {i+1}: ID={gasto.get('id')}, Desc='{gasto.get('descripcion')}', Monto={gasto.get('monto')}, Fecha={gasto.get('fecha')}")
+        
+        # Verificar si hay más registros haciendo otra consulta
+        if len(gastos) < total_count:
+            current_app.logger.warning(f"⚠️ PROBLEMA: Se obtuvieron {len(gastos)} gastos pero hay {total_count} en total!")
+            
+            # Intentar obtener TODOS los registros
+            all_result = supabase.table("gastos_directos") \
+                .select("id, descripcion, monto, fecha") \
+                .eq("proyecto_id", proyecto_id) \
+                .execute()
+            
+            all_gastos = all_result.data or []
+            current_app.logger.info(f"📋 Consulta SIN JOIN: {len(all_gastos)} registros")
+            
+            for gasto in all_gastos:
+                current_app.logger.info(f"🔍 Registro simple: {gasto}")
+        
+        return jsonify(success=True, gastos=gastos, total_en_bd=total_count)
         
     except Exception as e:
-        current_app.logger.error(f"Error en api_gastos_proyecto: {e}")
+        current_app.logger.error(f"❌ Error en api_gastos_proyecto: {e}")
+        import traceback
+        current_app.logger.error(f"🔥 Traceback: {traceback.format_exc()}")
+        return jsonify(success=False, message="Error al obtener gastos"), 500
+
+@bp_gastos_directos.route("/api/gastos-simple/<int:proyecto_id>", methods=["GET"])
+@login_required
+@require_modulo('gastos_directos')
+def api_gastos_simple(proyecto_id):
+    """API simple para obtener gastos sin JOIN - para debugging"""
+    try:
+        supabase = current_app.config["SUPABASE"]
+        
+        current_app.logger.info(f"🔍 [SIMPLE] Consultando gastos para proyecto: {proyecto_id}")
+        
+        # Consulta simple sin JOIN
+        result = supabase.table("gastos_directos") \
+            .select("*") \
+            .eq("proyecto_id", proyecto_id) \
+            .order("id", desc=True) \
+            .execute()
+        
+        gastos = result.data or []
+        
+        current_app.logger.info(f"📊 [SIMPLE] Resultados encontrados: {len(gastos)}")
+        
+        # Obtener items por separado
+        if gastos:
+            items_ids = list(set([g.get('item_id') for g in gastos if g.get('item_id')]))
+            items_result = supabase.table("item") \
+                .select("id, tipo") \
+                .in_("id", items_ids) \
+                .execute()
+            
+            items_dict = {item['id']: item for item in (items_result.data or [])}
+            
+            # Agregar item_nombre a cada gasto
+            for gasto in gastos:
+                item_id = gasto.get('item_id')
+                if item_id and item_id in items_dict:
+                    gasto['item'] = items_dict[item_id]
+        
+        return jsonify(success=True, gastos=gastos, method="simple")
+        
+    except Exception as e:
+        current_app.logger.error(f"❌ Error en api_gastos_simple: {e}")
         return jsonify(success=False, message="Error al obtener gastos"), 500
 
 @bp_gastos_directos.route("/eliminar/<int:gasto_id>", methods=["DELETE"])

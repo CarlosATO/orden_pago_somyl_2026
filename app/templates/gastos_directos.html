@@ -32,7 +32,6 @@
     color: #495057;
     font-weight: 600;
     margin-bottom: 1rem;
-    font-size: 1.1rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -231,7 +230,9 @@
   }
 
   .shown-form {
-    max-height: 500px;
+    max-height: none !important; /* Sin límite de altura */
+    height: auto !important;
+    overflow: visible !important;
     opacity: 1;
   }
 </style>
@@ -386,11 +387,13 @@
 
 <!-- JavaScript moderno para gastos directos -->
 <script>
+console.log('✅ Gastos Directos - Versión Final Optimizada');
 document.addEventListener('DOMContentLoaded', function() {
   // Variables globales
   const proyectos = {{ proyectos|tojson }};
   const items = {{ items|tojson }};
-  let gastos = [];
+  let gastosNuevos = [];  // Gastos agregados en esta sesión
+  let gastosExistentes = [];  // Gastos ya guardados en la BD
   
   // Elementos del DOM
   const proyectoSelect = document.getElementById('proyecto');
@@ -428,8 +431,10 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (proyectoId) {
       mostrarFormulario();
-      actualizarStats();
       document.getElementById('proyecto-nombre').textContent = proyectoNombre;
+      
+      // Cargar gastos existentes del proyecto
+      cargarGastosExistentes(proyectoId);
     } else {
       ocultarFormulario();
       resetearFormulario();
@@ -443,6 +448,19 @@ document.addEventListener('DOMContentLoaded', function() {
     statsContainer.classList.add('shown-form', 'fade-in');
     tablaContainer.classList.remove('hidden-form');
     tablaContainer.classList.add('shown-form', 'fade-in');
+    
+    // FORZAR ESTILOS SIN RESTRICCIONES INMEDIATAMENTE
+    if (tablaContainer) {
+      tablaContainer.style.maxHeight = 'none';
+      tablaContainer.style.height = 'auto';
+      tablaContainer.style.overflow = 'visible';
+      
+      const tableResponsive = tablaContainer.querySelector('.table-responsive');
+      if (tableResponsive) {
+        tableResponsive.style.maxHeight = 'none';
+        tableResponsive.style.overflow = 'visible';
+      }
+    }
   }
   
   function ocultarFormulario() {
@@ -469,10 +487,11 @@ document.addEventListener('DOMContentLoaded', function() {
       item_nombre: itemNombre,
       descripcion: descripcion || 'Sin descripción',
       mes: mes,
-      monto: parseInt(montoRaw)
+      monto: parseInt(montoRaw),
+      esNuevo: true  // Marcar como nuevo
     };
     
-    gastos.push(nuevoGasto);
+    gastosNuevos.push(nuevoGasto);
     renderizarTabla();
     limpiarFormulario();
     actualizarStats();
@@ -504,38 +523,68 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   function renderizarTabla() {
-    // Limpiar tabla
-    tablaBody.innerHTML = '';
+    if (!tablaBody) return;
     
-    if (gastos.length === 0) {
-      tablaBody.appendChild(emptyRow);
+    // FORZAR ESTILOS SIN RESTRICCIONES
+    const tablaContainer = document.getElementById('tabla-container');
+    if (tablaContainer) {
+      tablaContainer.style.maxHeight = 'none';
+      tablaContainer.style.height = 'auto';
+      tablaContainer.style.overflow = 'visible';
+      
+      const tableResponsive = tablaContainer.querySelector('.table-responsive');
+      if (tableResponsive) {
+        tableResponsive.style.maxHeight = 'none';
+        tableResponsive.style.overflow = 'visible';
+      }
+    }
+    
+    // Limpiar y combinar gastos
+    tablaBody.innerHTML = '';
+    const todosLosGastos = [...gastosExistentes, ...gastosNuevos];
+    
+    if (todosLosGastos.length === 0) {
+      if (emptyRow) tablaBody.appendChild(emptyRow);
       guardarBtn.disabled = true;
       return;
     }
     
-    gastos.forEach((gasto, index) => {
+    // Crear filas
+    todosLosGastos.forEach((gasto, index) => {
       const fila = document.createElement('tr');
+      fila.style.display = 'table-row !important';
+      fila.style.visibility = 'visible !important';
+      
+      const item_nombre = gasto.item_nombre || gasto.item?.tipo || 'N/A';
+      const descripcion = gasto.descripcion || 'Sin descripción';
+      const mes = gasto.mes || 'N/A';
+      const monto = gasto.monto || 0;
+      
+      const botonEliminar = gasto.esNuevo ? 
+        `<button class="btn btn-danger btn-sm" onclick="eliminarGastoNuevo(${gastosNuevos.findIndex(g => g === gasto)})">
+          <i class="bi bi-trash"></i>
+        </button>` :
+        `<button class="btn btn-danger btn-sm" onclick="eliminarGastoExistente(${gasto.id})">
+          <i class="bi bi-trash"></i>
+        </button>`;
+      
       fila.innerHTML = `
-        <td><span class="badge bg-primary">${gasto.item_nombre}</span></td>
-        <td>${gasto.descripcion}</td>
-        <td><span class="badge bg-secondary">${gasto.mes}</span></td>
-        <td><strong class="text-success">$${gasto.monto.toLocaleString('es-CL')}</strong></td>
-        <td>
-          <button class="btn btn-danger-modern btn-modern btn-sm" onclick="eliminarGasto(${index})">
-            <i class="bi bi-trash"></i>
-          </button>
-        </td>
+        <td style="text-align: center; padding: 0.75rem;"><span class="badge bg-primary">${item_nombre}</span></td>
+        <td style="text-align: center; padding: 0.75rem;">${descripcion}</td>
+        <td style="text-align: center; padding: 0.75rem;"><span class="badge bg-secondary">${mes}</span></td>
+        <td style="text-align: center; padding: 0.75rem;"><strong class="text-success">$${monto.toLocaleString('es-CL')}</strong></td>
+        <td style="text-align: center; padding: 0.75rem;">${botonEliminar}</td>
       `;
-      fila.classList.add('fade-in');
+      
       tablaBody.appendChild(fila);
     });
     
-    guardarBtn.disabled = false;
+    guardarBtn.disabled = gastosNuevos.length === 0;
   }
   
   function actualizarStats() {
-    const totalGastos = gastos.length;
-    const totalMonto = gastos.reduce((sum, gasto) => sum + gasto.monto, 0);
+    const totalGastos = gastosExistentes.length + gastosNuevos.length;
+    const totalMonto = [...gastosExistentes, ...gastosNuevos].reduce((sum, gasto) => sum + gasto.monto, 0);
     
     document.getElementById('total-gastos').textContent = totalGastos;
     document.getElementById('total-monto').textContent = `$${totalMonto.toLocaleString('es-CL')}`;
@@ -550,7 +599,8 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   function resetearFormulario() {
-    gastos = [];
+    gastosNuevos = [];
+    gastosExistentes = [];
     limpiarFormulario();
     renderizarTabla();
     actualizarStats();
@@ -589,8 +639,8 @@ document.addEventListener('DOMContentLoaded', function() {
   function onGuardarTodo() {
     const proyectoId = proyectoSelect.value;
     
-    if (!proyectoId || gastos.length === 0) {
-      mostrarMensaje('No hay gastos para guardar', 'warning');
+    if (!proyectoId || gastosNuevos.length === 0) {
+      mostrarMensaje('No hay gastos nuevos para guardar', 'warning');
       return;
     }
     
@@ -601,21 +651,25 @@ document.addEventListener('DOMContentLoaded', function() {
     fetch('{{ url_for("gastos_directos.guardar_gastos_directos") }}', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ proyecto_id: proyectoId, gastos })
+      body: JSON.stringify({ proyecto_id: proyectoId, gastos: gastosNuevos })
     })
     .then(response => response.json())
     .then(data => {
       if (data.success) {
         mostrarMensaje(data.message, 'success');
-        resetearFormulario();
-        proyectoSelect.value = '';
-        ocultarFormulario();
+        gastosNuevos = [];
+        limpiarFormulario();
+        
+        // Recargar gastos después de un breve delay
+        setTimeout(() => {
+          cargarGastosExistentes(proyectoId);
+        }, 500);
       } else {
         mostrarMensaje(data.message, 'danger');
       }
     })
     .catch(error => {
-      console.error('Error:', error);
+      console.error('Error al guardar gastos:', error);
       mostrarMensaje('Error al guardar los gastos', 'danger');
     })
     .finally(() => {
@@ -625,11 +679,13 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   function onLimpiarTodo() {
-    if (gastos.length === 0) return;
+    if (gastosNuevos.length === 0) return;
     
-    if (confirm('¿Está seguro de que desea limpiar todos los gastos agregados?')) {
-      resetearFormulario();
-      mostrarMensaje('Gastos limpiados', 'info');
+    if (confirm('¿Está seguro de que desea limpiar todos los gastos nuevos agregados?')) {
+      gastosNuevos = [];
+      renderizarTabla();
+      actualizarStats();
+      mostrarMensaje('Gastos nuevos limpiados', 'info');
     }
   }
   
@@ -671,6 +727,80 @@ document.addEventListener('DOMContentLoaded', function() {
       renderizarTabla();
       actualizarStats();
       mostrarMensaje('Gasto eliminado', 'info');
+    }
+  };
+
+  // Nuevas funciones para manejar gastos existentes y nuevos
+  function cargarGastosExistentes(proyectoId) {
+    const timestamp = new Date().getTime();
+    const url = `/gastos_directos/api/gastos/${proyectoId}?t=${timestamp}`;
+    
+    fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success && data.gastos) {
+        gastosExistentes = data.gastos.map(gasto => ({
+          id: gasto.id,
+          item_id: gasto.item_id,
+          item_nombre: gasto.item?.tipo || 'N/A',
+          descripcion: gasto.descripcion || 'Sin descripción',
+          mes: gasto.mes,
+          monto: gasto.monto,
+          esNuevo: false
+        }));
+      } else {
+        gastosExistentes = [];
+      }
+      
+      gastosNuevos = [];
+      renderizarTabla();
+      actualizarStats();
+    })
+    .catch(error => {
+      console.error('Error al cargar gastos:', error);
+      gastosExistentes = [];
+      renderizarTabla();
+      actualizarStats();
+    });
+  }
+
+  window.eliminarGastoNuevo = function(index) {
+    if (confirm('¿Está seguro de que desea eliminar este gasto nuevo?')) {
+      gastosNuevos.splice(index, 1);
+      renderizarTabla();
+      actualizarStats();
+      mostrarMensaje('Gasto nuevo eliminado', 'info');
+    }
+  };
+
+  window.eliminarGastoExistente = function(gastoId) {
+    if (confirm('¿Está seguro de que desea eliminar este gasto? Esta acción no se puede deshacer.')) {
+      fetch(`/gastos_directos/eliminar/${gastoId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          // Remover el gasto de la lista existente
+          gastosExistentes = gastosExistentes.filter(g => g.id !== gastoId);
+          renderizarTabla();
+          actualizarStats();
+          mostrarMensaje(data.message, 'success');
+        } else {
+          mostrarMensaje(data.message, 'danger');
+        }
+      })
+      .catch(error => {
+        console.error('Error al eliminar gasto:', error);
+        mostrarMensaje('Error al eliminar el gasto', 'danger');
+      });
     }
   };
   

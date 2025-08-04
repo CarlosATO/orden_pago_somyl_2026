@@ -7,6 +7,8 @@ from io import BytesIO
 from app.modules.usuarios import require_modulo
 from flask_login import current_user
 from utils.logger import registrar_log_actividad
+from app.utils.performance_monitor import time_function, PerformanceContext
+from app.utils.cache import get_cached_data, set_cached_data
 
 bp_estado_presupuesto = Blueprint(
     'estado_presupuesto',
@@ -16,15 +18,23 @@ bp_estado_presupuesto = Blueprint(
 
 @bp_estado_presupuesto.route('/', methods=['GET'])
 @require_modulo('estado_presupuesto')
+@time_function("show_estado")
 def show_estado():
     supabase = current_app.config['SUPABASE']
     
-    # 1) Obtener todos los proyectos no finalizados
-    all_projects = supabase.table('proyectos').select('id,proyecto,observacion').execute().data or []
-    proyectos_filtrados = [
-        r for r in all_projects
-        if not (r.get('observacion') and str(r['observacion']).strip().lower() == 'finalizado')
-    ]
+    # 1) Obtener proyectos con cache optimizado
+    with PerformanceContext("fetch_projects"):
+        cache_key = "estado_presupuesto_proyectos"
+        all_projects = get_cached_data(cache_key, ttl=600)  # Cache 10 minutos
+        
+        if all_projects is None:
+            all_projects = supabase.table('proyectos').select('id,proyecto,observacion').execute().data or []
+            set_cached_data(cache_key, all_projects)
+        
+        proyectos_filtrados = [
+            r for r in all_projects
+            if not (r.get('observacion') and str(r['observacion']).strip().lower() == 'finalizado')
+        ]
     
     def normalize_name(s):
         return str(s).strip().lower().replace(' ', '')

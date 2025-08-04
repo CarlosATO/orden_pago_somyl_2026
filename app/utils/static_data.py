@@ -67,9 +67,21 @@ def get_cached_proveedores():
     
     supabase = current_app.config["SUPABASE"]
     try:
-        data = supabase.table("proveedores").select("id,nombre,cuenta").limit(500).execute().data or []
-        set_cached_data("static_proveedores", data)
-        return data
+        # Obtener TODOS los proveedores sin límite usando paginación
+        all_proveedores = []
+        page_size = 1000
+        offset = 0
+        
+        while True:
+            batch = supabase.table("proveedores").select("id,nombre,cuenta,rut").range(offset, offset + page_size - 1).execute().data or []
+            all_proveedores.extend(batch)
+            
+            if len(batch) < page_size:
+                break
+            offset += page_size
+        
+        set_cached_data("static_proveedores", all_proveedores)
+        return all_proveedores
     except Exception as e:
         current_app.logger.error(f"Error cargando proveedores: {e}")
         return []

@@ -341,11 +341,6 @@
             <div class="user-info">
                 <div class="user-name">{{ current_user.nombre or 'Usuario' }}</div>
             </div>
-            
-            <div class="payment-info mb-3">
-                <div class="payment-label">Pendiente por pagar</div>
-                <div class="payment-amount">${{ "{:,.0f}".format(total_pendiente) }}</div>
-            </div>
 
             <a href="{{ url_for('auth.logout') }}" class="logout-btn">
               <i class="bi bi-box-arrow-right me-2"></i>Cerrar sesión

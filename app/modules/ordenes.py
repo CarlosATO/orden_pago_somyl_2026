@@ -75,28 +75,16 @@ def new_orden():
     
     # Obtener datos para las listas desplegables
     # --- Paginación automática para grandes volúmenes ---
-    def fetch_all_rows(table, select_str, order_col, desc=False):
-        page_size = 1000
-        offset = 0
-        all_rows = []
-        while True:
-            batch = supabase.table(table) \
-                .select(select_str) \
-                .order(order_col, desc=desc) \
-                .range(offset, offset + page_size - 1) \
-                .execute().data or []
-            all_rows.extend(batch)
-            if len(batch) < page_size:
-                break
-            offset += page_size
-        return all_rows
-
-    proveedores = fetch_all_rows("proveedores", "id,nombre,rut", "nombre", desc=False)
-    proyectos = fetch_all_rows("proyectos", "id,proyecto", "proyecto", desc=False)
-    trabajadores = fetch_all_rows("trabajadores", "id,nombre", "nombre", desc=False)
-    history = fetch_all_rows("orden_de_compra", "descripcion,precio_unitario,orden_compra", "orden_compra", desc=True)
-
-    # Próximo número de OC
+    # Optimización crítica: usar helpers optimizados
+    from app.utils.database_helpers import optimized_fetch_all_rows
+    
+    # Datos con cache optimizado (15 minutos para datos que cambian poco)
+    proveedores = optimized_fetch_all_rows("proveedores", "id,nombre,rut", "nombre", limit=1000, cache_ttl=900)
+    proyectos = optimized_fetch_all_rows("proyectos", "id,proyecto", "proyecto", limit=500, cache_ttl=900)
+    trabajadores = optimized_fetch_all_rows("trabajadores", "id,nombre", "nombre", limit=200, cache_ttl=900)
+    
+    # Datos históricos con límite para performance
+    history = optimized_fetch_all_rows("orden_de_compra", "descripcion,precio_unitario,orden_compra", "orden_compra", desc=True, limit=1000, cache_ttl=600)    # Próximo número de OC
     last_num = supabase.table("orden_de_compra") \
         .select("orden_compra") \
         .order("orden_compra", desc=True) \
@@ -589,9 +577,10 @@ def api_trabajadores():
 
 @bp.route("/api/materiales")
 def api_materiales():
+    """API optimizada para búsqueda de materiales con stored procedure"""
     supabase = current_app.config['SUPABASE']
     term = request.args.get("term", "")
-    if not term or len(term) < 2:  # Mínimo 2 caracteres para buscar
+    if not term or len(term) < 2:
         return jsonify({"results": []})
 
     # Intentar obtener del cache primero
@@ -600,7 +589,32 @@ def api_materiales():
         return jsonify({"results": cached_results})
 
     try:
-        # Búsqueda optimizada: buscar en material O código en una sola consulta
+        # Intentar usar stored procedure optimizada si está disponible
+        try:
+            results_data = supabase.rpc('search_materiales_optimized', {'search_term': term}).execute().data or []
+            
+            if results_data:
+                # Formatear resultados de la stored procedure
+                results = []
+                for item in results_data:
+                    formatted_item = {
+                        "id": item["material"],
+                        "text": item["material"],
+                        "codigo": item["cod"],
+                        "ultimo_precio": float(item.get("precio_sugerido", 0)),
+                        "tipo": item.get("tipo", ""),
+                        "item": item.get("item", "")
+                    }
+                    results.append(formatted_item)
+                
+                # Cachear resultados
+                if results:
+                    set_cached_materiales(term, results)
+                return jsonify({"results": results})
+        except Exception as e:
+            current_app.logger.info(f"Stored procedure not available, using fallback: {e}")
+
+        # Fallback al método original pero más optimizado
         materiales = supabase.table("materiales") \
             .select("cod,material,tipo,item") \
             .or_(f"material.ilike.%{term}%,cod.ilike.%{term}%") \
@@ -610,18 +624,14 @@ def api_materiales():
         if not materiales:
             return jsonify({"results": []})
 
-        # Estrategia optimizada para precios: solo para materiales más relevantes
-        material_names = [m["material"] for m in materiales[:10]]  # Solo top 10
-        
-        # Obtener precios de manera más eficiente
+        # Optimización: solo buscar precios para los primeros 5 resultados más relevantes
+        material_names = [m["material"] for m in materiales[:5]]
         precios_data = {}
         
         if material_names:
-            # Intentar una consulta batch optimizada
+            # Consulta optimizada más rápida para precios
             try:
-                # Crear un query más eficiente agrupando por material
                 for material_name in material_names:
-                    # Consulta optimizada con índices
                     history = supabase.table("orden_de_compra") \
                         .select("precio_unitario") \
                         .eq("descripcion", material_name) \
@@ -630,25 +640,21 @@ def api_materiales():
                         .limit(1) \
                         .execute().data
                     
-                    if history and len(history) > 0 and history[0].get("precio_unitario"):
+                    if history and len(history) > 0:
                         try:
-                            precio = float(history[0]["precio_unitario"])
+                            precio = float(history[0]["precio_unitario"] or 0)
                             precios_data[material_name] = precio if precio > 0 else 0
                         except (ValueError, TypeError):
                             precios_data[material_name] = 0
-                    else:
-                        precios_data[material_name] = 0
-                        
             except Exception as e:
-                # Si hay error en consulta de precios, continuar sin precios
                 current_app.logger.warning(f"Error obteniendo precios: {e}")
-                precios_data = {name: 0 for name in material_names}
+                precios_data = {}
 
         # Construir resultados optimizados
         results = []
         for i, m in enumerate(materiales):
-            # Solo buscar precio para los primeros 10 (optimización)
-            ultimo_precio = precios_data.get(m["material"], 0) if i < 10 else 0
+            # Solo incluir precio para los primeros 5 (optimización de performance)
+            ultimo_precio = precios_data.get(m["material"], 0) if i < 5 else 0
             
             results.append({
                 "id": m["material"],
@@ -659,7 +665,7 @@ def api_materiales():
                 "item": m.get("item", "")
             })
 
-        # Guardar en cache solo si la búsqueda fue exitosa
+        # Guardar en cache
         if results:
             set_cached_materiales(term, results)
         
