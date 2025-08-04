@@ -134,6 +134,9 @@ def new_proveedor():
                 descripcion=f"Creó proveedor {data['nombre']} ({data['rut']})",
                 datos_despues=data
             )
+            # Invalidar cache de proveedores para búsquedas (Select2)
+            from app.utils.cache import invalidate_select2_cache
+            invalidate_select2_cache("proveedores")
         return redirect(url_for("proveedores.list_proveedores"))
         
     except Exception as e:
