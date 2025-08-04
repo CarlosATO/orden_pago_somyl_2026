@@ -464,7 +464,7 @@ def api_proveedores():
     proveedores = supabase.table("proveedores") \
         .select("id,nombre,rut") \
         .ilike("nombre", f"%{term}%") \
-        .limit(20) \
+        .limit(50) \
         .execute().data or []
     
     results = [{
