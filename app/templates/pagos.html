@@ -623,6 +623,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <option value="">Todos los estados</option>
         <option value="pendiente">Pendientes</option>
         <option value="pagado">Pagados</option>
+        <option value="abono">Abonos Parciales</option>
       </select>
       <select id="proyectoFilter" class="form-select form-select-sm" style="width: auto;">
         <option value="">Todos los proyectos</option>
@@ -752,7 +753,13 @@ document.addEventListener('DOMContentLoaded', function() {
           </thead>
           <tbody>
             {% for p in pagos %}
-            <tr class="{% if p.fecha_pago %}row-paid{% elif p.total_abonado > 0 and p.saldo_pendiente > 0 %}row-partial{% endif %}" data-orden="{{ p.orden_numero }}">
+            {% set estado_pago = "pendiente" %}
+            {% if p.fecha_pago %}
+                {% set estado_pago = "pagado" %}
+            {% elif p.total_abonado > 0 and p.saldo_pendiente > 0 %}
+                {% set estado_pago = "abono" %}
+            {% endif %}
+            <tr class="{% if estado_pago == 'pagado' %}row-paid{% elif estado_pago == 'abono' %}row-partial{% endif %}" data-orden="{{ p.orden_numero }}" data-estado="{{ estado_pago }}">
               <td class="col-fecha-op">
                 <small class="text-muted">{{ p.fecha }}</small>
               </td>
@@ -894,6 +901,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const proyecto = row.querySelector('.col-proyecto').textContent.toLowerCase();
       const ordenPago = row.querySelector('.col-opago').textContent.toLowerCase();
       const esPagado = row.classList.contains('row-paid');
+      const esAbono = row.classList.contains('row-partial');
 
       // Verificar filtros
       let mostrarFila = true;
@@ -906,9 +914,11 @@ document.addEventListener('DOMContentLoaded', function() {
       }
 
       // Filtro de estado
-      if (estadoValue === 'pendiente' && esPagado) {
+      if (estadoValue === 'pendiente' && (esPagado || esAbono)) {
         mostrarFila = false;
       } else if (estadoValue === 'pagado' && !esPagado) {
+        mostrarFila = false;
+      } else if (estadoValue === 'abono' && !esAbono) {
         mostrarFila = false;
       }
 
