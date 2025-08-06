@@ -39,61 +39,6 @@ bp_pagos = Blueprint(
     template_folder="../templates"
 )
 
-@login_required
-@bp_pagos.route('/abonos/<int:abono_id>', methods=['PUT'])
-@require_modulo('pagos')
-def editar_abono_op(abono_id):
-    supabase = current_app.config["SUPABASE"]
-    try:
-        data = request.get_json() or {}
-        monto = int(round(float(data.get("monto_abono") or 0)))
-        fecha = data.get("fecha_abono")
-        observacion = data.get("observacion")
-        
-        if monto <= 0:
-            return jsonify(success=False, error="Monto debe ser mayor a cero"), 400
-        
-        # Obtener orden_numero del abono
-        res_abono = supabase.table("abonos_op").select("orden_numero").eq("id", abono_id).limit(1).execute()
-        if not res_abono.data:
-            return jsonify(success=False, error="No se encontró el abono."), 400
-        orden_numero = res_abono.data[0]["orden_numero"]
-        
-        # Obtener total_pago de la orden
-        res_pago = supabase.table("orden_de_pago").select("costo_final_con_iva").eq("orden_numero", orden_numero).limit(1).execute()
-        if not res_pago.data:
-            return jsonify(success=False, error="No se encontró el total de la orden."), 400
-        total_pago = int(round(float(res_pago.data[0].get("costo_final_con_iva") or 0)))
-        
-        # Consultar otros abonos (excluyendo el que se está editando)
-        res_otros_abonos = supabase.table("abonos_op").select("monto_abono").eq("orden_numero", orden_numero).neq("id", abono_id).execute()
-        suma_otros_abonos = sum(int(round(float(a.get("monto_abono") or 0))) for a in (res_otros_abonos.data or []))
-        
-        # Validar que suma de otros abonos + nuevo monto <= total_pago
-        nueva_suma = suma_otros_abonos + monto
-        if nueva_suma > total_pago:
-            return jsonify(success=False, error=f"La suma de abonos ({nueva_suma}) supera el total de la orden ({total_pago})."), 400
-        
-        update_data = {"monto_abono": monto}
-        if fecha:
-            update_data["fecha_abono"] = fecha
-        if observacion is not None:
-            update_data["observacion"] = observacion
-        
-        res = supabase.table("abonos_op").update(update_data).eq("id", abono_id).execute()
-        if hasattr(res, "error") and res.error:
-            return jsonify(success=False, error=str(res.error)), 500
-        
-        # Manejar fecha de pago automática
-        if nueva_suma == total_pago:
-            supabase.table("fechas_de_pagos_op").upsert({"orden_numero": orden_numero, "fecha_pago": fecha or date.today().isoformat()}, on_conflict=["orden_numero"]).execute()
-        elif nueva_suma == 0:
-            supabase.table("fechas_de_pagos_op").delete().eq("orden_numero", orden_numero).execute()
-        
-        return jsonify(success=True)
-    except Exception as e:
-        return jsonify(success=False, error=str(e)), 500
-
 def get_pagos(filtros=None):
     supabase = current_app.config["SUPABASE"]
     
@@ -264,15 +209,19 @@ def get_pagos(filtros=None):
             # Consulta batch para obtener fac_pendiente de todos los ingresos
             res_ingresos = supabase.table("ingresos").select("id, fac_pendiente").in_("id", list(ingreso_ids)).execute()
             
-            # Crear mapa: ingreso_id -> "SI" si fac_pendiente NO ES NULL
+            # Crear mapa: ingreso_id -> "SI" si fac_pendiente es válido (1, "1", true, etc.)
             for ing in (res_ingresos.data or []):
                 ingreso_id = ing.get("id")
                 fac_pendiente = ing.get("fac_pendiente")
                 
-                # NUEVA LÓGICA: Cualquier valor que no sea NULL = "SI"
-                es_pendiente = fac_pendiente is not None
+                # Manejar diferentes tipos de datos para fac_pendiente
+                es_pendiente = False
+                if fac_pendiente is not None:
+                    # Convertir a string y verificar si es "1" (valor esperado en la BD)
+                    fac_str = str(fac_pendiente).strip()
+                    es_pendiente = fac_str == "1"
                 
-                fac_pago_map[ingreso_id] = "SI" if es_pendiente else "-"
+                fac_pago_map[ingreso_id] = "SI" if es_pendiente else ""
                 
     except Exception as e:
         print(f"[ERROR] Consulta ingresos para FAC. PAGO: {e}")
@@ -289,7 +238,7 @@ def get_pagos(filtros=None):
         
         # Asignar FAC. PAGO basado en ingreso_id
         ingreso_id = data.get("ingreso_id")
-        data["fac_pago"] = fac_pago_map.get(ingreso_id, "-")
+        data["fac_pago"] = fac_pago_map.get(ingreso_id, "")
 
     return pagos_ordenados
 
@@ -323,11 +272,6 @@ def list_pagos():
         filtros["fecha_hasta"] = fecha_hasta
 
     pagos = get_pagos(filtros)
-
-    # DEBUG: Verificar FAC. PAGO para orden 3121
-    for p in pagos:
-        if p.get("orden_numero") == 3121:
-            print(f"[DEBUG] Orden 3121 en template: ingreso_id={p.get('ingreso_id')}, fac_pago='{p.get('fac_pago')}'")
 
     # Calcular el total pendiente como la suma de la columna saldo_pendiente
     total_pendiente = sum(p.get("saldo_pendiente", 0) for p in pagos)
@@ -573,121 +517,24 @@ def eliminar_abono_op(abono_id):
         return jsonify(success=False, error=str(e)), 500
 
 # Endpoint simple para testing
-@bp_pagos.route('/test_fac_pago', methods=['GET'])
+@login_required
+@bp_pagos.route('/pagos/test_fac_pago', methods=['GET'])
+@require_modulo('pagos')
 def test_fac_pago():
-    """Endpoint simple para verificar datos FAC. PAGO específicamente para orden 3121"""
-    try:
-        supabase = current_app.config['SUPABASE']
-        if not supabase:
-            return jsonify({"status": "error", "message": "Supabase not configured"})
-        
-        # Buscar específicamente la orden 3121
-        orden_result = supabase.table("orden_de_pago").select("*").eq("orden_numero", 3121).execute()
-        
-        if not orden_result.data or len(orden_result.data) == 0:
-            return jsonify({"status": "error", "message": "Orden 3121 not found"})
-        
-        orden = orden_result.data[0]
-        ingreso_id = orden.get('ingreso_id')
-        fac_pago = '-'
-        fac_pendiente_raw = None
-        
-        # Si hay ingreso_id, buscar en tabla ingresos
-        if ingreso_id:
-            ingreso_result = supabase.table("ingresos").select("fac_pendiente").eq("id", ingreso_id).execute()
-            if ingreso_result.data and len(ingreso_result.data) > 0:
-                fac_pendiente_raw = ingreso_result.data[0].get('fac_pendiente')
-                # NUEVA LÓGICA: Cualquier valor que no sea NULL = "SI"
-                if fac_pendiente_raw is not None:
-                    fac_pago = 'SI'
-        
-        return jsonify({
-            "status": "success",
-            "orden_numero": orden.get('orden_numero'),
-            "ingreso_id": ingreso_id,
-            "fac_pendiente": fac_pendiente_raw,
-            "fac_pago": fac_pago
+    """Endpoint simple para verificar datos FAC. PAGO"""
+    pagos = get_pagos({"proveedor": "3121"})  # Filtrar orden 3121
+    
+    result = []
+    for p in pagos:
+        result.append({
+            "orden_numero": p.get("orden_numero"),
+            "ingreso_id": p.get("ingreso_id"),
+            "fac_pago": p.get("fac_pago"),
+            "proveedor_nombre": p.get("proveedor_nombre")
         })
-        
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        })
-
-@bp_pagos.route('/debug_pagos_data')
-def debug_pagos_data():
-    """Endpoint de debug para ver todos los datos que van al template"""
-    try:
-        supabase = current_app.config['SUPABASE']
-        if not supabase:
-            return jsonify({"status": "error", "message": "Supabase not configured"})
-        
-        # Obtener datos directamente de las tablas sin usar execute_sql
-        # Primero obtener las órdenes de pago
-        orden_result = supabase.table("orden_de_pago").select("*").order("orden_numero", desc=True).limit(10).execute()
-        
-        pagos_data = []
-        if orden_result.data:
-            for orden in orden_result.data:
-                ingreso_id = orden.get('ingreso_id')
-                fac_pago = '-'  # Default value
-                fac_pendiente_raw = None
-                
-                # Si hay ingreso_id, buscar en tabla ingresos
-                if ingreso_id:
-                    ingreso_result = supabase.table("ingresos").select("fac_pendiente").eq("id", ingreso_id).execute()
-                    if ingreso_result.data and len(ingreso_result.data) > 0:
-                        fac_pendiente_raw = ingreso_result.data[0].get('fac_pendiente')
-                        # NUEVA LÓGICA: Cualquier valor que no sea NULL = "SI"
-                        if fac_pendiente_raw is not None:
-                            fac_pago = 'SI'
-                
-                pago_data = {
-                    'numero': orden.get('orden_numero'),
-                    'fecha': orden.get('fecha'),
-                    'monto': orden.get('monto'),
-                    'descripcion': orden.get('descripcion', orden.get('detalle_compra')),
-                    'fac_pago': fac_pago,
-                    'fac_pendiente_raw': fac_pendiente_raw,
-                    'ingreso_id': ingreso_id
-                }
-                pagos_data.append(pago_data)
-        
-        return jsonify({
-            "status": "success",
-            "total_records": len(pagos_data),
-            "data": pagos_data
-        })
-            
-    except Exception as e:
-        return jsonify({"status": "error", "message": str(e)})
-
-@bp_pagos.route('/debug_get_pagos')
-def debug_get_pagos():
-    """Endpoint que usa exactamente la misma función get_pagos() que usa el template"""
-    try:
-        # Usar la misma función que usa el template
-        pagos = get_pagos({"proveedor": "3121"})  # Filtrar solo orden 3121
-        
-        result = []
-        for p in pagos:
-            if p.get("orden_numero") == 3121:  # Solo mostrar orden 3121
-                result.append({
-                    "orden_numero": p.get("orden_numero"),
-                    "ingreso_id": p.get("ingreso_id"),
-                    "fac_pago": p.get("fac_pago"),
-                    "proveedor_nombre": p.get("proveedor_nombre"),
-                    "raw_data": str(p)  # Mostrar todos los datos para debug
-                })
-        
-        return jsonify({
-            "status": "success",
-            "total": len(result),
-            "data": result
-        })
-    except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        })
+    
+    return jsonify({
+        "success": True,
+        "total": len(result),
+        "data": result
+    })
