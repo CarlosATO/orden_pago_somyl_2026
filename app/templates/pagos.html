@@ -55,45 +55,6 @@ function showAbonos(orden_numero) {
     }
   })
     .then(resp => resp.json())
-    .then(data => {
-      document.getElementById('modalOrdenNum').innerText = orden_numero;
-      const tbody = document.getElementById('abonosTableBody');
-      tbody.innerHTML = '';
-      if (data.abonos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Sin abonos registrados</td></tr>';
-      } else {
-        data.abonos.forEach(ab => {
-          tbody.innerHTML += `<tr>
-            <td>${ab.fecha_abono || ''}</td>
-            <td>${abonoEditandoId === ab.id ? `<input type='number' id='editMonto' value='${ab.monto_abono}' min='1' step='any' class='form-control form-control-sm' style='width:90px;'>` : `$${ab.monto_abono.toLocaleString('es-CL')}`}</td>
-            <td>${abonoEditandoId === ab.id ? `<input type='text' id='editObs' value='${ab.observacion || ''}' maxlength='100' class='form-control form-control-sm'>` : (ab.observacion || '')}</td>
-            <td>${ab.usuario || ''}</td>
-            <td>${ab.created_at ? ab.created_at.substring(0, 19).replace('T', ' ') : ''}</td>
-            <td>
-              ${abonoEditandoId === ab.id ?
-                `<button class='btn btn-success btn-sm' onclick='guardarEdicionAbono(${ab.id}, ${ab.orden_numero})'>Guardar</button>
-                 <button class='btn btn-secondary btn-sm' onclick='cancelarEdicionAbono()'>Cancelar</button>` :
-                `<button class='btn btn-warning btn-sm' onclick='editarAbono(${ab.id}, ${ab.monto_abono}, "${ab.observacion ? ab.observacion.replace(/"/g, '&quot;') : ''}")'>Editar</button>
-                 <button class='btn btn-danger btn-sm' onclick='eliminarAbono(${ab.id}, ${ab.orden_numero})'>Eliminar</button>`}
-            </td>
-          </tr>`;
-        });
-      }
-      var modal = new bootstrap.Modal(document.getElementById('abonosModal'));
-      modal.show();
-    })
-    .catch(error => {
-      console.error('Error al cargar abonos:', error);
-    });
-}
-
-function editarAbono(id, monto, obs) {
-  abonoEditandoId = id;
-  showAbonos(document.getElementById('abonoOrdenNum').value);
-}
-function cancelarEdicionAbono() {
-  abonoEditandoId = null;
-  showAbonos(document.getElementById('abonoOrdenNum').value);
 }
 function guardarEdicionAbono(id, orden_numero) {
   const monto = document.getElementById('editMonto').value;
@@ -170,13 +131,6 @@ function eliminarAbono(id, orden_numero) {
         
         // Marcar que necesitamos recargar la página al cerrar el modal
         window.needsPageReload = true;
-        
-        // Limpiar cualquier cache del navegador para esta OP
-        if ('caches' in window) {
-          caches.delete(`abonos-${orden_numero}`);
-        }
-        
-        console.log('Abono eliminado exitosamente');
       } else {
         alert('Error: ' + (data.error || 'No se pudo eliminar abono.'));
       }
@@ -188,11 +142,8 @@ function eliminarAbono(id, orden_numero) {
 }
 function registrarAbono(event) {
   event.preventDefault();
-  console.log('[DEBUG] document:', document);
   const abonoInput = document.getElementById('abonoOrdenNum');
-  console.log('[DEBUG] abonoOrdenNum input:', abonoInput);
   const orden_numero = abonoInput ? abonoInput.value : null;
-  console.log('[DEBUG] Valor de orden_numero antes de registrar:', orden_numero);
   if (!orden_numero) {
     alert('Error: No se ha seleccionado una orden de pago.');
     return false;
@@ -248,7 +199,12 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 
 <script>
-// ...eliminada duplicidad de showAbonos...
+</script>
+<script>
+// Sumar en tiempo real la columna SALDO PENDIENTE y mostrar en el cuadro
+// --- INICIO LIMPIEZA SUMA SALDO PENDIENTE ---
+// Eliminado: función actualizarSaldoPendienteTotal y eventos relacionados
+// --- FIN LIMPIEZA SUMA SALDO PENDIENTE ---
 </script>
 {% extends 'base.html' %}
 
@@ -371,17 +327,6 @@ document.addEventListener('DOMContentLoaded', function() {
     color: #dc3545;
   }
   
-  .total-summary {
-    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-    color: white;
-    padding: 0.8rem;
-    border-radius: 8px;
-    margin-top: 1rem;
-    text-align: center;
-    font-weight: 600;
-    font-size: 1.1rem;
-  }
-  
   /* Botones modernos */
   .btn-modern {
     border-radius: 10px;
@@ -428,6 +373,7 @@ document.addEventListener('DOMContentLoaded', function() {
   .col-proveedor { width: 150px; }
   .col-detalle { width: 200px; }
   .col-factura { width: 70px; min-width: 40px; max-width: 120px; }
+  .col-fac-pago { width: 60px; min-width: 50px; max-width: 80px; }
   /* Estilos para el resizer de columnas */
   .payment-table th { position: relative; }
   .resizer {
@@ -695,7 +641,8 @@ document.addEventListener('DOMContentLoaded', function() {
       </ul>
       {% set grand_total = pending.values()|sum %}
       <div class="total-summary mt-4">
-        Total Pendiente: ${{ '{:,.0f}'.format(total_pendiente).replace(',', '.') }}
+        <!-- Cuadro para mostrar la suma filtrada de SALDO PENDIENTE -->
+        <!-- Eliminado: <div id="saldo-pendiente-summary" class="total-summary mt-2" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: #212529;"> SALDO PENDIENTE: <span id="saldoPendienteTotal">$0</span></div> -->
       </div>
     </div>
   </div>
@@ -711,9 +658,9 @@ document.addEventListener('DOMContentLoaded', function() {
           <i class="bi bi-floppy me-2"></i>Guardar Fechas de Pago
         </button>
         {% endif %}
-        <a href="{{ url_for('pagos.export_pagos') }}" class="btn btn-secondary-modern btn-modern">
+        <button type="button" class="btn btn-secondary-modern btn-modern" onclick="exportarFiltrados()">
           <i class="bi bi-file-earmark-excel me-2"></i>Exportar a Excel
-        </a>
+        </button>
         <div class="ms-auto d-flex align-items-center">
           <span class="badge bg-light text-dark me-2">
             <span class="stats-indicator stats-paid"></span>
@@ -736,8 +683,10 @@ document.addEventListener('DOMContentLoaded', function() {
               <th class="col-fecha-op">FECHA<br>OP</th>
               <th class="col-opago">O.PAGO</th>
               <th class="col-proveedor">PROVEEDOR</th>
+              <th class="col-rut">RUT</th>
               <th class="col-detalle">DETALLE O.PAGO</th>
               <th class="col-factura">FACTURA<br>ASOCIADA</th>
+              <th class="col-fac-pago">FAC.<br>PAGO</th>
               <th class="col-total-pago">TOTAL<br>PAGO</th>
               <th>ABONADO</th>
               <th>SALDO<br>PENDIENTE</th>
@@ -772,6 +721,11 @@ document.addEventListener('DOMContentLoaded', function() {
                   {{ p.proveedor_nombre }}
                 </div>
               </td>
+              <td class="col-rut">
+                <div class="text-truncate" style="max-width: 110px;" title="{{ p.rut_proveedor }}">
+                  {{ p.rut_proveedor if p.rut_proveedor else '-' }}
+                </div>
+              </td>
               <td class="col-detalle">
                 <div class="text-truncate" style="max-width: 180px;" title="{{ p.detalle_compra }}">
                   {{ p.detalle_compra }}
@@ -784,6 +738,13 @@ document.addEventListener('DOMContentLoaded', function() {
                   <span class="text-muted">-</span>
                 {% endif %}
               </td>
+              <td class="col-fac-pago">
+                {% if p.fac_pago == "SI" %}
+                  <span class="badge bg-success">SI</span>
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
             <td class="col-total-pago">
               <strong class="text-{% if p.fecha_pago %}success{% else %}danger{% endif %}">
                 ${{ "{:,.0f}".format(p.total_pago).replace(',', '.') }}
@@ -792,7 +753,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <td>
               <span class="text-primary">${{ "{:,.0f}".format(p.total_abonado).replace(',', '.') }}</span>
             </td>
-            <td>
+            <td class="col-saldo-pendiente">
               <span class="text-danger">${{ "{:,.0f}".format(p.saldo_pendiente).replace(',', '.') }}</span>
             </td>
             <td>
@@ -1049,16 +1010,149 @@ document.addEventListener('DOMContentLoaded', function() {
     window.location.href = window.location.pathname;
   };
 
-  // Exportar datos filtrados (sin cambios)
-  window.exportarFiltrados = function() {
-    const visibleRows = Array.from(document.querySelectorAll('tbody tr')).filter(row => row.style.display !== 'none');
-    if (visibleRows.length === 0) {
-      alert('No hay datos para exportar con los filtros actuales.');
-      return;
+  // Función para procesar montos con formato chileno
+  function procesarMonto(texto) {
+    if (!texto || texto === '-' || texto === '0' || texto === '$0') {
+      return '0';
     }
-    // Aquí se podría implementar la exportación de solo los datos filtrados
-    console.log('Exportando', visibleRows.length, 'filas filtradas');
-  };
+    
+    // Remover el símbolo de peso y espacios
+    let monto = texto.replace(/\$/, '').trim();
+    
+    // Si contiene puntos y comas, es formato chileno (ej: 3.919.860)
+    if (monto.includes('.') && !monto.includes(',')) {
+      // En formato chileno, los puntos son separadores de miles
+      // Convertir a formato numérico estándar
+      const partes = monto.split('.');
+      if (partes.length > 1) {
+        // Si hay múltiples puntos, todos son separadores de miles excepto el último que podría ser decimal
+        // Pero en formato chileno típico, no hay decimales con punto
+        monto = partes.join('');
+      }
+    }
+    
+    // Limpiar cualquier carácter no numérico excepto comas para decimales
+    monto = monto.replace(/[^\d,]/g, '');
+    
+    // Si hay coma, es separador decimal
+    if (monto.includes(',')) {
+      monto = monto.replace(',', '.');
+    }
+    
+    return monto || '0';
+  }
+
+  // Exportar datos filtrados desde la tabla visible
+window.exportarFiltrados = function() {
+  if (typeof XLSX === 'undefined') {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    script.onload = function() {
+      exportarFiltrados();
+    };
+    document.body.appendChild(script);
+    return;
+  }
+  
+  const table = document.querySelector('.payment-table');
+  if (!table) {
+    return;
+  }
+  
+  // Crear una tabla temporal solo con los datos visibles
+  const tempTable = document.createElement('table');
+  tempTable.className = table.className;
+  // Copiar el thead
+  tempTable.appendChild(table.tHead.cloneNode(true));
+  
+  // Copiar solo las filas visibles del tbody
+  const tempTbody = document.createElement('tbody');
+  let rowCount = 0;
+  
+  table.querySelectorAll('tbody tr').forEach((row, rowIndex) => {
+    if (row.style.display === 'none') return;
+    
+    rowCount++;
+    const newRow = document.createElement('tr');
+    
+    row.querySelectorAll('td').forEach((td, colIndex) => {
+      const newTd = document.createElement('td');
+      let value = '';
+      
+      // Estrategia específica por tipo de columna según el índice
+      const input = td.querySelector('input:not([type="hidden"])');
+      const button = td.querySelector('button');
+      const span = td.querySelector('span');
+      const strong = td.querySelector('strong');
+      const small = td.querySelector('small');
+      const div = td.querySelector('div');
+      
+      if (button && !input) {
+        // Para columnas con botones (como "Ver" en historial), no exportar nada
+        value = '';
+      } else if (input) {
+        // Para inputs (principalmente fecha de pago)
+        value = input.value || '';
+        if (input.type === 'date' && value) {
+          // Formatear fecha para mejor legibilidad
+          const date = new Date(value);
+          value = date.toLocaleDateString('es-CL');
+        }
+      } else if (span && span.classList.contains('badge')) {
+        // Para badges (proyecto, factura) - prioridad alta
+        value = span.textContent.trim();
+      } else if (span && (span.classList.contains('text-primary') || span.classList.contains('text-danger') || span.classList.contains('text-success'))) {
+        // Para spans con clases de colores (montos abonados, saldos pendientes)
+        value = span.textContent.trim();
+        // Procesar montos con formato chileno
+        value = procesarMonto(value);
+      } else if (strong) {
+        // Para elementos strong (principalmente montos)
+        value = strong.textContent.trim();
+        // Procesar montos con formato chileno
+        value = procesarMonto(value);
+      } else if (small) {
+        // Para elementos small (fechas, condiciones)
+        value = small.textContent.trim();
+      } else if (div && div.classList.contains('text-truncate')) {
+        // Para divs truncados (proveedor, detalle, rut)
+        value = div.textContent.trim();
+      } else if (span) {
+        // Para cualquier otro span
+        value = span.textContent.trim();
+      } else {
+        // Para el resto, extraer todo el texto visible
+        value = td.textContent.trim();
+        
+        // Limpiar caracteres especiales y espacios extra
+        value = value.replace(/\s+/g, ' ').trim();
+      }
+      
+      // Limpiar valores específicos que no queremos
+      if (value === '-' || value === 'Ver' || value === 'Registrar abono') {
+        value = '';
+      }
+      
+      newTd.textContent = value;
+      newRow.appendChild(newTd);
+    });
+    tempTbody.appendChild(newRow);
+  });
+  
+  tempTable.appendChild(tempTbody);
+  
+  const wb = XLSX.utils.table_to_book(tempTable, {sheet: 'Pagos'});
+  
+  // Generar nombre de archivo con fecha y hora
+  const now = new Date();
+  const timestamp = now.toISOString().slice(0,16).replace('T', '_').replace(/:/g, '-');
+  const filename = `informe_pagos_${timestamp}.xlsx`;
+  
+  XLSX.writeFile(wb, filename);
+  
+  // Mostrar mensaje de éxito
+  alert('Excel emitido correctamente');
+};
 });
 </script>
 
