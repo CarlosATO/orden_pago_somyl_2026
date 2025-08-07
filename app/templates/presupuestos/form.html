@@ -476,9 +476,6 @@
   </div>
 </div>
 
-<!-- Select2 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const proyectoSelect = document.getElementById('proyecto');
@@ -497,8 +494,6 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
       gastosContainer.style.display = 'none';
       statsCards.style.display = 'none';
-  const submitBtn = form.querySelector('button[type="submit"]');
-  let isSubmitting = false;
     }
   });
 
@@ -513,15 +508,6 @@ document.addEventListener('DOMContentLoaded', function() {
         actualizarEstadisticas(data.stats);
       })
       .catch(error => {
-    if (isSubmitting) {
-      e.preventDefault();
-      return;
-    }
-    isSubmitting = true;
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
-    }
         console.error('Error:', error);
         mostrarAlerta('Error al cargar los gastos del proyecto', 'error');
       })
@@ -534,13 +520,16 @@ document.addEventListener('DOMContentLoaded', function() {
   function actualizarTablaGastos(gastos) {
     const tbody = document.getElementById('gastosTableBody');
     const totalMonto = document.getElementById('totalMonto');
+    
     tbody.innerHTML = '';
     let total = 0;
+    
     gastos.forEach(gasto => {
       const row = document.createElement('tr');
       row.innerHTML = `
         <td>
-          <input type="date" value="${gasto.fecha}" class="editable-cell" onchange="actualizarGasto(${gasto.id}, 'fecha', this.value)">
+          <input type="date" value="${gasto.fecha}" class="editable-cell" 
+                 onchange="actualizarGasto(${gasto.id}, 'fecha', this.value)">
         </td>
         <td>
           <select class="editable-cell" onchange="actualizarGasto(${gasto.id}, 'item', this.value)">
@@ -550,10 +539,14 @@ document.addEventListener('DOMContentLoaded', function() {
           </select>
         </td>
         <td>
-          <input type="text" value="${gasto.detalle || ''}" class="editable-cell" onchange="actualizarGasto(${gasto.id}, 'detalle', this.value)" maxlength="200">
+          <input type="text" value="${gasto.detalle || ''}" class="editable-cell" 
+                 onchange="actualizarGasto(${gasto.id}, 'detalle', this.value)"
+                 maxlength="200">
         </td>
         <td>
-          <input type="number" value="${gasto.monto}" class="editable-cell" onchange="actualizarGasto(${gasto.id}, 'monto', this.value)" min="1" step="1">
+          <input type="number" value="${gasto.monto}" class="editable-cell" 
+                 onchange="actualizarGasto(${gasto.id}, 'monto', this.value)"
+                 min="1" step="1">
         </td>
         <td>
           <button class="delete-btn" onclick="eliminarGasto(${gasto.id})">
@@ -564,6 +557,7 @@ document.addEventListener('DOMContentLoaded', function() {
       tbody.appendChild(row);
       total += parseInt(gasto.monto) || 0;
     });
+    
     totalMonto.textContent = formatearMonto(total);
   }
 
@@ -676,24 +670,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 5000);
   }
 
-  // Validaciones del formulario
+  // Validaciones del formulario y feedback en el botón
   const form = document.getElementById('presupuestoForm');
+  const guardarBtn = form.querySelector('button[type="submit"]');
   form.addEventListener('submit', function(e) {
     const proyecto = document.getElementById('proyecto').value;
     const item = document.getElementById('item').value;
     const monto = document.getElementById('monto').value;
-    
+
     if (!proyecto || !item || !monto) {
       e.preventDefault();
       mostrarAlerta('Por favor complete todos los campos obligatorios', 'error');
       return;
     }
-    
+
     if (parseInt(monto) <= 0) {
       e.preventDefault();
       mostrarAlerta('El monto debe ser mayor a cero', 'error');
       return;
     }
+
+    // Deshabilitar el botón y mostrar 'Guardando...'
+    guardarBtn.disabled = true;
+    guardarBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Guardando...';
   });
 
   // Formateo automático de monto
@@ -705,30 +704,6 @@ document.addEventListener('DOMContentLoaded', function() {
       this.value = parseInt(value);
     }
   });
-
-  // Inicialización de Select2
-  if (typeof $ === 'undefined' || typeof $.fn.select2 === 'undefined') {
-    var script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js';
-    script.onload = function() {
-      inicializarSelect2();
-    };
-    document.body.appendChild(script);
-  } else {
-    inicializarSelect2();
-  }
-  function inicializarSelect2() {
-    $('#proyecto').select2({
-      width: '100%',
-      placeholder: 'Seleccione un proyecto...',
-      allowClear: true
-    });
-    $('#item').select2({
-      width: '100%',
-      placeholder: 'Seleccione un ítem...',
-      allowClear: true
-    });
-  }
 });
 </script>
 
