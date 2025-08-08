@@ -577,6 +577,59 @@ def api_trabajadores():
     return jsonify({"results": results})
 
 
+@bp.route("/api/refresh_data")
+@require_modulo('orden_de_compra')
+def refresh_data():
+    """API para refrescar datos de los dropdowns cuando el usuario presiona el botón"""
+    try:
+        # Limpiar cachés específicos de Select2 y database_helpers
+        from app.utils.cache import clear_cache
+        
+        # Invalidar cachés de Select2
+        clear_cache("select2_proveedores")
+        clear_cache("select2_proyectos") 
+        clear_cache("select2_trabajadores")
+        
+        # Invalidar cachés de database_helpers
+        clear_cache("proveedores")
+        clear_cache("proyectos")
+        clear_cache("trabajadores")
+        
+        # Obtener datos frescos SIN caché
+        supabase = current_app.config['SUPABASE']
+        
+        # Consultas directas sin caché
+        fresh_proveedores = supabase.table("proveedores") \
+            .select("id,nombre,rut") \
+            .order("nombre") \
+            .limit(1000) \
+            .execute().data or []
+            
+        fresh_proyectos = supabase.table("proyectos") \
+            .select("id,proyecto,activo") \
+            .eq("activo", True) \
+            .order("proyecto") \
+            .limit(500) \
+            .execute().data or []
+            
+        fresh_trabajadores = supabase.table("trabajadores") \
+            .select("id,nombre") \
+            .order("nombre") \
+            .limit(200) \
+            .execute().data or []
+        
+        return jsonify({
+            "success": True,
+            "proveedores": fresh_proveedores,
+            "proyectos": fresh_proyectos,
+            "trabajadores": fresh_trabajadores
+        })
+        
+    except Exception as e:
+        current_app.logger.error(f"Error refrescando datos: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @bp.route("/api/materiales")
 def api_materiales():
     """API optimizada para búsqueda de materiales con stored procedure"""

@@ -363,6 +363,9 @@
     <h5>
       <i class="bi bi-file-earmark-plus"></i>
       Datos de la Orden de Compra
+      <button type="button" id="refreshDataBtn" class="btn btn-outline-primary btn-sm ms-auto" style="font-size: 0.8rem;" title="Actualizar listas de proveedores, proyectos y trabajadores">
+        <i class="bi bi-arrow-clockwise"></i> Actualizar Listas
+      </button>
     </h5>
     
     <div class="row mb-3">
@@ -771,6 +774,76 @@ $(document).ready(function() {
   // FORZAR que el checkbox de IVA esté marcado al cargar la página
   $('#incluir_iva').prop('checked', true);
   console.log('DEBUG: Checkbox IVA forzado a marcado al cargar página');
+  
+  // NUEVO: Función para refrescar datos sin perder formulario
+  $('#refreshDataBtn').click(function() {
+    const btn = $(this);
+    const originalHtml = btn.html();
+    
+    // Mostrar loading
+    btn.html('<i class="bi bi-arrow-clockwise"></i> Actualizando...').prop('disabled', true);
+    
+    // Guardar valores seleccionados actuales
+    const currentValues = {
+      proveedor: $('#proveedor_id').val(),
+      proyecto: $('#proyecto_id').val(),
+      trabajador: $('#solicitado_por').val()
+    };
+    
+    $.ajax({
+      url: '{{ url_for("ordenes.refresh_data") }}',
+      method: 'GET',
+      timeout: 10000,
+      success: function(response) {
+        if (response.success) {
+          // Actualizar proveedores
+          const $proveedorSelect = $('#proveedor_id');
+          $proveedorSelect.empty().append('<option value="">Seleccione un proveedor...</option>');
+          response.proveedores.forEach(function(p) {
+            $proveedorSelect.append(`<option value="${p.id}" data-rut="${p.rut}">${p.nombre}</option>`);
+          });
+          
+          // Actualizar proyectos
+          const $proyectoSelect = $('#proyecto_id');
+          $proyectoSelect.empty().append('<option value="">Seleccione un proyecto...</option>');
+          response.proyectos.forEach(function(p) {
+            $proyectoSelect.append(`<option value="${p.id}">${p.proyecto}</option>`);
+          });
+          
+          // Actualizar trabajadores
+          const $trabajadorSelect = $('#solicitado_por');
+          $trabajadorSelect.empty().append('<option value="">Seleccione un trabajador...</option>');
+          response.trabajadores.forEach(function(t) {
+            $trabajadorSelect.append(`<option value="${t.id}">${t.nombre}</option>`);
+          });
+          
+          // Restaurar valores seleccionados si aún existen
+          if (currentValues.proveedor) {
+            $proveedorSelect.val(currentValues.proveedor).trigger('change');
+          }
+          if (currentValues.proyecto) {
+            $proyectoSelect.val(currentValues.proyecto);
+          }
+          if (currentValues.trabajador) {
+            $trabajadorSelect.val(currentValues.trabajador);
+          }
+          
+          // Mensaje de éxito
+          alert('✅ Listas actualizadas correctamente. Los nuevos registros ya están disponibles.');
+        } else {
+          alert('❌ Error al actualizar: ' + (response.error || 'Error desconocido'));
+        }
+      },
+      error: function(xhr, status, error) {
+        console.error('Error refreshing data:', error);
+        alert('❌ Error de conexión al actualizar las listas. Intente nuevamente.');
+      },
+      complete: function() {
+        // Restaurar botón
+        btn.html(originalHtml).prop('disabled', false);
+      }
+    });
+  });
 });
 </script>
 
