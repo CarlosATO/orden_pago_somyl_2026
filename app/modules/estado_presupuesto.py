@@ -24,13 +24,13 @@ def show_estado():
     
     # 1) Obtener proyectos con cache optimizado
     with PerformanceContext("fetch_projects"):
-        cache_key = "estado_presupuesto_proyectos"
+        cache_key = "estado_presupuesto_proyectos_activos"
         all_projects = get_cached_data(cache_key, ttl=600)  # Cache 10 minutos
-        
         if all_projects is None:
-            all_projects = supabase.table('proyectos').select('id,proyecto,observacion').execute().data or []
+            # Solo proyectos activos
+            all_projects = supabase.table('proyectos').select('id,proyecto,observacion,activo').eq('activo', True).execute().data or []
             set_cached_data(cache_key, all_projects)
-        
+        # Filtrar los que no estén finalizados
         proyectos_filtrados = [
             r for r in all_projects
             if not (r.get('observacion') and str(r['observacion']).strip().lower() == 'finalizado')
@@ -41,7 +41,16 @@ def show_estado():
     
     id_to_nombre_proj = {r['id']: r['proyecto'] for r in proyectos_filtrados}
     name_to_id = {normalize_name(name): pid for pid, name in id_to_nombre_proj.items()}
-    proyectos = [(str(r['id']), r['proyecto']) for r in sorted(proyectos_filtrados, key=lambda x: str(x['proyecto']).lower())]
+    # Para una selección más elegante, se puede usar un diccionario con más info si la plantilla lo permite
+    proyectos = [
+        {
+            'id': str(r['id']),
+            'nombre': r['proyecto'],
+            'observacion': r.get('observacion', ''),
+            'activo': r.get('activo', False)
+        }
+        for r in sorted(proyectos_filtrados, key=lambda x: str(x['proyecto']).lower())
+    ]
     
     # 2) Parámetros de filtro
     raw_selected = request.args.getlist('proyecto')
@@ -456,7 +465,8 @@ def show_estado():
         grand_totals=grand_totals,
         project_names=id_to_nombre_proj,
         resumen_presupuesto=safe_resumen_presupuesto,
-        resumen_real=safe_resumen_real
+        resumen_real=safe_resumen_real,
+        proyectos_elegantes=True  # Para que la plantilla sepa que puede renderizar de forma especial
     )
 
 

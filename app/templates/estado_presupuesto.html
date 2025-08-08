@@ -402,17 +402,29 @@
 <div class="modern-form">
   <form method="GET" class="row g-3 align-items-end" id="filterForm">
     <div class="col-lg-4 col-md-6">
-      <label for="proyectos" class="form-label fw-bold">
+      <label class="form-label fw-bold">
         <i class="bi bi-building me-1"></i>Proyectos:
       </label>
-      <select id="proyectos" name="proyecto" multiple class="form-select modern-select" size="4">
-        {% for pid, pname in proyectos %}
-          <option value="{{ pid }}" {% if pid in selected %}selected{% endif %}>{{ pname }}</option>
-        {% endfor %}
-      </select>
+      <div class="card p-2 mb-2" style="border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span class="fw-semibold">Seleccionar Proyectos</span>
+          <span class="badge bg-primary" id="selectedCount">0</span>
+        </div>
+        <div style="max-height: 180px; overflow-y: auto;">
+          {% for proyecto in proyectos %}
+          <div class="form-check">
+            <input class="form-check-input proyecto-checkbox" type="checkbox" value="{{ proyecto.id }}" id="proy_{{ loop.index }}" name="proyecto" {% if proyecto.id in selected %}checked{% endif %}>
+            <label class="form-check-label" for="proy_{{ loop.index }}">{{ proyecto.nombre }}</label>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="d-flex gap-2 mt-2">
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="selectAllBtn" type="button">Todos</button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="clearAllBtn" type="button">Limpiar</button>
+        </div>
+      </div>
       <div class="form-text">
-        <i class="bi bi-info-circle me-1"></i>
-        Mantén presionada Ctrl/Cmd para seleccionar varios.
+        Haz clic en los proyectos para seleccionar varios.
       </div>
     </div>
     
@@ -565,7 +577,40 @@ document.addEventListener('DOMContentLoaded', function() {
   initializeProduccionInput();
   initializePresupuestoCells();
   initializeKeyboardShortcuts();
+  initializeProyectoCheckboxes();
 });
+
+function initializeProyectoCheckboxes() {
+  const checkboxes = document.querySelectorAll('.proyecto-checkbox');
+  const selectedCount = document.getElementById('selectedCount');
+  const selectAllBtn = document.getElementById('selectAllBtn');
+  const clearAllBtn = document.getElementById('clearAllBtn');
+
+  function updateCount() {
+    const count = Array.from(checkboxes).filter(cb => cb.checked).length;
+    selectedCount.textContent = count;
+  }
+
+  checkboxes.forEach(cb => {
+    cb.addEventListener('change', updateCount);
+  });
+
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', function() {
+      checkboxes.forEach(cb => cb.checked = true);
+      updateCount();
+    });
+  }
+  if (clearAllBtn) {
+    clearAllBtn.addEventListener('click', function() {
+      checkboxes.forEach(cb => cb.checked = false);
+      updateCount();
+    });
+  }
+
+  // Inicializar el conteo al cargar
+  updateCount();
+}
 
 function initializeProduccionInput() {
   const input = document.getElementById('input-produccion');
@@ -604,7 +649,7 @@ function updateProduccion(value) {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({
-      proyecto: {{ selected[0]|tojson if selected else 'null' }},
+      proyecto: {{ selected[0]|tojson if selected and selected[0] else 'null' }},
       produccion: value
     })
   })
