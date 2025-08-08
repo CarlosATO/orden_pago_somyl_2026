@@ -1,4 +1,3 @@
-
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify, get_flashed_messages, request as flask_request
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import login_required, current_user
@@ -63,6 +62,8 @@ def nuevo_usuario():
             return all_rows
 
         modulos = fetch_all_rows('modulos', '*', 'nombre_modulo')
+        # Eliminar el agregado temporal del módulo 'Usuarios'
+        # Si el módulo no existe en la base de datos, no se agrega manualmente
         current_app.logger.info(f"Módulos obtenidos: {len(modulos) if modulos else 0}")
         if modulos:
             current_app.logger.info(f"Primer módulo: {modulos[0]}")
@@ -79,12 +80,6 @@ def nuevo_usuario():
             modulos_seleccionados = request.form.getlist('modulos')
 
             current_app.logger.info(f"Creando usuario: {nombre} ({email})")
-            current_app.logger.info(f"Módulos seleccionados: {modulos_seleccionados}")
-
-            # Validaciones básicas
-            if not nombre or not email or not password:
-                flash('Todos los campos son requeridos', 'danger')
-                return render_template('usuarios/nuevo.html', modulos=modulos)
 
             if len(password) < 8:
                 flash('La contraseña debe tener al menos 8 caracteres', 'danger')
@@ -323,6 +318,9 @@ def editar_usuario(id):
 
     # Obtener todos los módulos
     modulos = supabase.table('modulos').select('*').execute().data or []
+    # Aseguramos que 'Usuarios' esté en la lista de módulos
+    if not any(m.get('nombre_modulo','').strip().lower() == 'usuarios' for m in modulos):
+        modulos.append({'id': -1, 'nombre_modulo': 'Usuarios'})
 
     # Obtener módulos a los que el usuario tiene acceso
     permisos = supabase.table('usuario_modulo').select('modulo_id').eq('usuario_id', id).execute().data or []
@@ -449,7 +447,7 @@ def reset_password_usuario(id):
 
 @bp.route('/dashboard')
 @login_required
-@require_modulo('Usuarios')
+@require_modulo('usuarios')
 def dashboard_usuarios():
     """Dashboard con estadísticas de usuarios."""
     supabase = current_app.config['SUPABASE']
