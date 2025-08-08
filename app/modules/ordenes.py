@@ -79,10 +79,10 @@ def new_orden():
     from app.utils.database_helpers import optimized_fetch_all_rows
     
     # Datos con cache optimizado (15 minutos para datos que cambian poco)
-    proveedores = optimized_fetch_all_rows("proveedores", "id,nombre,rut", "nombre", limit=1000, cache_ttl=900)
-    # Obtener todos los proyectos y filtrar solo los activos
-    proyectos = [p for p in optimized_fetch_all_rows("proyectos", "id,proyecto,activo", "proyecto", limit=500, cache_ttl=900) if p.get("activo") == True]
-    trabajadores = optimized_fetch_all_rows("trabajadores", "id,nombre", "nombre", limit=200, cache_ttl=900)
+    proveedores = optimized_fetch_all_rows("proveedores", "id,nombre,rut", "nombre", limit=1000)
+    # Obtener todos los proyectos y filtrar solo los activos (sin cache)
+    proyectos = [p for p in optimized_fetch_all_rows("proyectos", "id,proyecto,activo", "proyecto", limit=500) if p.get("activo") == True]
+    trabajadores = optimized_fetch_all_rows("trabajadores", "id,nombre", "nombre", limit=200)
     
     # Datos históricos con límite para performance
     history = optimized_fetch_all_rows("orden_de_compra", "descripcion,precio_unitario,orden_compra", "orden_compra", desc=True, limit=1000, cache_ttl=600)    # Próximo número de OC
