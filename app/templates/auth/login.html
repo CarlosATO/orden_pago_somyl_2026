@@ -2,12 +2,13 @@
 {% block title %}Iniciar Sesión - Gestión Somyl{% endblock %}
 {% block content %}
 <style>
-  body {
-    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f8fafc 100%);
+  .login-page-bg {
     min-height: 100vh;
     display: flex;
-    align-items: center;
+    align-items: flex-start; /* antes estaba center */
     justify-content: center;
+    padding-top: 40px; /* controlamos el espacio superior */
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f8fafc 100%);
     font-family: 'Inter', 'Segoe UI', sans-serif;
   }
 
@@ -21,17 +22,7 @@
   }
 
   /* Fondo simplificado */
-  body::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: repeating-linear-gradient(0deg, transparent, transparent 25px, rgba(14, 165, 233, 0.01) 25px, rgba(14, 165, 233, 0.01) 26px);
-    pointer-events: none;
-    z-index: 0;
-  }
+  /* Eliminado fondo gris debajo del login-container */
 
   /* Animaciones suaves y eficientes */
   @keyframes slideInUp {
@@ -45,15 +36,15 @@
   }
 
   .login-container {
-    max-width: 380px;
+    max-width: 340px;
     width: 100%;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(14,165,233,0.1);
-    border: 1px solid rgba(226,232,240,0.3);
-    padding: 24px;
-    margin: 20px;
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: blur(8px);
+    border-radius: 10px;
+    box-shadow: 0 4px 18px rgba(14,165,233,0.10);
+    border: 1px solid rgba(226,232,240,0.25);
+    padding: 12px 14px 14px 14px; /* antes más grande */
+    margin: 0; /* quitamos espacio innecesario */
     position: relative;
     animation: slideInUp 0.4s ease-out;
     z-index: 10;
@@ -61,18 +52,18 @@
 
   .login-header {
     text-align: center;
-    margin-bottom: 24px;
+    margin-bottom: 12px; /* antes 24px */
   }
 
   .company-logo {
-    width: 56px;
-    height: 56px;
+    width: 48px; /* más pequeño */
+    height: 48px;
     background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
     border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 0 auto 16px;
+    margin: 0 auto 10px; /* menos espacio abajo */
     color: white;
     font-size: 1.5rem;
     font-weight: 700;
@@ -81,18 +72,18 @@
   }
 
   .company-title {
-    font-size: 1.5rem;
+    font-size: 1.3rem; /* antes 1.5rem */
     font-weight: 700;
     color: #1e293b;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     letter-spacing: -0.2px;
   }
 
   .company-subtitle {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: #64748b;
     font-weight: 500;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
   }
 
   .system-features {
@@ -117,7 +108,7 @@
     font-weight: 600;
     color: #374151;
     text-align: center;
-    margin-bottom: 24px;
+    margin-bottom: 16px; /* antes 24px */
   }
 
   .form-group {
@@ -275,22 +266,19 @@
   /* Responsive optimizado */
   @media (max-width: 480px) {
     .login-container {
-      margin: 16px;
-      padding: 20px;
-      max-width: calc(100vw - 32px);
+      margin: 8px;
+      padding: 10px;
+      max-width: calc(100vw - 16px);
     }
-    
     .company-title {
-      font-size: 1.3rem;
+      font-size: 1.15rem;
     }
-    
     .system-features {
-      gap: 6px;
+      gap: 4px;
     }
-    
     .feature-badge {
-      font-size: 0.65rem;
-      padding: 3px 6px;
+      font-size: 0.6rem;
+      padding: 2px 5px;
     }
   }
 
@@ -300,21 +288,22 @@
   }
 </style>
 
-<div class="login-container">
-  <!-- Header -->
-  <div class="login-header">
-    <div class="company-logo">S</div>
-    <div class="company-info">
-      <h1 class="company-title">Gestión Somyl S.A.</h1>
-      <p class="company-subtitle">Sistema Integral de Administración</p>
-      <div class="system-features">
-        <span class="feature-badge">OC</span>
-        <span class="feature-badge">OP</span>
-        <span class="feature-badge">Presupuestos</span>
-        <span class="feature-badge">Producción</span>
+<div class="login-page-bg">
+  <div class="login-container">
+    <!-- Header reducido -->
+    <div class="login-header">
+      <div class="company-logo">S</div>
+      <div class="company-info">
+        <h1 class="company-title">Gestión Somyl S.A.</h1>
+        <p class="company-subtitle">Sistema Integral de Administración</p>
+        <div class="system-features">
+          <span class="feature-badge">OC</span>
+          <span class="feature-badge">OP</span>
+          <span class="feature-badge">Presupuestos</span>
+          <span class="feature-badge">Producción</span>
+        </div>
       </div>
     </div>
-  </div>
 
   <!-- Mensajes flash -->
   {% with messages = get_flashed_messages(with_categories=true) %}
@@ -329,8 +318,6 @@
 
   <!-- Formulario de login -->
   <div class="login-form">
-    <h2 class="form-title">Acceso al Sistema</h2>
-    
     <form method="post" id="loginForm">
       <div class="form-group">
         <label for="email" class="form-label">Correo electrónico</label>
@@ -344,7 +331,6 @@
                autocomplete="email">
         <i class="bi bi-person-circle input-icon"></i>
       </div>
-      
       <div class="form-group">
         <label for="password" class="form-label">Contraseña</label>
         <input type="password" 
@@ -356,23 +342,21 @@
                autocomplete="current-password">
         <i class="bi bi-shield-lock input-icon"></i>
       </div>
-      
       <button type="submit" class="btn-login" id="btnLogin">
         <i class="bi bi-box-arrow-in-right me-2"></i>
         Ingresar al Sistema
       </button>
-      
       <div class="login-loading" id="loginLoading">
         <div class="spinner"></div>
         Validando credenciales...
       </div>
     </form>
-
     <!-- Nota de seguridad -->
     <div class="security-note">
       <i class="bi bi-shield-check security-icon"></i>
       Sistema protegido con cifrado de nivel empresarial
     </div>
+  </div>
   </div>
 </div>
 
