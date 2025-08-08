@@ -80,7 +80,8 @@ def new_orden():
     
     # Datos con cache optimizado (15 minutos para datos que cambian poco)
     proveedores = optimized_fetch_all_rows("proveedores", "id,nombre,rut", "nombre", limit=1000, cache_ttl=900)
-    proyectos = optimized_fetch_all_rows("proyectos", "id,proyecto", "proyecto", limit=500, cache_ttl=900)
+    # Obtener todos los proyectos y filtrar solo los activos
+    proyectos = [p for p in optimized_fetch_all_rows("proyectos", "id,proyecto,activo", "proyecto", limit=500, cache_ttl=900) if p.get("activo") == True]
     trabajadores = optimized_fetch_all_rows("trabajadores", "id,nombre", "nombre", limit=200, cache_ttl=900)
     
     # Datos históricos con límite para performance
