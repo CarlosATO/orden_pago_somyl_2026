@@ -264,19 +264,25 @@
 
 <!-- Cards de estadísticas -->
 <div class="row mb-4">
-  <div class="col-md-4">
+  <div class="col-md-3">
     <div class="stats-card">
       <div class="stats-number" id="totalProyectos">{{ proyectos|length }}</div>
       <div class="stats-label">Total Proyectos</div>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="col-md-3">
+    <div class="stats-card">
+      <div class="stats-number" id="proyectosActivos">{{ proyectos|selectattr('activo', 'equalto', True)|list|length }}</div>
+      <div class="stats-label">Proyectos Activos</div>
+    </div>
+  </div>
+  <div class="col-md-3">
     <div class="stats-card">
       <div class="stats-number" id="proyectosConVenta">{{ proyectos|selectattr('venta')|list|length }}</div>
       <div class="stats-label">Con Venta</div>
     </div>
   </div>
-  <div class="col-md-4">
+  <div class="col-md-3">
     <div class="stats-card">
       <div class="stats-number" id="proyectosSinVenta">{{ (proyectos|length) - (proyectos|selectattr('venta')|list|length) }}</div>
       <div class="stats-label">Sin Venta</div>
@@ -297,6 +303,8 @@
       <option value="">Todos los proyectos</option>
       <option value="con_venta">Con venta</option>
       <option value="sin_venta">Sin venta</option>
+      <option value="activos">Activos</option>
+      <option value="inactivos">Inactivos</option>
     </select>
   </div>
 </div>
@@ -357,6 +365,17 @@
             <div class="validation-feedback" id="observacion-feedback"></div>
           </div>
         </div>
+        <div class="col-md-4 d-flex align-items-center">
+          <div style="background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-radius: 10px; padding: 1rem 1.5rem; width: 100%; display: flex; align-items: center;">
+            <input class="form-check-input" type="checkbox" 
+                   id="activo" name="activo"
+                   style="width: 1.2em; height: 1.2em; accent-color: #007bff; margin-right: 1em;"
+                   {% if proyecto is not defined or proyecto['activo'] %}checked{% endif %}>
+            <label class="form-check-label fw-bold" for="activo" style="font-size: 1.15em; color: #222; margin-bottom: 0;">
+              Proyecto activo
+            </label>
+          </div>
+        </div>
       </div>
       
       <div class="d-flex gap-2 mt-3">
@@ -393,14 +412,17 @@
       <table class="table table-modern" id="proyectosTable">
         <thead>
           <tr>
-            <th style="width: 30%;">
+            <th style="width: 25%;">
               <i class="bi bi-building me-1"></i>Proyecto
             </th>
-            <th style="width: 25%;">
+            <th style="width: 20%;">
               <i class="bi bi-currency-dollar me-1"></i>Venta
             </th>
-            <th style="width: 30%;">
+            <th style="width: 25%;">
               <i class="bi bi-chat-text me-1"></i>Observación
+            </th>
+            <th style="width: 15%;">
+              <i class="bi bi-check-circle me-1"></i>Estado
             </th>
             <th style="width: 15%;">
               <i class="bi bi-gear me-1"></i>Acciones
@@ -409,7 +431,7 @@
         </thead>
         <tbody id="tableBody">
           {% for p in proyectos %}
-          <tr class="proyecto-row" data-proyecto="{{ p.proyecto|lower }}" data-venta="{{ p.venta|lower if p.venta else '' }}" data-observacion="{{ p.observacion|lower if p.observacion else '' }}">
+          <tr class="proyecto-row{% if not p.activo %} table-danger{% endif %}" data-proyecto="{{ p.proyecto|lower }}" data-venta="{{ p.venta|lower if p.venta else '' }}" data-observacion="{{ p.observacion|lower if p.observacion else '' }}">
             <td>
               <strong>{{ p.proyecto }}</strong>
             </td>
@@ -422,6 +444,13 @@
             </td>
             <td>
               <small class="text-muted">{{ p.observacion if p.observacion else '-' }}</small>
+            </td>
+            <td>
+              {% if p.activo %}
+                <span class="badge bg-primary">Activo</span>
+              {% else %}
+                <span class="badge bg-danger">Inactivo</span>
+              {% endif %}
             </td>
             <td>
               <a href="{{ url_for('proyectos.edit_proyecto', id=p.id) }}" 
@@ -534,36 +563,42 @@ document.addEventListener('DOMContentLoaded', function() {
     const ventaFilterValue = ventaFilter.value;
     const rows = tableBody.querySelectorAll('.proyecto-row');
     let visibleCount = 0;
-    
+
     rows.forEach(row => {
       const proyecto = row.dataset.proyecto;
       const venta = row.dataset.venta;
       const observacion = row.dataset.observacion;
-      
+      // Detectar si el proyecto está activo por la clase table-danger
+      const isActivo = !row.classList.contains('table-danger');
+
       // Filtro de búsqueda
       const matchesSearch = !searchTerm || 
         proyecto.includes(searchTerm) || 
         venta.includes(searchTerm) || 
         observacion.includes(searchTerm);
-      
-      // Filtro de venta
+
+      // Filtro de venta/estado
       let matchesVenta = true;
       if (ventaFilterValue === 'con_venta') {
         matchesVenta = venta.trim() !== '';
       } else if (ventaFilterValue === 'sin_venta') {
         matchesVenta = venta.trim() === '';
+      } else if (ventaFilterValue === 'activos') {
+        matchesVenta = isActivo;
+      } else if (ventaFilterValue === 'inactivos') {
+        matchesVenta = !isActivo;
       }
-      
+
       // Mostrar/ocultar fila
       const shouldShow = matchesSearch && matchesVenta;
       row.style.display = shouldShow ? '' : 'none';
-      
+
       if (shouldShow) visibleCount++;
     });
-    
+
     // Actualizar contador
     resultCount.textContent = `${visibleCount} proyecto${visibleCount !== 1 ? 's' : ''}`;
-    
+
     // Mostrar/ocultar mensaje de no resultados
     noResults.style.display = visibleCount === 0 ? 'block' : 'none';
     tableBody.style.display = visibleCount === 0 ? 'none' : '';

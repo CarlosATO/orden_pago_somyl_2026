@@ -66,10 +66,15 @@ def new_proyecto():
             return redirect(url_for("proyectos.list_proyectos"))
 
         # Crear nuevo proyecto
+        def to_null(val):
+            if not val or str(val).strip().upper() == "NONE":
+                return None
+            return val
+
         payload = {
             "proyecto": proyecto_val,
-            "venta": venta_val if venta_val else None,
-            "observacion": observacion_val if observacion_val else None
+            "venta": to_null(venta_val),
+            "observacion": to_null(observacion_val)
         }
         
         result = current_app.config['SUPABASE'].table("proyectos").insert(payload).execute()
@@ -123,7 +128,9 @@ def edit_proyecto(id):
             nuevos = {
                 "proyecto": request.form.get("proyecto", "").strip().upper(),
                 "venta": request.form.get("venta", "").strip().upper(),
-                "observacion": request.form.get("observacion", "").strip().upper()
+                "observacion": request.form.get("observacion", "").strip().upper(),
+                # Lee el valor del checkbox, si está presente será 'on', si no, False
+                "activo": True if request.form.get("activo") == "on" else False
             }
 
             # Validaciones básicas
@@ -173,11 +180,17 @@ def edit_proyecto(id):
                     )
                     return render_template("proyectos/form.html", proyectos=proyectos, proyecto=proyecto)
 
-            # Preparar payload con valores nulos apropiados
+            # Preparar payload con valores nulos apropiados, usando null para Supabase
+            def to_null(val):
+                if not val or str(val).strip().upper() == "NONE":
+                    return None
+                return val
+
             payload = {
                 "proyecto": nuevos["proyecto"],
-                "venta": nuevos["venta"] if nuevos["venta"] else None,
-                "observacion": nuevos["observacion"] if nuevos["observacion"] else None
+                "venta": to_null(nuevos["venta"]),
+                "observacion": to_null(nuevos["observacion"]),
+                "activo": nuevos["activo"]
             }
 
             # Actualizar proyecto
