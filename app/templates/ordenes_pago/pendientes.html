@@ -359,6 +359,8 @@
           <th style="width: 160px; min-width: 80px;">MATERIAL</th>
           <th style="width: 60px; min-width: 40px;">CANT.</th>
           <th style="width: 120px; min-width: 80px;">DETALLE O.P.</th>
+          <th style="width: 110px; min-width: 80px;">MONTO NETO OC</th>
+          <th style="width: 110px; min-width: 80px;">FECHA OP</th>
           <th style="width: 90px; min-width: 60px;">Fac compra</th>
           <th style="width: 100px; min-width: 70px;">Nº DOCUMENTO</th>
           <th style="width: 80px; min-width: 60px;">ACCIONES</th>
@@ -388,6 +390,12 @@
             <div class="material-desc" title="{{ f.detalle_compra }}">
               {{ f.detalle_compra or '-' }}
             </div>
+          </td>
+          <td class="text-end">
+            {{ f.monto_neto_oc | clp }}
+          </td>
+          <td class="text-center">
+            {{ f.fecha_op or '-' }}
           </td>
           <td class="text-center">
             {% if f.fac_compra %}
@@ -495,9 +503,9 @@ class PendientesManager {
       const row = [];
       tr.querySelectorAll('td').forEach((td, idx) => {
         // Extraer texto visible, sin HTML
-        if (idx === 6) { // Fac compra
+        if (idx === 8) { // Fac compra
           row.push(td.textContent.trim() || '');
-        } else if (idx === 8) { // Acciones, no exportar botón
+        } else if (idx === 10) { // Acciones, no exportar botón
           row.push('');
         } else {
           row.push(td.textContent.trim());
@@ -589,7 +597,7 @@ class PendientesManager {
       let matchesFacCompra = true;
       if (this.facCompraFilterActive) {
         // La columna Fac compra es la 7ma (índice 6), buscar el span con clase badge-pending dentro de ese td
-        const facCompraTd = row.querySelectorAll('td')[6];
+  const facCompraTd = row.querySelectorAll('td')[8];
         matchesFacCompra = facCompraTd && facCompraTd.textContent.trim() !== '';
       }
 

@@ -475,10 +475,23 @@ def dashboard_usuarios():
         # Usuarios inactivos (sin acceso reciente)
         usuarios_inactivos = [u for u in usuarios if not u.get('fecha_ultimo_acceso')]
         
+        # Obtener logs de actividad para cada usuario
+        logs_por_usuario = {}
+        for usuario in usuarios:
+            logs = supabase.table('logs_actividad') \
+                .select('fecha_hora, accion, tabla_afectada, registro_id, descripcion, datos_antes, datos_despues, ip_origen, user_agent') \
+                .eq('usuario_id', usuario['id']) \
+                .order('fecha_hora', desc=True) \
+                .limit(50) \
+                .execute().data or []
+            logs_por_usuario[usuario['id']] = logs
+
         return render_template('usuarios/dashboard.html', 
                              stats=stats, 
                              usuarios_riesgo=usuarios_riesgo,
-                             usuarios_inactivos=usuarios_inactivos)
+                             usuarios_inactivos=usuarios_inactivos,
+                             usuarios=usuarios,
+                             logs_por_usuario=logs_por_usuario)
     except Exception as e:
         current_app.logger.error(f"Error en dashboard_usuarios: {e}")
         flash(f'Error al cargar el dashboard: {str(e)}', 'danger')

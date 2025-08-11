@@ -63,11 +63,16 @@ def list_pendientes():
                 resumen = resumen[:47] + "..."
             # Sumar totales
             total_costo = sum(float(l.get("costo_final_con_iva", 0) or 0) for l in lines)
+            # Obtener monto neto OC (suma de todas las líneas de la orden de pago)
+            monto_neto_oc = sum(float(l.get("neto_total_recibido", 0) or 0) for l in lines)
+            fecha_op = first.get("fecha", "")
             fila = {
-                **first,
-                "material_nombre": resumen,
-                "costo_final_con_iva": total_costo,
-                "ids": [l["id"] for l in lines],
+            **first,
+            "material_nombre": resumen,
+            "costo_final_con_iva": total_costo,
+            "ids": [l["id"] for l in lines],
+            "monto_neto_oc": monto_neto_oc,
+            "fecha_op": fecha_op,
             }
             filas.append(fila)
 
