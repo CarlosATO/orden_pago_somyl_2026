@@ -2,6 +2,10 @@ import os
 import smtplib
 from email.message import EmailMessage
 from typing import List, Tuple, Optional
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
 
 # Supabase client debe ser pasado desde Flask (current_app.config['SUPABASE'])
 def obtener_destinatarios_activos(supabase) -> List[str]:
@@ -30,17 +34,28 @@ def enviar_correo_con_pdfs(
     """
     import logging
     logger = logging.getLogger("enviar_correo")
+    
+    # Verificar variables de entorno
     remitente = os.environ.get("GMAIL_USER", "opsomyl@gmail.com")
     password = os.environ.get("GMAIL_PASS")
+    
+    # Debug: imprimir información de variables de entorno (sin mostrar la contraseña completa)
+    logger.info(f"GMAIL_USER encontrado: {bool(remitente)}")
+    logger.info(f"GMAIL_PASS encontrado: {bool(password)}")
+    if password:
+        logger.info(f"GMAIL_PASS inicia con: {password[:4]}...")
+    
     if not password:
-        logger.error("No se encontró la contraseña de Gmail en el entorno (GMAIL_PASS)")
-        raise Exception("No se encontró la contraseña de Gmail en el entorno (GMAIL_PASS)")
+        error_msg = "No se encontró la contraseña de Gmail en el entorno (GMAIL_PASS)"
+        logger.error(error_msg)
+        raise Exception(error_msg)
 
     destinatarios = obtener_destinatarios_activos(supabase)
-    logger.info(f"Destinatarios activos: {destinatarios}")
+    logger.info(f"Destinatarios activos encontrados: {len(destinatarios)} - {destinatarios}")
     if not destinatarios:
-        logger.error("No hay destinatarios activos en la base de datos")
-        raise Exception("No hay destinatarios activos en la base de datos")
+        error_msg = "No hay destinatarios activos en la base de datos"
+        logger.error(error_msg)
+        raise Exception(error_msg)
 
     msg = EmailMessage()
     msg["Subject"] = asunto
