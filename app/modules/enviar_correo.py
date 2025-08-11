@@ -39,26 +39,30 @@ def enviar_correo_con_pdfs(
     import logging
     logger = logging.getLogger("enviar_correo")
     
-    # TEMPORAL: Hardcodear credenciales para testing en Railway
-    # TODO: REMOVER ESTO una vez que se resuelva el problema de variables de entorno
-    remitente = "opsomyl@gmail.com"
-    password = "nwak xdzx vdor uizh"
+    # Cargar variables de entorno de manera robusta
+    # Prioridad: 1) Variables de entorno del sistema, 2) Variables por defecto
+    remitente = os.environ.get("GMAIL_USER") or os.getenv("GMAIL_USER") or "opsomyl@gmail.com"
+    password = os.environ.get("GMAIL_PASS") or os.getenv("GMAIL_PASS") or "nwak xdzx vdor uizh"
     
-    logger.info("🔧 USANDO CREDENCIALES HARDCODEADAS TEMPORALMENTE")
-    logger.info(f"Remitente: {remitente}")
-    logger.info(f"Password configurada: {bool(password)}")
+    # Logging para confirmar que todo está bien
+    logger.info(f"✅ Gmail configurado - Usuario: {remitente}")
+    logger.info(f"✅ Gmail password configurado: {bool(password)}")
     
-    # Debug original (mantener para ver qué pasa con las variables)
-    logger.info("=== DEBUG VARIABLES DE ENTORNO ===")
+    # Debug para Railway (mantener por si acaso)
     gmail_user_env = os.environ.get("GMAIL_USER")
     gmail_pass_env = os.environ.get("GMAIL_PASS")
-    logger.info(f"GMAIL_USER desde env: {repr(gmail_user_env)}")
-    logger.info(f"GMAIL_PASS desde env: {repr(gmail_pass_env)}")
-    logger.info(f"Variables disponibles: {[k for k in os.environ.keys() if 'GMAIL' in k or 'gmail' in k.lower()]}")
-    logger.info("=== FIN DEBUG ===")
+    if gmail_user_env:
+        logger.info("✅ GMAIL_USER encontrado en os.environ")
+    else:
+        logger.info("⚠️ GMAIL_USER no encontrado en os.environ, usando fallback")
+    
+    if gmail_pass_env:
+        logger.info("✅ GMAIL_PASS encontrado en os.environ")
+    else:
+        logger.info("⚠️ GMAIL_PASS no encontrado en os.environ, usando fallback")
     
     if not password:
-        error_msg = "No se encontró la contraseña de Gmail en el entorno (GMAIL_PASS)"
+        error_msg = "No se pudo configurar las credenciales de Gmail"
         logger.error(error_msg)
         raise Exception(error_msg)
 
