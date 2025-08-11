@@ -2,10 +2,14 @@ import os
 import smtplib
 from email.message import EmailMessage
 from typing import List, Tuple, Optional
-from dotenv import load_dotenv
 
-# Cargar variables de entorno
-load_dotenv()
+# Cargar variables de entorno solo si estamos en desarrollo
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # En producción (Railway) no necesitamos dotenv
+    pass
 
 # Supabase client debe ser pasado desde Flask (current_app.config['SUPABASE'])
 def obtener_destinatarios_activos(supabase) -> List[str]:
@@ -35,15 +39,25 @@ def enviar_correo_con_pdfs(
     import logging
     logger = logging.getLogger("enviar_correo")
     
-    # Verificar variables de entorno
-    remitente = os.environ.get("GMAIL_USER", "opsomyl@gmail.com")
+    # Verificar variables de entorno con debug completo
+    remitente = os.environ.get("GMAIL_USER")
     password = os.environ.get("GMAIL_PASS")
     
-    # Debug: imprimir información de variables de entorno (sin mostrar la contraseña completa)
-    logger.info(f"GMAIL_USER encontrado: {bool(remitente)}")
-    logger.info(f"GMAIL_PASS encontrado: {bool(password)}")
+    # Debug detallado de variables de entorno
+    logger.info("=== DEBUG VARIABLES DE ENTORNO ===")
+    logger.info(f"Todas las variables disponibles: {list(os.environ.keys())}")
+    logger.info(f"GMAIL_USER raw: {repr(os.environ.get('GMAIL_USER'))}")
+    logger.info(f"GMAIL_PASS raw: {repr(os.environ.get('GMAIL_PASS'))}")
+    logger.info(f"GMAIL_USER valor: {remitente}")
+    logger.info(f"GMAIL_PASS presente: {bool(password)}")
     if password:
-        logger.info(f"GMAIL_PASS inicia con: {password[:4]}...")
+        logger.info(f"GMAIL_PASS primeros 4 chars: {password[:4]}")
+    logger.info("=== FIN DEBUG ===")
+    
+    # Usar valores por defecto si no están definidos
+    if not remitente:
+        remitente = "opsomyl@gmail.com"
+        logger.warning("Usando GMAIL_USER por defecto")
     
     if not password:
         error_msg = "No se encontró la contraseña de Gmail en el entorno (GMAIL_PASS)"
