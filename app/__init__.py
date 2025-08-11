@@ -15,6 +15,8 @@ load_dotenv()
 
 def create_app():
     app = Flask(__name__)
+    from .modules.correo import bp_correo
+    app.register_blueprint(bp_correo)
 
     # Configuración optimizada para producción
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000  # 1 año para assets estáticos
@@ -51,6 +53,8 @@ def create_app():
     app.register_blueprint(bp_op, url_prefix='/ordenes_pago')
     from .modules.ordenes_pago_pdf import bp_pdf
     app.register_blueprint(bp_pdf)
+    from .modules.ordenes_pago_create import bp_ordenes_pago_create
+    app.register_blueprint(bp_ordenes_pago_create)
     
     # Registrar PDF alternativo con ReportLab
     # from .modules.ordenes_pago_pdf_reportlab import bp_pdf_reportlab

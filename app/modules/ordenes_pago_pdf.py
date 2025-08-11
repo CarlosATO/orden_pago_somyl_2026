@@ -283,6 +283,19 @@ def generar_pdf():
             
         current_app.logger.info(f"PDF generado exitosamente para orden {numero}")
         
+        # Almacenar el PDF para futuro envío por correo
+        import os
+        pdf_dir = os.path.join(current_app.root_path, 'static', 'ordenes_pago', 'generated_pdfs')
+        os.makedirs(pdf_dir, exist_ok=True)
+        
+        safe_name = proveedor.get('paguese_a', '').replace(' ', '_')
+        pdf_filename = f"orden_pago_{numero}_{safe_name}.pdf"
+        pdf_filepath = os.path.join(pdf_dir, pdf_filename)
+        
+        with open(pdf_filepath, 'wb') as f:
+            f.write(pdf_bytes)
+        current_app.logger.info(f"PDF almacenado en: {pdf_filepath}")
+        
     except Exception as e:
         current_app.logger.error(f"Error generando PDF: {e}")
         # Fallback: devolver el HTML como respuesta de error

@@ -1,3 +1,9 @@
+{% extends 'base.html' %}
+
+{% block title %}Informe de Pagos - SOMYL{% endblock %}
+
+{% block content %}
+
 <!-- Modal para historial de abonos -->
 <div class="modal fade" id="abonosModal" tabindex="-1" aria-labelledby="abonosModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
@@ -40,22 +46,84 @@
 <script>
 let abonoEditandoId = null;
 function showAbonos(orden_numero) {
+  // Actualizar el título del modal con el número de orden
+  document.getElementById('modalOrdenNum').textContent = orden_numero;
   document.getElementById('abonoOrdenNum').value = orden_numero;
-  document.getElementById('btnRegistrarAbono').disabled = !orden_numero;
   
-  // Agregar timestamp para evitar cache del navegador
-  const timestamp = new Date().getTime();
-  const url = `/pagos/abonos/${orden_numero}?_=${timestamp}`;
+  // Mostrar el modal inmediatamente
+  const modalEl = document.getElementById('abonosModal');
+  const modal = new bootstrap.Modal(modalEl);
+  modal.show();
   
-  fetch(url, {
-    method: 'GET',
-    headers: {
-      'Cache-Control': 'no-cache',
-      'Pragma': 'no-cache'
-    }
-  })
+  // Cargar datos de abonos
+  fetch(`/pagos/abonos/${orden_numero}`)
     .then(resp => resp.json())
+    .then(data => {
+      const tableBody = document.getElementById('abonosTableBody');
+      tableBody.innerHTML = '';
+      
+      if (data.success && data.abonos && data.abonos.length > 0) {
+        data.abonos.forEach(abono => {
+          const row = document.createElement('tr');
+          const monto = parseInt(abono.monto_abono || 0);
+          const fecha = abono.fecha_abono || '-';
+          const obs = (abono.observacion || '').replace(/'/g, '&#39;');
+          
+          row.innerHTML = `
+            <td>${fecha}</td>
+            <td>$${monto.toLocaleString('es-CL')}</td>
+            <td>${obs}</td>
+            <td>${abono.usuario || '-'}</td>
+            <td>${abono.created_at ? new Date(abono.created_at).toLocaleDateString('es-CL') : '-'}</td>
+            <td>
+              <button type="button" class="btn btn-warning btn-sm me-1" onclick="editarAbono(${abono.id}, ${monto}, '${obs}')">
+                <i class="bi bi-pencil"></i>
+              </button>
+              <button type="button" class="btn btn-danger btn-sm" onclick="eliminarAbono(${abono.id}, ${orden_numero})">
+                <i class="bi bi-trash"></i>
+              </button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        });
+      } else {
+        tableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Sin abonos registrados</td></tr>';
+      }
+    })
+    .catch(error => {
+      console.error('Error al cargar abonos:', error);
+      document.getElementById('abonosTableBody').innerHTML = '<tr><td colspan="6" class="text-center text-danger">Error al cargar abonos</td></tr>';
+    });
 }
+
+function editarAbono(id, monto, observacion) {
+  // Buscar la fila que contiene este abono
+  const tableBody = document.getElementById('abonosTableBody');
+  const rows = tableBody.querySelectorAll('tr');
+  
+  rows.forEach(row => {
+    const editButton = row.querySelector(`button[onclick*="editarAbono(${id}"]`);
+    if (editButton) {
+      // Reemplazar el contenido de la fila con campos editables
+      row.innerHTML = `
+        <td><input type="date" id="editFecha" value="" class="form-control form-control-sm"></td>
+        <td><input type="number" id="editMonto" value="${monto}" class="form-control form-control-sm" min="1" step="any"></td>
+        <td><input type="text" id="editObs" value="${observacion}" class="form-control form-control-sm" maxlength="100"></td>
+        <td colspan="2">Editando...</td>
+        <td>
+          <button type="button" class="btn btn-success btn-sm me-1" onclick="guardarEdicionAbono(${id}, document.getElementById('abonoOrdenNum').value)">
+            <i class="bi bi-check"></i>
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="showAbonos(document.getElementById('abonoOrdenNum').value)">
+            <i class="bi bi-x"></i>
+          </button>
+        </td>
+      `;
+      abonoEditandoId = id;
+    }
+  });
+}
+
 function guardarEdicionAbono(id, orden_numero) {
   const monto = document.getElementById('editMonto').value;
   const obs = document.getElementById('editObs').value;
@@ -206,11 +274,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Eliminado: función actualizarSaldoPendienteTotal y eventos relacionados
 // --- FIN LIMPIEZA SUMA SALDO PENDIENTE ---
 </script>
-{% extends 'base.html' %}
 
-{% block title %}Informe de Pagos - SOMYL{% endblock %}
-
-{% block content %}
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
     <div class="container mt-3">

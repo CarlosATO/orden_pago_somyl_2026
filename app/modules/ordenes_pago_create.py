@@ -1,14 +1,151 @@
-# app/modules/ordenes_pago_create.py
-
-from flask import Blueprint, request, current_app, flash, redirect, url_for
+from flask import Blueprint, request, jsonify, current_app, flash, redirect, url_for
 from flask_login import current_user
+from app.modules.enviar_correo import enviar_correo_con_pdfs
 from utils.logger import registrar_log_actividad
 from datetime import date
 
-bp_create = Blueprint('ordenes_pago_create', __name__)
+bp_ordenes_pago_create = Blueprint('ordenes_pago_create', __name__)
+
+@bp_ordenes_pago_create.route('/api/enviar-correo', methods=['POST'])
+def api_enviar_correo():
+    try:
+        import os
+        supabase = current_app.config['SUPABASE']
+        
+        # Obtener datos del formulario
+        orden_id = request.form.get('orden_id')
+        nombre_proveedor = request.form.get('nombre_proveedor', '')
+        
+        # Verificar que se haya proporcionado orden_id
+        if not orden_id:
+            return jsonify({"success": False, "msg": "ID de orden requerido"}), 400
+            
+        # Verificar que existan destinatarios activos antes de intentar enviar
+        from app.modules.enviar_correo import obtener_destinatarios_activos
+        destinatarios = obtener_destinatarios_activos(supabase)
+        if not destinatarios:
+            return jsonify({"success": False, "msg": "No hay destinatarios de correo configurados"}), 400
+        
+        # Buscar el PDF generado
+        pdf_dir = os.path.join(current_app.root_path, 'static', 'ordenes_pago', 'generated_pdfs')
+        pdf_files = []
+        if os.path.exists(pdf_dir):
+            for filename in os.listdir(pdf_dir):
+                if filename.startswith(f"orden_pago_{orden_id}_") and filename.endswith('.pdf'):
+                    pdf_path = os.path.join(pdf_dir, filename)
+                    with open(pdf_path, 'rb') as f:
+                        pdf_content = f.read()
+                    pdf_files.append((pdf_content, filename))
+                    break
+        
+        if not pdf_files:
+            return jsonify({"success": False, "msg": "No se encontró el PDF generado. Genere el PDF primero."}), 400
+        
+        # Obtener documentos adjuntos opcionales
+        doc1 = request.files.get('documento1')
+        doc2 = request.files.get('documento2')
+        
+        pdf_opcional_1 = None
+        pdf_opcional_2 = None
+        
+        if doc1 and doc1.filename:
+            pdf_opcional_1 = (doc1.read(), doc1.filename)
+        
+        if doc2 and doc2.filename:
+            pdf_opcional_2 = (doc2.read(), doc2.filename)
+        
+        # Obtener información del proyecto asociado
+        proyecto_info = ""
+        try:
+            if nombre_proveedor:
+                current_app.logger.info(f"Buscando proyecto para proveedor: {nombre_proveedor}")
+                
+                # Buscar órdenes de compra asociadas al proveedor para obtener el proyecto
+                proveedor_result = supabase.table('proveedores').select('id').ilike('paguese_a', f'%{nombre_proveedor}%').limit(1).execute()
+                current_app.logger.info(f"Resultado búsqueda proveedor: {proveedor_result.data}")
+                
+                if proveedor_result.data:
+                    proveedor_id = proveedor_result.data[0]['id']
+                    current_app.logger.info(f"Proveedor ID encontrado: {proveedor_id}")
+                    
+                    # Buscar órdenes de compra del proveedor
+                    oc_result = supabase.table('orden_de_compra').select('proyecto').eq('proveedor', proveedor_id).limit(1).execute()
+                    current_app.logger.info(f"Resultado búsqueda OC: {oc_result.data}")
+                    
+                    if oc_result.data:
+                        proyecto_id = oc_result.data[0]['proyecto']
+                        current_app.logger.info(f"Proyecto ID encontrado: {proyecto_id}")
+                        
+                        # Obtener nombre del proyecto - usar la columna correcta
+                        proyecto_result = supabase.table('proyectos').select('proyecto').eq('id', proyecto_id).limit(1).execute()
+                        current_app.logger.info(f"Resultado búsqueda proyecto: {proyecto_result.data}")
+                        
+                        if proyecto_result.data:
+                            proyecto_info = proyecto_result.data[0]['proyecto']
+                            current_app.logger.info(f"Nombre proyecto encontrado: {proyecto_info}")
+                        else:
+                            current_app.logger.warning("No se encontró el nombre del proyecto en la tabla proyectos")
+                    else:
+                        current_app.logger.warning("No se encontraron órdenes de compra para este proveedor")
+                else:
+                    current_app.logger.warning("No se encontró el proveedor en la tabla proveedores")
+        except Exception as e:
+            current_app.logger.warning(f"No se pudo obtener información del proyecto: {e}")
+            proyecto_info = "Proyecto no especificado"
+        
+        # Crear asunto y cuerpo del correo con información completa
+        if proyecto_info:
+            asunto = f"Orden de Pago #{orden_id} - {nombre_proveedor} - {proyecto_info}"
+            cuerpo = f"""Estimada Cynthia,
+
+Adjunto encontrará la Orden de Pago #{orden_id} correspondiente a:
+
+• Proveedor: {nombre_proveedor}
+• Proyecto: {proyecto_info}
+
+Por favor, proceder con la revisión y procesamiento correspondiente.
+
+Saludos cordiales,
+Equipo Somyl"""
+        else:
+            asunto = f"Orden de Pago #{orden_id} - {nombre_proveedor}"
+            cuerpo = f"""Estimada Cynthia,
+
+Adjunto encontrará la Orden de Pago #{orden_id} correspondiente a:
+
+• Proveedor: {nombre_proveedor}
+
+Por favor, proceder con la revisión y procesamiento correspondiente.
+
+Saludos cordiales,
+Equipo Somyl"""
+        
+        # Enviar correo con todos los PDFs
+        enviar_correo_con_pdfs(
+            supabase,
+            pdf_principal=pdf_files[0],
+            pdf_opcional_1=pdf_opcional_1,
+            pdf_opcional_2=pdf_opcional_2,
+            asunto=asunto,
+            cuerpo=cuerpo
+        )
+        
+        # Contar total de archivos adjuntos
+        total_archivos = 1  # PDF principal
+        if pdf_opcional_1: total_archivos += 1
+        if pdf_opcional_2: total_archivos += 1
+        
+        return jsonify({
+            "success": True, 
+            "msg": f"Correo con Orden de Pago #{orden_id} enviado correctamente a {len(destinatarios)} destinatario(s) con {total_archivos} archivo(s) adjunto(s)."
+        })
+    except Exception as e:
+        current_app.logger.error(f"Error enviando correo: {str(e)}")
+        return jsonify({"success": False, "msg": f"Error al enviar correo: {str(e)}"}), 500
 
 
-@bp_create.route('/ordenes_pago/create', methods=['POST'], endpoint='create')
+# Función para crear orden de pago (funcionalidad original)
+@bp_ordenes_pago_create.route('/ordenes_pago/create', methods=['POST'], endpoint='create')
 def crear_orden_pago():
     supabase = current_app.config['SUPABASE']
     f = request.form
