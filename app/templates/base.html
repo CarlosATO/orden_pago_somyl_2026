@@ -247,6 +247,41 @@
             .content { margin-left: 0; padding: 1rem; }
             .sidebar-toggle, .sidebar.collapsed { display: none; }
         }
+
+        /* Estilos para el modo noche */
+        body.dark-mode {
+            background-color: #181a1b !important;
+            color: #e0e0e0 !important;
+        }
+        body.dark-mode .sidebar {
+            background: linear-gradient(180deg, #23272f 10%, #181a1b 100%) !important;
+        }
+        body.dark-mode .card, body.dark-mode .table, body.dark-mode .modal-content {
+            background-color: #23272f !important;
+            color: #e0e0e0 !important;
+            border-color: #444 !important;
+        }
+        body.dark-mode .nav-link, body.dark-mode .sidebar-footer, body.dark-mode .user-info {
+            color: #e0e0e0 !important;
+        }
+        body.dark-mode .table-light {
+            background-color: #23272f !important;
+            color: #e0e0e0 !important;
+        }
+        body.dark-mode .btn, body.dark-mode .btn-outline-secondary {
+            background-color: #23272f !important;
+            color: #e0e0e0 !important;
+            border-color: #444 !important;
+        }
+        body.dark-mode .form-control, body.dark-mode .form-select {
+            background-color: #23272f !important;
+            color: #e0e0e0 !important;
+            border-color: #444 !important;
+        }
+        body.dark-mode .bg-light, body.dark-mode .bg-white {
+            background-color: #23272f !important;
+            color: #e0e0e0 !important;
+        }
     </style>
 </head>
 <body>
@@ -342,10 +377,14 @@
                 <div class="user-name">{{ current_user.nombre or 'Usuario' }}</div>
             </div>
 
+            <!-- Botón modo noche -->
+            <button id="toggleDarkMode" class="btn btn-outline-secondary w-100 my-2">
+              <i class="bi bi-moon-stars me-1"></i>Modo noche
+            </button>
+
             <a href="{{ url_for('auth.logout') }}" class="logout-btn">
               <i class="bi bi-box-arrow-right me-2"></i>Cerrar sesión
             </a>
-            
             <div class="creator-info">
               Desarrollado por Carlos Alegría | SOMYL 2025
             </div>
@@ -406,6 +445,22 @@
     </script>
 
     <!-- Bloque para JS adicional de cada página -->
-    {% block extra_js %}{% endblock %}
+    {% block extra_js %}
+<script>
+(function() {
+  const btn = document.getElementById('toggleDarkMode');
+  if (!btn) return;
+  // Cargar preferencia guardada
+  if (localStorage.getItem('darkMode') === 'true') {
+    document.body.classList.add('dark-mode');
+  }
+  btn.addEventListener('click', function() {
+    document.body.classList.toggle('dark-mode');
+    // Guardar preferencia
+    localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+  });
+})();
+</script>
+{% endblock %}
 </body>
 </html>
