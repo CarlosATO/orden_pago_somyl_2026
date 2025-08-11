@@ -39,25 +39,23 @@ def enviar_correo_con_pdfs(
     import logging
     logger = logging.getLogger("enviar_correo")
     
-    # Verificar variables de entorno con debug completo
-    remitente = os.environ.get("GMAIL_USER")
-    password = os.environ.get("GMAIL_PASS")
+    # TEMPORAL: Hardcodear credenciales para testing en Railway
+    # TODO: REMOVER ESTO una vez que se resuelva el problema de variables de entorno
+    remitente = "opsomyl@gmail.com"
+    password = "nwak xdzx vdor uizh"
     
-    # Debug detallado de variables de entorno
+    logger.info("🔧 USANDO CREDENCIALES HARDCODEADAS TEMPORALMENTE")
+    logger.info(f"Remitente: {remitente}")
+    logger.info(f"Password configurada: {bool(password)}")
+    
+    # Debug original (mantener para ver qué pasa con las variables)
     logger.info("=== DEBUG VARIABLES DE ENTORNO ===")
-    logger.info(f"Todas las variables disponibles: {list(os.environ.keys())}")
-    logger.info(f"GMAIL_USER raw: {repr(os.environ.get('GMAIL_USER'))}")
-    logger.info(f"GMAIL_PASS raw: {repr(os.environ.get('GMAIL_PASS'))}")
-    logger.info(f"GMAIL_USER valor: {remitente}")
-    logger.info(f"GMAIL_PASS presente: {bool(password)}")
-    if password:
-        logger.info(f"GMAIL_PASS primeros 4 chars: {password[:4]}")
+    gmail_user_env = os.environ.get("GMAIL_USER")
+    gmail_pass_env = os.environ.get("GMAIL_PASS")
+    logger.info(f"GMAIL_USER desde env: {repr(gmail_user_env)}")
+    logger.info(f"GMAIL_PASS desde env: {repr(gmail_pass_env)}")
+    logger.info(f"Variables disponibles: {[k for k in os.environ.keys() if 'GMAIL' in k or 'gmail' in k.lower()]}")
     logger.info("=== FIN DEBUG ===")
-    
-    # Usar valores por defecto si no están definidos
-    if not remitente:
-        remitente = "opsomyl@gmail.com"
-        logger.warning("Usando GMAIL_USER por defecto")
     
     if not password:
         error_msg = "No se encontró la contraseña de Gmail en el entorno (GMAIL_PASS)"
