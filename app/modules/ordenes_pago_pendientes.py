@@ -64,7 +64,7 @@ def list_pendientes():
             # Sumar totales
             total_costo = sum(float(l.get("costo_final_con_iva", 0) or 0) for l in lines)
             # Obtener monto neto OC (suma de todas las líneas de la orden de pago)
-            monto_neto_oc = sum(float(l.get("neto_total_recibido", 0) or 0) for l in lines)
+            monto_neto_oc = sum(float(l.get("costo_final_con_iva", 0) or 0) for l in lines)
             fecha_op = first.get("fecha", "")
             fila = {
             **first,
