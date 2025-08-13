@@ -5,23 +5,23 @@ Este documento describe las diferentes opciones para hacer deployment en Railway
 ## Problema
 El error `wkhtmltopdf` no está disponible en el contenedor base de Railway, causando fallos en el build.
 
-## Soluciones (Por Orden de Preferencia)
+## Soluciones (Por Orden de Preferencia) - ACTUALIZADO
 
-### Opción 1: Ubuntu Base (Actual - Recomendado) ✅
-Usar el `Dockerfile` principal que usa Ubuntu 22.04:
+### Opción 1: Dockerfile Simple (Actual - Más Confiable) ✅
+Usar el `Dockerfile` principal que evita numpy/pandas problemáticos:
 
 ```dockerfile
 FROM ubuntu:22.04
-
-# Evitar prompts interactivos durante la instalación
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Instalar Python y dependencias del sistema
+# Instalar Python y dependencias básicas (sin matemáticas complejas)
 RUN apt-get update && \
     apt-get install -y \
     python3 \
     python3-pip \
     python3-dev \
+    python3-setuptools \
+    python3-wheel \
     wkhtmltopdf \
     build-essential \
     libssl-dev \
@@ -29,29 +29,31 @@ RUN apt-get update && \
     git \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
+
+# Usa requirements-no-pdf.txt (sin numpy/pandas)
+COPY requirements-no-pdf.txt ./requirements.txt
 ```
 
 **Ventajas:**
-- wkhtmltopdf disponible directamente en repositorios de Ubuntu
-- Instalación más confiable
-- Imagen más estable
+- ✅ Sin dependencias problemáticas de numpy/pandas
+- ✅ wkhtmltopdf funcional
+- ✅ Aplicación funciona sin librerías de análisis de datos
+- ✅ Build más rápido y confiable
 
-### Opción 2: Dockerfile Complejo (Fallback)
-Si la Opción 1 falla, usar `Dockerfile.complex`:
+### Opción 2: Ubuntu Complejo (Si necesitas pandas)
+Si requieres pandas, usar `Dockerfile.ubuntu-complex`:
 
 ```bash
-mv Dockerfile Dockerfile.ubuntu
-mv Dockerfile.complex Dockerfile
+mv Dockerfile Dockerfile.simple
+mv Dockerfile.ubuntu-complex Dockerfile
 ```
 
-### Opción 3: Dockerfile Minimal (Sin PDF)
-Para deployment rápido sin funcionalidad PDF:
+### Opción 3: Minimal (Sin wkhtmltopdf)
+Para deployment básico:
 
 ```bash
 mv Dockerfile Dockerfile.backup
 mv Dockerfile.minimal Dockerfile
-mv requirements.txt requirements.backup
-mv requirements-no-pdf.txt requirements.txt
 ```
 
 ### Opción 4: Sin PDF Completo (Emergencia)

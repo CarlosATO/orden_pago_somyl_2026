@@ -2,7 +2,12 @@ from flask import Blueprint, render_template, request, jsonify, current_app, fla
 from datetime import datetime, date
 import calendar
 from collections import defaultdict
-import pandas as pd
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:
+    PANDAS_AVAILABLE = False
+    print("pandas no disponible - algunas funciones de exportación pueden no funcionar")
 from io import BytesIO
 from app.modules.usuarios import require_modulo
 from flask_login import current_user

@@ -1,7 +1,12 @@
 # app/modules/presupuestos.py
 
 import io
-import pandas as pd
+try:
+    import pandas as pd
+    PANDAS_AVAILABLE = True
+except ImportError:
+    PANDAS_AVAILABLE = False
+    print("pandas no disponible - algunas funciones de exportación pueden no funcionar")
 from flask import send_file, jsonify
 from difflib import get_close_matches
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
