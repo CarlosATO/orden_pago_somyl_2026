@@ -1,24 +1,17 @@
-FROM ubuntu:22.04
+FROM python:3.11-slim
 
-# Evitar prompts interactivos durante la instalación
+# Establecer variable de entorno para evitar prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Instalar Python y dependencias del sistema
+# Instalar solo dependencias básicas
 RUN apt-get update && \
     apt-get install -y \
-    python3 \
-    python3-pip \
-    python3-dev \
-    wkhtmltopdf \
     build-essential \
     libssl-dev \
     libffi-dev \
     git \
-    xvfb \
+    wget \
     && rm -rf /var/lib/apt/lists/*
-
-# Crear alias para python
-RUN ln -s /usr/bin/python3 /usr/bin/python
 
 # Establecer el directorio de trabajo
 WORKDIR /app
@@ -27,8 +20,8 @@ WORKDIR /app
 COPY . .
 
 # Instalar las dependencias de Python
-RUN pip3 install --upgrade pip
-RUN pip3 install -r requirements.txt
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
 
 # Exponer el puerto (Railway usará la variable $PORT)
 EXPOSE 8080
