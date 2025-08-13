@@ -713,7 +713,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </div>
 <!-- Formulario principal con tabla -->
 <div class="modern-card">
-  <form method="POST" action="{{ url_for('pagos.update_pagos') }}">
+  <form method="POST" action="{{ url_for('pagos.update_pagos') }}" id="formPagos">
     <!-- Botones de acción -->
     <div class="p-3 border-bottom" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
       <div class="d-flex flex-wrap gap-2 align-items-center">
@@ -1217,8 +1217,113 @@ window.exportarFiltrados = function() {
   // Mostrar mensaje de éxito
   alert('Excel emitido correctamente');
 };
+
 });
 </script>
 
+<!-- Script para solución de fechas -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // ===== SOLUCIÓN PARA EL BUG DE FECHAS =====
+  let valoresOriginales = new Map();
+
+  // DIAGNÓSTICO COMPLETO
+  console.log('[DEBUG] === DIAGNÓSTICO COMPLETO ===');
+  const test1 = document.querySelectorAll('input[name="fecha_pago[]"]');
+  console.log(`[DEBUG] input[name="fecha_pago[]"]: ${test1.length} elementos`);
+  const test2 = document.querySelectorAll('input[type="date"]');
+  console.log(`[DEBUG] input[type="date"]: ${test2.length} elementos`);
+  const test3 = document.querySelectorAll('.date-input');
+  console.log(`[DEBUG] .date-input: ${test3.length} elementos`);
+  const test4 = document.querySelectorAll('tr[data-orden]');
+  console.log(`[DEBUG] Filas con data-orden: ${test4.length} elementos`);
+
+  // Inicializar valores originales
+  const dateInputsInit = document.querySelectorAll('input[type="date"][name="fecha_pago[]"]');
+  console.log(`[DEBUG] Inicializando ${dateInputsInit.length} valores originales...`);
+
+  if (dateInputsInit.length > 0) {
+    dateInputsInit.forEach((input, index) => {
+      const row = input.closest('tr');
+      if (row) {
+        const ordenNumero = row.getAttribute('data-orden');
+        if (ordenNumero) {
+          const valor = input.value || '';
+          valoresOriginales.set(ordenNumero, valor);
+          if (index < 5) {
+            console.log(`[DEBUG] OP ${ordenNumero}: Original="${valor}"`);
+          }
+        }
+      }
+    });
+    console.log(`[DEBUG] Valores originales guardados: ${valoresOriginales.size} registros`);
+  }
+
+  // Interceptar formulario
+  const formPagos = document.getElementById('formPagos');
+  if (formPagos) {
+    formPagos.addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      let cambiosDetectados = false;
+      let datosEnvio = [];
+      
+      const dateInputsCheck = document.querySelectorAll('input[type="date"][name="fecha_pago[]"]');
+      console.log(`[DEBUG] Verificando cambios en ${dateInputsCheck.length} campos...`);
+      
+      dateInputsCheck.forEach((input, index) => {
+        const row = input.closest('tr');
+        const ordenNumero = row.getAttribute('data-orden');
+        const valorOriginal = valoresOriginales.get(ordenNumero) || '';
+        const valorActual = input.value || '';
+        
+        if (index < 10) {
+          console.log(`[DEBUG] OP ${ordenNumero}: "${valorOriginal}" vs "${valorActual}" - ${valorOriginal !== valorActual ? 'CAMBIÓ' : 'SIN CAMBIO'}`);
+        }
+        
+        if (valorOriginal !== valorActual) {
+          datosEnvio.push({
+            orden_numero: ordenNumero,
+            fecha_pago: valorActual
+          });
+          cambiosDetectados = true;
+          console.log(`[DEBUG] Cambio detectado en OP ${ordenNumero}: "${valorOriginal}" → "${valorActual}"`);
+        }
+      });
+      
+      if (!cambiosDetectados) {
+        console.log(`[DEBUG] No se detectaron cambios`);
+        alert('No se detectaron cambios en las fechas de pago.');
+        return;
+      }
+      
+      const jsonData = { cambios: datosEnvio };
+      console.log(`[DEBUG] Enviando ${datosEnvio.length} cambios al servidor...`);
+      
+      fetch(this.action, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify(jsonData)
+      }).then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          alert(data.message || 'Fechas actualizadas correctamente');
+          window.location.reload();
+        } else {
+          alert(data.error || 'Error al guardar las fechas');
+        }
+      }).catch(error => {
+        console.error('Error:', error);
+        alert('Error al guardar las fechas. Por favor intenta de nuevo.');
+      });
+    });
+  } else {
+    console.log('[DEBUG] ❌ No se encontró el formulario formPagos');
+  }
+});
+</script>
 
 {% endblock %}

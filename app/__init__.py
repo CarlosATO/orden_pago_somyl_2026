@@ -23,6 +23,7 @@ def create_app():
     app.config['TEMPLATES_AUTO_RELOAD'] = False  # Deshabilitado en producción
     app.config['JSON_SORT_KEYS'] = False  # Mejor performance en APIs
     app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False  # Menor tamaño de respuesta
+    app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB límite para uploads/formularios
     
     # Registrar filtro de moneda chilena
     def format_clp(value):
@@ -70,6 +71,9 @@ def create_app():
     app.register_blueprint(bp_trab, url_prefix='/trabajadores')
     from .modules.pagos import bp_pagos
     app.register_blueprint(bp_pagos, url_prefix='/pagos')
+    # Módulo Excel integrado en informe_op.py (no necesario registrar por separado)
+    from .modules.excel_informe_pagos import bp_excel
+    app.register_blueprint(bp_excel)
     # Registrar módulo de materiales
     from .modules.materiales import bp as bp_mat
     app.register_blueprint(bp_mat, url_prefix='/materiales')
