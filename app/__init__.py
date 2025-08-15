@@ -163,4 +163,10 @@ def create_app():
         # Configurar contexto de performance
         pass
     
+    # Health endpoint para smoke checks / platforms
+    @app.route('/health', methods=['GET'])
+    def health():
+        # Retornar 200 si la app está levantada (no hace chequeo profundo de servicios)
+        return jsonify({"status": "ok"}), 200
+    
     return app
