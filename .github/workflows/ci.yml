@@ -30,3 +30,10 @@ jobs:
       - name: Run tests
         run: |
           pytest -q
+
+      - name: Build Docker image (validate Dockerfile)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: seguimiento_ordenes:ci
