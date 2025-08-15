@@ -1,0 +1,515 @@
+{% extends "base.html" %}
+{% block title %}Órdenes de Compra Pendientes - Apps. Adquisiciones{% endblock %}
+
+{% block content %}
+<h1 class="titulo-modulo w-100 titulo-modulo-con-icono">
+  <span class="icono-modulo"><i class="bi bi-clipboard-data"></i></span>
+  Órdenes de Compra Pendientes
+</h1>
+
+<!-- Área para mensajes dinámicos -->
+<div id="mensajes-area"></div>
+
+<div class="box mb-4">
+  <div class="row">
+    <div class="col-md-4">
+      <div class="kpi-card kpi-orders">
+        <div class="kpi-icon"><i class="bi bi-file-earmark-bar-graph"></i></div>
+        <div class="kpi-content">
+          <div class="kpi-value" id="total-oc">{{ total_oc }}</div>
+          <div class="kpi-label">Órdenes Pendientes</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-8">
+      <div class="kpi-card kpi-monto">
+        <div class="kpi-icon"><i class="bi bi-cash-coin"></i></div>
+        <div class="kpi-content">
+          <div class="kpi-value" id="total-monto">${{ '{:,.0f}'.format(total_monto) }}</div>
+          <div class="kpi-label">Monto Total con IVA</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="box">
+  <h3 class="mb-3"><i class="bi bi-list-ul"></i> Detalle de Órdenes Pendientes</h3>
+  <div class="table-responsive">
+    <div class="table-scroll">
+      <table class="table table-hover line-table">
+        <thead>
+          <tr>
+            <th>OC</th>
+            <th>Proveedor</th>
+            <th>Fecha de solicitud</th>
+            <th>Monto (Total con IVA)</th>
+            <th>Estado</th>
+            <th>Editar</th>
+          </tr>
+        </thead>
+        <tbody id="tabla-pendientes">
+          {% for p in pendientes %}
+          <tr {% if p.estado == 'Recepción parcial' %}class="table-info"{% endif %} data-oc="{{ p.orden_compra }}" data-monto="{{ p.monto_total }}">
+            <td>{{ p.orden_compra }}</td>
+            <td>{{ p.proveedor }}</td>
+            <td>{{ p.fecha }}</td>
+            <td>${{ '{:,.0f}'.format(p.monto_total) }}</td>
+            <td><span class="fw-bold {% if p.estado == 'Recepción parcial' %}text-primary{% endif %}">{{ p.estado }}</span></td>
+            <td>
+              <button type="button" 
+                      class="btn btn-outline-primary btn-sm" 
+                      data-oc="{{ p.orden_compra }}" 
+                      data-action="editar">
+                <i class="bi bi-pencil-square"></i> Editar
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para detalles de OC -->
+<div class="modal fade" id="modalDetallesOC" tabindex="-1" aria-labelledby="modalDetallesOCTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalDetallesOCTitle">Detalles de Orden de Compra</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body" id="modalDetallesOCBody">
+        <!-- Aquí se cargan los detalles dinámicamente -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .table-scroll {
+    max-height: 500px;
+    overflow-y: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .table-scroll table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .table-scroll th {
+    position: sticky;
+    top: 0;
+    background: #f8fafc;
+    z-index: 2;
+    box-shadow: 0 2px 2px -2px #ccc;
+  }
+  .table-scroll td, .table-scroll th {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    text-align: left;
+  }
+
+  /* Estilos para mensajes */
+  .alert {
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    position: relative;
+  }
+  
+  .alert-success {
+    color: #155724;
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+  }
+  
+  .alert-error {
+    color: #721c24;
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+  }
+  
+  .alert-warning {
+    color: #856404;
+    background-color: #fff3cd;
+    border-color: #ffeaa7;
+  }
+  
+  .btn-close-alert {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 1.2rem;
+    cursor: pointer;
+    opacity: 0.7;
+  }
+  
+  .btn-close-alert:hover {
+    opacity: 1;
+  }
+
+  /* Spinner para botones */
+  .spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #3498db;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 5px;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  /* Fila procesada */
+  .fila-procesada {
+    opacity: 0.6;
+    background-color: #f8f9fa !important;
+  }
+</style>
+
+<script>
+// Variables globales
+let modalBootstrap = null;
+
+// Función principal cuando carga la página
+document.addEventListener('DOMContentLoaded', function() {
+  // Event listener para botones de editar
+  document.addEventListener('click', function(e) {
+    if (e.target.matches('button[data-action="editar"]') || e.target.closest('button[data-action="editar"]')) {
+      e.preventDefault();
+      const button = e.target.closest('button[data-action="editar"]');
+      const oc = button.getAttribute('data-oc');
+      mostrarDetallesOC(oc);
+    }
+  });
+});
+
+// Función para mostrar detalles de OC (mantengo tu estructura original)
+async function mostrarDetallesOC(oc) {
+  try {
+    showLoadingInModal();
+    
+    // Llamada AJAX mejorada con manejo de errores
+    const resp = await fetch(`/informes/api/oc_detalle/${oc}`);
+    
+    if (!resp.ok) {
+      throw new Error(`HTTP error! status: ${resp.status}`);
+    }
+    
+    const data = await resp.json();
+    
+    if (data.error) {
+      throw new Error(data.error);
+    }
+    
+    // Construir HTML del modal
+    let html = buildModalHTML(data);
+    
+    document.getElementById('modalDetallesOCBody').innerHTML = html;
+    
+    // Mostrar modal
+    if (!modalBootstrap) {
+      modalBootstrap = new bootstrap.Modal(document.getElementById('modalDetallesOC'));
+    }
+    modalBootstrap.show();
+    
+  } catch (error) {
+    console.error('Error al cargar detalles:', error);
+    showMessage(`Error al cargar los detalles de la OC: ${error.message}`, 'error');
+  }
+}
+
+// Función para construir el HTML del modal
+function buildModalHTML(data) {
+  let html = `
+    <div class="mb-3">
+      <strong>OC:</strong> ${data.orden_compra} <br>
+      <strong>Proveedor:</strong> ${data.proveedor} <br>
+      <strong>Fecha:</strong> ${data.fecha}
+    </div>
+    
+    <table class="table table-bordered">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Descripción</th>
+          <th>Cantidad</th>
+          <th>Precio Unitario</th>
+          <th>Total</th>
+          <th>Tipo</th>
+          <th>Art. Corr.</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+  
+  data.lineas.forEach(function(ln) {
+    html += `
+      <tr>
+        <td>${ln.codigo}</td>
+        <td>${ln.descripcion}</td>
+        <td>${ln.cantidad}</td>
+        <td>$${ln.precio_unitario.toLocaleString('es-CL')}</td>
+        <td>$${ln.total.toLocaleString('es-CL')}</td>
+        <td>${ln.tipo}</td>
+        <td>${ln.art_corr}</td>
+      </tr>
+    `;
+  });
+  
+  html += `
+      </tbody>
+    </table>
+    
+    <div class="d-flex justify-content-between mt-4">
+      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      <div>
+        <button type="button" 
+                class="btn btn-primary me-2" 
+                style="background-color:#1976d2;border-color:#1976d2;" 
+                data-action="sacar" 
+                data-oc="${data.orden_compra}">
+          <i class="bi bi-eye-slash"></i> Sacar del Informe
+        </button>
+  `;
+  
+  if (data.puede_eliminar) {
+    html += `
+      <button type="button" 
+              class="btn btn-danger" 
+              data-action="eliminar" 
+              data-oc="${data.orden_compra}">
+        <i class="bi bi-trash"></i> Eliminar orden
+      </button>
+    `;
+  } else {
+    html += `
+      <button type="button" 
+              class="btn btn-danger" 
+              disabled 
+              title="No se puede eliminar porque tiene ingresos asociados">
+        <i class="bi bi-ban"></i> No eliminable
+      </button>
+    `;
+  }
+  
+  html += `
+      </div>
+    </div>
+  `;
+  
+  return html;
+}
+
+// Función para sacar del informe (CORREGIDA)
+function confirmarSacarDelInforme(oc) {
+  if (!confirm('¿Está seguro que desea sacar esta orden del informe? Esta acción ocultará la orden en el reporte.')) {
+    return;
+  }
+  
+  // Encontrar el botón y mostrar loading
+  const button = document.querySelector(`button[data-action="sacar"][data-oc="${oc}"]`);
+  if (button) {
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<span class="spinner"></span> Procesando...';
+    button.disabled = true;
+  }
+  
+  // Realizar petición
+  fetch(`/informes/api/oc_sacar_informe/${oc}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(function(resp) {
+    if (!resp.ok) {
+      throw new Error(`HTTP error! status: ${resp.status}`);
+    }
+    return resp.json();
+  })
+  .then(function(data) {
+    if (data.success) {
+      showMessage(`Orden ${oc} sacada del informe correctamente. Registros actualizados: ${data.updated}`, 'success');
+      
+      // Marcar fila como procesada
+      const row = document.querySelector(`tr[data-oc="${oc}"]`);
+      if (row) {
+        row.classList.add('fila-procesada');
+        setTimeout(() => {
+          row.style.display = 'none';
+          updateTotals();
+        }, 2000);
+      }
+      
+      // Cerrar modal
+      if (modalBootstrap) {
+        modalBootstrap.hide();
+      }
+    } else {
+      throw new Error(data.error || 'No se pudo sacar del informe.');
+    }
+  })
+  .catch(function(err) {
+    console.error('Error:', err);
+    showMessage(`Error al sacar la orden del informe: ${err.message}`, 'error');
+    
+    // Restaurar botón
+    if (button) {
+      button.innerHTML = originalHTML;
+      button.disabled = false;
+    }
+  });
+}
+
+// Función para eliminar OC (CORREGIDA)
+function confirmarEliminarOC(oc) {
+  if (!confirm('¿Está seguro que desea eliminar esta orden de compra? Esta acción no se puede revertir.')) {
+    return;
+  }
+  
+  // Encontrar el botón y mostrar loading
+  const button = document.querySelector(`button[data-action="eliminar"][data-oc="${oc}"]`);
+  if (button) {
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<span class="spinner"></span> Eliminando...';
+    button.disabled = true;
+  }
+  
+  fetch(`/informes/api/oc_eliminar/${oc}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(function(resp) {
+    if (!resp.ok) {
+      throw new Error(`HTTP error! status: ${resp.status}`);
+    }
+    return resp.json();
+  })
+  .then(function(data) {
+    if (data.success) {
+      showMessage(`Orden ${oc} eliminada correctamente. Registros eliminados: ${data.deleted}`, 'success');
+      
+      // Remover fila
+      const row = document.querySelector(`tr[data-oc="${oc}"]`);
+      if (row) {
+        row.remove();
+        updateTotals();
+      }
+      
+      // Cerrar modal
+      if (modalBootstrap) {
+        modalBootstrap.hide();
+      }
+    } else {
+      throw new Error(data.error || 'No se pudo eliminar.');
+    }
+  })
+  .catch(function(err) {
+    console.error('Error:', err);
+    showMessage(`Error al eliminar la orden: ${err.message}`, 'error');
+    
+    // Restaurar botón
+    if (button) {
+      button.innerHTML = originalHTML;
+      button.disabled = false;
+    }
+  });
+}
+
+// Event listener para botones dentro del modal
+document.addEventListener('click', function(e) {
+  if (e.target.matches('button[data-action="sacar"]') || e.target.closest('button[data-action="sacar"]')) {
+    e.preventDefault();
+    const button = e.target.closest('button[data-action="sacar"]');
+    const oc = button.getAttribute('data-oc');
+    confirmarSacarDelInforme(oc);
+  }
+  
+  if (e.target.matches('button[data-action="eliminar"]') || e.target.closest('button[data-action="eliminar"]')) {
+    e.preventDefault();
+    const button = e.target.closest('button[data-action="eliminar"]');
+    const oc = button.getAttribute('data-oc');
+    confirmarEliminarOC(oc);
+  }
+});
+
+// Funciones de utilidad
+function showLoadingInModal() {
+  document.getElementById('modalDetallesOCBody').innerHTML = `
+    <div class="text-center p-4">
+      <span class="spinner"></span> Cargando detalles...
+    </div>
+  `;
+  
+  if (!modalBootstrap) {
+    modalBootstrap = new bootstrap.Modal(document.getElementById('modalDetallesOC'));
+  }
+  modalBootstrap.show();
+}
+
+function showMessage(message, type = 'info') {
+  const alertClass = type === 'error' ? 'alert-error' : `alert-${type}`;
+  const icon = type === 'success' ? 'bi-check-circle' : type === 'error' ? 'bi-exclamation-triangle' : 'bi-info-circle';
+  
+  const messageDiv = document.createElement('div');
+  messageDiv.className = `alert ${alertClass}`;
+  messageDiv.innerHTML = `
+    <i class="bi ${icon}"></i> ${message}
+    <button type="button" class="btn-close-alert" onclick="this.parentElement.remove()">×</button>
+  `;
+  
+  const container = document.getElementById('mensajes-area');
+  container.insertBefore(messageDiv, container.firstChild);
+  
+  // Auto-remover después de 5 segundos
+  setTimeout(() => {
+    if (messageDiv.parentElement) {
+      messageDiv.remove();
+    }
+  }, 5000);
+  
+  // Scroll hacia arriba
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateTotals() {
+  const rows = document.querySelectorAll('#tabla-pendientes tr:not([style*="display: none"])');
+  const totalOC = rows.length;
+  
+  let totalMonto = 0;
+  rows.forEach(row => {
+    const monto = parseFloat(row.getAttribute('data-monto')) || 0;
+    totalMonto += monto;
+  });
+  
+  // Actualizar elementos
+  const totalOCElement = document.getElementById('total-oc');
+  const totalMontoElement = document.getElementById('total-monto');
+  
+  if (totalOCElement) {
+    totalOCElement.textContent = totalOC;
+  }
+  
+  if (totalMontoElement) {
+    totalMontoElement.textContent = '$' + totalMonto.toLocaleString('es-CL', { 
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0 
+    });
+  }
+}
+</script>
+
+{% endblock %}

@@ -362,6 +362,18 @@
                     <a href="{{ url_for('estado_presupuesto.show_estado') }}" class="nav-link{% if current == url_for('estado_presupuesto.show_estado') %} active{% endif %}">Estado Presupuesto</a>
                 </div>
             </div>
+                <!-- 7. Informes -->
+                <div class="nav-item">
+                    <a class="nav-link d-flex justify-content-between align-items-center" data-bs-toggle="collapse" href="#collapseInformes">
+                        <span><i class="bi bi-file-earmark-bar-graph"></i> Informes</span>
+                        <i class="bi bi-chevron-right dropdown-arrow"></i>
+                    </a>
+                    <div class="collapse {% if current.startswith('/informes') %}show{% endif %}" id="collapseInformes">
+                        <a href="{{ url_for('informes.oc_no_recepcionadas') }}" class="nav-link{% if current == url_for('informes.oc_no_recepcionadas') %} active{% endif %}">
+                            Órdenes no recepcionadas
+                        </a>
+                    </div>
+                </div>
         </nav>
 
         <!-- Botón para colapsar el menú -->

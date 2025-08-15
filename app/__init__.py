@@ -1,4 +1,4 @@
-    # Eliminada la versión duplicada y mal indentada de inject_total_pendientes_sin_factura fuera de create_app
+# Eliminada la versión duplicada y mal indentada de inject_total_pendientes_sin_factura fuera de create_app
 import os
 from flask import Flask
 from supabase import create_client
@@ -100,6 +100,9 @@ def create_app():
     # Registrar módulo de items
     from .modules.items import bp as bp_items
     app.register_blueprint(bp_items, url_prefix='/items')
+    # Registrar módulo de informes
+    from .modules.informes import bp as bp_informes
+    app.register_blueprint(bp_informes, url_prefix='/informes')
 
     # Ruta raíz: redirige al listado de órdenes de pago
     @app.route('/')
