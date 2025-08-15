@@ -38,7 +38,8 @@ COPY . .
 
 # Instalar las dependencias de Python (versión simplificada sin numpy/pandas)
 RUN pip3 install --upgrade pip setuptools wheel
-RUN pip3 install -r requirements.txt
+# Preferir ruedas binarias y evitar cache para reducir errores de compilación en CI
+RUN pip3 install --no-cache-dir --prefer-binary -r requirements.txt
 
 # Exponer el puerto (Railway usará la variable $PORT)
 EXPOSE 8080
