@@ -15,6 +15,11 @@ RUN apt-get update && \
     build-essential \
     libssl-dev \
     libffi-dev \
+    libpq-dev \
+    zlib1g-dev \
+    libjpeg-dev \
+    libxml2-dev \
+    libxslt1-dev \
     git \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
