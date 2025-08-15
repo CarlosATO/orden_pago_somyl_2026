@@ -11,12 +11,15 @@ from flask import (
 )
 from datetime import date
 from flask_mail import Message
+import logging
 try:
     import pdfkit
     PDFKIT_AVAILABLE = True
 except ImportError:
     PDFKIT_AVAILABLE = False
-    current_app.logger.warning("pdfkit no disponible - PDFs deshabilitados")
+    # current_app isn't available at import time; use module logger instead
+    logger = logging.getLogger(__name__)
+    logger.warning("pdfkit no disponible - PDFs deshabilitados")
 from flask import render_template
 import logging
 from app.modules.usuarios import require_modulo
