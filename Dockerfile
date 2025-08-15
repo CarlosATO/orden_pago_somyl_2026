@@ -17,7 +17,7 @@ RUN apt-get update && \
     libffi-dev \
     libpq-dev \
     zlib1g-dev \
-    libjpeg-dev \
+    libjpeg-turbo8-dev \
     libxml2-dev \
     libxslt1-dev \
     git \
@@ -30,8 +30,8 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 # Establecer el directorio de trabajo
 WORKDIR /app
 
-# Copiar solo requirements esenciales primero
-COPY requirements-no-pdf.txt ./requirements.txt
+# Copiar requirements congelado (generado localmente) para builds reproducibles
+COPY requirements.txt ./requirements.txt
 
 # Copiar el resto de archivos
 COPY . .
