@@ -15,11 +15,6 @@ RUN apt-get update && \
     build-essential \
     libssl-dev \
     libffi-dev \
-    libpq-dev \
-    zlib1g-dev \
-    libjpeg-turbo8-dev \
-    libxml2-dev \
-    libxslt1-dev \
     git \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
@@ -30,16 +25,15 @@ RUN ln -s /usr/bin/python3 /usr/bin/python
 # Establecer el directorio de trabajo
 WORKDIR /app
 
-# Copiar requirements congelado (generado localmente) para builds reproducibles
-COPY requirements.txt ./requirements.txt
+# Copiar solo requirements esenciales primero
+COPY requirements-no-pdf.txt ./requirements.txt
 
 # Copiar el resto de archivos
 COPY . .
 
 # Instalar las dependencias de Python (versión simplificada sin numpy/pandas)
 RUN pip3 install --upgrade pip setuptools wheel
-# Preferir ruedas binarias y evitar cache para reducir errores de compilación en CI
-RUN pip3 install --no-cache-dir --prefer-binary -r requirements.txt
+RUN pip3 install -r requirements.txt
 
 # Exponer el puerto (Railway usará la variable $PORT)
 EXPOSE 8080

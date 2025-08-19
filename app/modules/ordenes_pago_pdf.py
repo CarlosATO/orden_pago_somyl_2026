@@ -1,16 +1,6 @@
 from flask import Blueprint, request, current_app, render_template, make_response
 from datetime import date
-import logging
-
-# Importar pdfkit de forma opcional para que la app arranque sin dependencia
-try:
-    import pdfkit
-    PDFKIT_AVAILABLE = True
-except Exception:
-    pdfkit = None
-    PDFKIT_AVAILABLE = False
-    logger = logging.getLogger(__name__)
-    logger.warning("pdfkit no disponible - generación de PDFs deshabilitada")
+import pdfkit
 
 bp_pdf = Blueprint(
     'ordenes_pago_pdf',
@@ -230,15 +220,8 @@ def generar_pdf():
         'proyectos_str': proyectos_str
     }
 
-    # 8) Renderizar HTML
+    # 8) Renderizar HTML y generar PDF
     html = render_template('ordenes_pago/pdf_template.html', **contexto)
-
-    # Si pdfkit no está disponible, devolver HTML en lugar de PDF
-    if not PDFKIT_AVAILABLE:
-        current_app.logger.warning("pdfkit no disponible - devolviendo HTML en lugar de PDF")
-        response = make_response(html)
-        response.headers['Content-Type'] = 'text/html; charset=utf-8'
-        return response
 
     try:
         # Intentar diferentes configuraciones de wkhtmltopdf para producción
