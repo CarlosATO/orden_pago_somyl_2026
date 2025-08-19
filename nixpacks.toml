@@ -1,5 +1,7 @@
 [phases.setup]
 nixPkgs = ['wkhtmltopdf', 'xvfb-run']
+[packages]
+apt = ["wkhtmltopdf"]
 
 [start]
 cmd = "gunicorn --bind 0.0.0.0:$PORT --worker-class sync --timeout 300 run:app"

@@ -28,6 +28,27 @@
             <button type="submit" id="btnRegistrarAbono" class="btn btn-success btn-sm w-100" disabled>Registrar abono</button>
           </div>
         </form>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          function validarCamposAbono() {
+            const monto = document.getElementById('abonoMonto').value;
+            const fecha = document.getElementById('abonoFecha').value;
+            const ordenNum = document.getElementById('abonoOrdenNum').value;
+            const btn = document.getElementById('btnRegistrarAbono');
+            // Habilitar solo si todos los campos requeridos tienen valor válido
+            if (monto && parseFloat(monto) > 0 && fecha && ordenNum) {
+              btn.disabled = false;
+            } else {
+              btn.disabled = true;
+            }
+          }
+          document.getElementById('abonoMonto').addEventListener('input', validarCamposAbono);
+          document.getElementById('abonoFecha').addEventListener('input', validarCamposAbono);
+          document.getElementById('abonoOrdenNum').addEventListener('input', validarCamposAbono);
+          // También validar al mostrar el modal por si los valores ya están
+          setTimeout(validarCamposAbono, 300);
+        });
+        </script>
         <table class="table table-bordered table-sm">
           <thead>
             <tr>
