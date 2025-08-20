@@ -285,6 +285,22 @@
     </style>
 </head>
 <body>
+<!-- Loader visual simple global -->
+<div id="loader-overlay" style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(255,255,255,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;">
+    <div style="text-align:center;">
+        <div class="spinner-border text-warning" role="status" style="width:3rem;height:3rem;"></div>
+        <div style="margin-top:1rem;font-size:1.2rem;color:#444;">Cargando...</div>
+    </div>
+</div>
+<!-- Script global para ocultar el loader lo antes posible -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var loader = document.getElementById('loader-overlay');
+        if (loader) {
+            loader.style.display = 'none';
+        }
+    });
+</script>
     
     {% set current = request.path %}
 
@@ -474,5 +490,3 @@
 })();
 </script>
 {% endblock %}
-</body>
-</html>

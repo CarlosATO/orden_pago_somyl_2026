@@ -3,6 +3,7 @@
 {% block title %}Informe de Pagos - SOMYL{% endblock %}
 
 {% block content %}
+<!-- ...existing code... -->
 
 <!-- Modal para historial de abonos -->
 <div class="modal fade" id="abonosModal" tabindex="-1" aria-labelledby="abonosModalLabel" aria-hidden="true">
@@ -706,25 +707,19 @@ document.addEventListener('DOMContentLoaded', function() {
   </div>
   <div class="col-lg-4">
     <div class="summary-card">
-      {% set pending = {} %}
-      {% for p in pagos %}
-        {% if not p.fecha_pago %}
-          {% set _ = pending.update({p.proyecto: (pending.get(p.proyecto, 0) + p.total_pago)}) %}
-        {% endif %}
-      {% endfor %}
       <div class="summary-header mb-3">
         <span class="stats-indicator stats-pending"></span>
         Proyectos Pendientes de Pago
       </div>
       <ul class="project-list">
-        {% for proyecto, monto in pending.items() %}
+        {% for proyecto, monto in saldo_por_proyecto.items() %}
         <li>
           <span class="project-name">{{ proyecto }}</span>
           <span class="project-amount">${{ '{:,.0f}'.format(monto).replace(',', '.') }}</span>
         </li>
         {% endfor %}
       </ul>
-      {% set grand_total = pending.values()|sum %}
+      {% set grand_total = saldo_por_proyecto.values()|sum %}
       <div class="total-summary mt-4">
         <!-- Cuadro para mostrar la suma filtrada de SALDO PENDIENTE -->
         <!-- Eliminado: <div id="saldo-pendiente-summary" class="total-summary mt-2" style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: #212529;"> SALDO PENDIENTE: <span id="saldoPendienteTotal">$0</span></div> -->

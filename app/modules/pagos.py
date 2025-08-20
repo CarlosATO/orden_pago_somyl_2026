@@ -24,11 +24,7 @@ REGLAS DE CONVIVENCIA:
 
 
 
-from flask import (
-    Blueprint, render_template, request,
-    flash, redirect, url_for, current_app,
-    send_file, jsonify
-)
+from flask import Blueprint, render_template, request, flash, redirect, url_for, current_app, send_file, jsonify
 from datetime import date, datetime, timedelta
 from flask_login import login_required
 import io
@@ -105,6 +101,20 @@ def editar_abono_op(abono_id):
         return jsonify(success=True)
     except Exception as e:
         return jsonify(success=False, error=str(e)), 500
+
+    # --- FUNCION AUXILIAR PARA SUMAR SALDO PENDIENTE POR PROYECTO ---
+    def saldo_penproyecto(pagos):
+        """
+        Recibe una lista de pagos (diccionarios) y retorna un diccionario
+        con el total de saldo pendiente agrupado por proyecto.
+        """
+        resultado = {}
+        for pago in pagos:
+            proyecto = pago.get("proyecto")
+            saldo = pago.get("saldo_pendiente", 0)
+            if proyecto:
+                resultado[proyecto] = resultado.get(proyecto, 0) + saldo
+        return resultado
 
 def get_pagos(filtros=None):
     supabase = current_app.config["SUPABASE"]
@@ -324,6 +334,22 @@ def get_pagos(filtros=None):
 
     return pagos_ordenados
 
+# --- FUNCION AUXILIAR PARA SUMAR SALDO PENDIENTE POR PROYECTO ---
+def saldo_penproyecto(pagos):
+    """
+    Recibe una lista de pagos (diccionarios) y retorna un diccionario
+    con el total de saldo pendiente agrupado por proyecto.
+    """
+    resultado = {}
+    for pago in pagos:
+        proyecto = pago.get("proyecto")
+        saldo = pago.get("saldo_pendiente", 0)
+        if proyecto:
+            resultado[proyecto] = resultado.get(proyecto, 0) + saldo
+    # Filtrar solo proyectos con saldo pendiente mayor a 1
+    resultado_filtrado = {k: v for k, v in resultado.items() if v > 1}
+    return resultado_filtrado
+
 @login_required
 @bp_pagos.route("/pagos", methods=["GET"])
 @require_modulo('pagos')
@@ -358,6 +384,9 @@ def list_pagos():
     # Calcular el total pendiente como la suma de la columna saldo_pendiente
     total_pendiente = sum(p.get("saldo_pendiente", 0) for p in pagos)
 
+    # Calcular el saldo pendiente agrupado por proyecto
+    saldo_por_proyecto = saldo_penproyecto(pagos)
+
     # Datos adicionales para el template
     proveedores_unicos = sorted(set(p["proveedor_nombre"] for p in pagos))
     proyectos_unicos = sorted(set(p["proyecto"] for p in pagos))
@@ -384,6 +413,7 @@ def list_pagos():
         proyectos_unicos=proyectos_unicos,
         filtros_activos=filtros,
         total_pendiente=total_pendiente,
+        saldo_por_proyecto=saldo_por_proyecto,
         puede_editar=puede_editar,
         date=date,
         # Variables de paginación requeridas por el template
