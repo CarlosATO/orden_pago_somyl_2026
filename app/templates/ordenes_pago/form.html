@@ -1240,6 +1240,13 @@
           formData.append('orden_id', $('input[name=next_num]').val());
           formData.append('nombre_proveedor', $('input[name=nombre_proveedor]').val() || '');
           
+          // Agregar todas las órdenes de compra para obtener los proyectos
+          $('input[name="orden_compra[]"]').each(function() {
+            if ($(this).val()) {
+              formData.append('orden_compra[]', $(this).val());
+            }
+          });
+          
           // Agregar documentos adjuntos si existen
           const doc1 = $('input[name=documento1]')[0].files[0];
           const doc2 = $('input[name=documento2]')[0].files[0];

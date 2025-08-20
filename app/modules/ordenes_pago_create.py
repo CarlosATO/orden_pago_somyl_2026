@@ -4,6 +4,59 @@ from app.modules.enviar_correo import enviar_correo_con_pdfs
 from utils.logger import registrar_log_actividad
 from datetime import date
 
+def proyectos_op_correo(supabase, ocs):
+    """Obtiene nombres de proyectos asociados a las órdenes de compra para el correo"""
+    # --- Obtener nombres de proyectos asociados a las OCs ---
+    proyecto_ids = set()
+    if ocs:
+        oc_numbers = [int(oc) for oc in ocs if str(oc).isdigit()]
+        # Paginación manual para orden_de_compra
+        page_size = 1000
+        offset = 0
+        while True:
+            batch = (
+                supabase.table('orden_de_compra')
+                    .select('orden_compra, proyecto')
+                    .in_('orden_compra', oc_numbers)
+                    .range(offset, offset + page_size - 1)
+                    .execute()
+                    .data or []
+            )
+            for row in batch:
+                pid = row.get('proyecto')
+                if pid:
+                    proyecto_ids.add(pid)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+
+    # Buscar nombres de proyectos en tabla proyectos
+    proyectos_nombres = set()
+    if proyecto_ids:
+        page_size = 1000
+        offset = 0
+        ids_list = list(proyecto_ids)
+        while True:
+            batch = (
+                supabase.table('proyectos')
+                    .select('id, proyecto')
+                    .in_('id', ids_list)
+                    .range(offset, offset + page_size - 1)
+                    .execute()
+                    .data or []
+            )
+            for row in batch:
+                nombre = row.get('proyecto')
+                if nombre:
+                    proyectos_nombres.add(nombre)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+    if not proyectos_nombres:
+        proyectos_nombres = {'Sin proyecto'}
+    proyectos_str = ' - '.join(sorted(proyectos_nombres, key=lambda x: x.lower()))
+    return proyectos_str
+
 bp_ordenes_pago_create = Blueprint('ordenes_pago_create', __name__)
 
 @bp_ordenes_pago_create.route('/api/enviar-correo', methods=['POST'])
@@ -54,66 +107,18 @@ def api_enviar_correo():
         if doc2 and doc2.filename:
             pdf_opcional_2 = (doc2.read(), doc2.filename)
         
-        # Obtener información del proyecto asociado
-        proyecto_info = ""
-        try:
-            if nombre_proveedor:
-                current_app.logger.info(f"Buscando proyecto para proveedor: {nombre_proveedor}")
-                
-                # Buscar órdenes de compra asociadas al proveedor para obtener el proyecto
-                proveedor_result = supabase.table('proveedores').select('id').ilike('paguese_a', f'%{nombre_proveedor}%').limit(1).execute()
-                current_app.logger.info(f"Resultado búsqueda proveedor: {proveedor_result.data}")
-                
-                if proveedor_result.data:
-                    proveedor_id = proveedor_result.data[0]['id']
-                    current_app.logger.info(f"Proveedor ID encontrado: {proveedor_id}")
-                    
-                    # Buscar órdenes de compra del proveedor
-                    oc_result = supabase.table('orden_de_compra').select('proyecto').eq('proveedor', proveedor_id).limit(1).execute()
-                    current_app.logger.info(f"Resultado búsqueda OC: {oc_result.data}")
-                    
-                    if oc_result.data:
-                        proyecto_id = oc_result.data[0]['proyecto']
-                        current_app.logger.info(f"Proyecto ID encontrado: {proyecto_id}")
-                        
-                        # Obtener nombre del proyecto - usar la columna correcta
-                        proyecto_result = supabase.table('proyectos').select('proyecto').eq('id', proyecto_id).limit(1).execute()
-                        current_app.logger.info(f"Resultado búsqueda proyecto: {proyecto_result.data}")
-                        
-                        if proyecto_result.data:
-                            proyecto_info = proyecto_result.data[0]['proyecto']
-                            current_app.logger.info(f"Nombre proyecto encontrado: {proyecto_info}")
-                        else:
-                            current_app.logger.warning("No se encontró el nombre del proyecto en la tabla proyectos")
-                    else:
-                        current_app.logger.warning("No se encontraron órdenes de compra para este proveedor")
-                else:
-                    current_app.logger.warning("No se encontró el proveedor en la tabla proveedores")
-        except Exception as e:
-            current_app.logger.warning(f"No se pudo obtener información del proyecto: {e}")
-            proyecto_info = "Proyecto no especificado"
+        # Obtener información del proyecto usando las órdenes de compra del formulario
+        oc_list = request.form.getlist('orden_compra[]')
+        proyecto_info = proyectos_op_correo(supabase, oc_list)
         
-        # Crear asunto y cuerpo del correo con información completa
-        if proyecto_info:
-            asunto = f"Orden de Pago #{orden_id} - {nombre_proveedor} - {proyecto_info}"
-            cuerpo = f"""Estimada Cynthia,
+        # Crear asunto y cuerpo del correo con información del proyecto
+        asunto = f"Orden de Pago #{orden_id} - {nombre_proveedor} - {proyecto_info}"
+        cuerpo = f"""Estimada Cynthia,
 
 Adjunto encontrará la Orden de Pago #{orden_id} correspondiente a:
 
 • Proveedor: {nombre_proveedor}
 • Proyecto: {proyecto_info}
-
-Por favor, proceder con la revisión y procesamiento correspondiente.
-
-Saludos cordiales,
-Equipo Somyl"""
-        else:
-            asunto = f"Orden de Pago #{orden_id} - {nombre_proveedor}"
-            cuerpo = f"""Estimada Cynthia,
-
-Adjunto encontrará la Orden de Pago #{orden_id} correspondiente a:
-
-• Proveedor: {nombre_proveedor}
 
 Por favor, proceder con la revisión y procesamiento correspondiente.
 
