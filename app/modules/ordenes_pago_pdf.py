@@ -29,17 +29,6 @@ def safe_int(value, default=0):
 @bp_pdf.route('/ordenes_pago/pdf', methods=['POST'], endpoint='pdf')
 def generar_pdf():
 
-    import os
-    # Limpiar carpeta de PDFs generados antes de crear uno nuevo
-    pdf_dir = os.path.join(current_app.root_path, 'static', 'ordenes_pago', 'generated_pdfs')
-    if os.path.exists(pdf_dir):
-        for filename in os.listdir(pdf_dir):
-            file_path = os.path.join(pdf_dir, filename)
-            if os.path.isfile(file_path):
-                try:
-                    os.remove(file_path)
-                except Exception as e:
-                    current_app.logger.warning(f"No se pudo borrar {file_path}: {e}")
     supabase = current_app.config['SUPABASE']
     # Listas de detalle (ya vienen filtradas y sin duplicados desde el JS)
     ocs           = request.form.getlist('orden_compra[]')
