@@ -71,7 +71,10 @@ def new_orden():
 
     # --- Datos GET para autocompletar ---
     tipos_entrega = ["30 DIAS","45 DIAS","60 DIAS","90 DIAS","INMEDIATA","OTRO"]
-    plazos_pago   = ["CONTADO","30 DIAS","45 DIAS","60 DIAS","90 DIAS","OTRO"]
+    plazos_pago   = [
+        "CONTADO", "5 DIAS", "10 DIAS", "15 DIAS", "20 DIAS", "25 DIAS", "30 DIAS",
+        "45 DIAS", "60 DIAS", "90 DIAS", "120 DIAS", "OTRO"
+    ]
     
     # Obtener datos para las listas desplegables
     # --- Paginación automática para grandes volúmenes ---
