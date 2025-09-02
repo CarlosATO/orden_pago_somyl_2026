@@ -7,7 +7,6 @@ try:
     PANDAS_AVAILABLE = True
 except ImportError:
     PANDAS_AVAILABLE = False
-    print("pandas no disponible - algunas funciones de exportación pueden no funcionar")
 from io import BytesIO
 from app.modules.usuarios import require_modulo
 from flask_login import current_user
@@ -701,7 +700,6 @@ def update_presupuesto():
             )
         # Verificar si hubo errores en la respuesta de Supabase
         if hasattr(result, 'error') and result.error:
-            print(f"Error de Supabase: {result.error}")
             return jsonify(success=False, error=f'Error en base de datos: {result.error}')
         # Verificar si se afectaron filas
         if not result.data:
@@ -718,7 +716,6 @@ def update_presupuesto():
             }
         )
     except Exception as e:
-        print(f"Error inesperado en update_presupuesto: {str(e)}")
         return jsonify(success=False, error=f'Error inesperado: {str(e)}')
 
 
@@ -821,13 +818,200 @@ def export_presupuesto():
 
 def build_estado_presupuesto(supabase, selected, fecha_desde, fecha_hasta, id_to_nombre_proj):
     """Función auxiliar para construir los datos de estado de presupuesto"""
-    # Implementar la misma lógica que en show_estado pero retornando solo los datos necesarios
-    # Esta función es similar a la lógica principal pero optimizada para exportación
-    
-    # Por simplicidad, reutilizamos la lógica principal
-    # En una implementación real, extraerías la lógica común a una función separada
-    
-    return {}, [], id_to_nombre_proj
+    # Copia de la lógica de show_estado, pero solo retorna los datos necesarios para exportar
+    from collections import defaultdict
+    import calendar
+    from datetime import datetime, date
+
+    table = {}
+    months = []
+    project_names = id_to_nombre_proj
+
+    if selected:
+        # 1) Consulta presupuestos
+        presupuestos = []
+        page_size = 1000
+        page = 0
+        while True:
+            query_pre = supabase.table('presupuesto') \
+                .select('proyecto_id,item,fecha,monto,mes_numero,anio') \
+                .in_('proyecto_id', selected) \
+                .range(page * page_size, (page + 1) * page_size - 1)
+            if fecha_desde:
+                query_pre = query_pre.gte('fecha', fecha_desde)
+            if fecha_hasta:
+                query_pre = query_pre.lte('fecha', fecha_hasta)
+            chunk = query_pre.execute().data or []
+            presupuestos.extend(chunk)
+            if len(chunk) < page_size:
+                break
+            page += 1
+
+        # 2) Consulta pagos
+        pagos = []
+        page = 0
+        while True:
+            query_pay = supabase.table('orden_de_pago') \
+                .select('proyecto,item,fecha_factura,costo_final_con_iva,mes,anio') \
+                .in_('proyecto', selected) \
+                .range(page * page_size, (page + 1) * page_size - 1)
+            if fecha_desde:
+                query_pay = query_pay.gte('fecha_factura', fecha_desde)
+            if fecha_hasta:
+                query_pay = query_pay.lte('fecha_factura', fecha_hasta)
+            chunk = query_pay.execute().data or []
+            pagos.extend(chunk)
+            if len(chunk) < page_size:
+                break
+            page += 1
+
+        # 3) Consulta gastos directos
+        gastos_directos = []
+        page = 0
+        while True:
+            query_gd = supabase.table('gastos_directos') \
+                .select('proyecto_id,item_id,fecha,mes,anio,monto') \
+                .in_('proyecto_id', selected) \
+                .range(page * page_size, (page + 1) * page_size - 1)
+            if fecha_desde:
+                query_gd = query_gd.gte('fecha', fecha_desde)
+            if fecha_hasta:
+                query_gd = query_gd.lte('fecha', fecha_hasta)
+            chunk = query_gd.execute().data or []
+            gastos_directos.extend(chunk)
+            if len(chunk) < page_size:
+                break
+            page += 1
+
+        # Normalizar mes_key para todos los registros
+        def get_month_key(mes_numero=None, mes_nombre=None, anio=None, fecha=None):
+            meses_map = {
+                1: 'Jan', 2: 'Feb', 3: 'Mar', 4: 'Apr', 5: 'May', 6: 'Jun',
+                7: 'Jul', 8: 'Aug', 9: 'Sep', 10: 'Oct', 11: 'Nov', 12: 'Dec',
+                'Enero': 'Jan', 'Febrero': 'Feb', 'Marzo': 'Mar', 'Abril': 'Apr',
+                'Mayo': 'May', 'Junio': 'Jun', 'Julio': 'Jul', 'Agosto': 'Aug',
+                'Septiembre': 'Sep', 'Octubre': 'Oct', 'Noviembre': 'Nov', 'Diciembre': 'Dec',
+                'January': 'Jan', 'February': 'Feb', 'March': 'Mar', 'April': 'Apr',
+                'May': 'May', 'June': 'Jun', 'July': 'Jul', 'August': 'Aug',
+                'September': 'Sep', 'October': 'Oct', 'November': 'Nov', 'December': 'Dec',
+                'Jan': 'Jan', 'Feb': 'Feb', 'Mar': 'Mar', 'Apr': 'Apr',
+                'Jun': 'Jun', 'Jul': 'Jul', 'Aug': 'Aug', 'Sep': 'Sep',
+                'Oct': 'Oct', 'Nov': 'Nov', 'Dec': 'Dec'
+            }
+            if mes_numero and anio:
+                try:
+                    mes_num = int(mes_numero)
+                    if 1 <= mes_num <= 12:
+                        mes_abbr = meses_map.get(mes_num, calendar.month_abbr[mes_num])
+                        return f"{mes_abbr}-{str(anio)[-2:]}"
+                except (ValueError, IndexError):
+                    pass
+            if mes_nombre and anio:
+                mes_nombre_clean = str(mes_nombre).strip()
+                mes_abbr = meses_map.get(mes_nombre_clean, mes_nombre_clean[:3].capitalize())
+                return f"{mes_abbr}-{str(anio)[-2:]}"
+            if fecha:
+                try:
+                    fecha_str = str(fecha).split('T')[0]
+                    dt = datetime.fromisoformat(fecha_str)
+                    mes_abbr = calendar.month_abbr[dt.month]
+                    return f"{mes_abbr}-{str(dt.year)[-2:]}"
+                except (ValueError, IndexError):
+                    pass
+            return None
+
+        for r in presupuestos:
+            r['mes_key'] = get_month_key(
+                mes_numero=r.get('mes_numero'),
+                anio=r.get('anio'),
+                fecha=r.get('fecha')
+            )
+        for r in pagos:
+            mes_num = r.get('mes')
+            fecha_factura = r.get('fecha_factura')
+            anio = r.get('anio')
+            if not anio and fecha_factura:
+                try:
+                    anio = datetime.fromisoformat(str(fecha_factura).split('T')[0]).year
+                except:
+                    anio = None
+            r['mes_key'] = get_month_key(mes_numero=mes_num, anio=anio, fecha=fecha_factura)
+        for gd in gastos_directos:
+            gd_mes_key = get_month_key(
+                mes_nombre=gd.get('mes'),
+                anio=gd.get('anio'),
+                fecha=gd.get('fecha')
+            )
+            pagos.append({
+                'proyecto': gd['proyecto_id'],
+                'item': gd['item_id'],
+                'fecha_factura': gd['fecha'],
+                'costo_final_con_iva': gd['monto'],
+                '_is_gasto_directo': True,
+                'mes_key': gd_mes_key
+            })
+
+        mes_set = set()
+        for r in presupuestos:
+            if r.get('mes_key'):
+                mes_set.add(r['mes_key'])
+        for r in pagos:
+            if r.get('mes_key'):
+                mes_set.add(r['mes_key'])
+        months = sorted(mes_set, key=lambda m: datetime.strptime(m, '%b-%y')) if mes_set else []
+
+        raw_item_ids = {r['item'] for r in presupuestos} | {r['item'] for r in pagos}
+        numeric_item_ids = set()
+        for iid in raw_item_ids:
+            try:
+                numeric_item_ids.add(int(iid))
+            except (TypeError, ValueError):
+                continue
+        items_res = supabase.table('item').select('id,tipo').in_('id', list(numeric_item_ids)).execute().data or []
+        id_to_tipo = {i['id']: i['tipo'] for i in items_res}
+        def get_tipo(item_val):
+            try:
+                iv = int(item_val)
+                tipo = id_to_tipo.get(iv, f'Item {iv}')
+            except (TypeError, ValueError):
+                tipo = str(item_val)
+            tipo = str(tipo).upper().strip()
+            if tipo.endswith('S') and len(tipo) > 3:
+                tipo = tipo[:-1]
+            return tipo
+
+        data = defaultdict(lambda: defaultdict(lambda: {m: {'presupuesto': 0, 'real': 0} for m in months}))
+        for r in presupuestos:
+            prj_id = r.get('proyecto_id')
+            if prj_id is None:
+                continue
+            raw_itm = r['item']
+            m = r.get('mes_key')
+            tipo_key = get_tipo(raw_itm)
+            if m and m in months:
+                monto = r.get('monto', 0) or 0
+                data[prj_id][tipo_key][m]['presupuesto'] += monto
+        for r in pagos:
+            prj_id = None
+            raw_prj = r.get('proyecto')
+            prj_id = raw_prj if isinstance(raw_prj, int) else None
+            if prj_id is None:
+                continue
+            raw_itm = r['item']
+            m = r.get('mes_key')
+            tipo_key = get_tipo(raw_itm)
+            if m and m in months:
+                costo = r.get('costo_final_con_iva', 0) or 0
+                data[prj_id][tipo_key][m]['real'] += costo
+        for prj_id, items in data.items():
+            table[prj_id] = {}
+            for tipo_key, meses in items.items():
+                meses_with_id = {m: dict(v) for m, v in meses.items()}
+                for v in meses_with_id.values():
+                    v['item_id'] = tipo_key
+                table[prj_id][tipo_key] = meses_with_id
+
+    return table, months, project_names
 
 
 # Función auxiliar para debug (opcional)
