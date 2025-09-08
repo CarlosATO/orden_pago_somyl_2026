@@ -114,7 +114,8 @@ def list_ingresos():
             )
             # Diccionario: clave normalizada -> id
             def norm(s):
-                return (s or '').strip().lower()
+                # Elimina saltos de línea y espacios extra internos
+                return ' '.join((s or '').replace('\n', ' ').split()).lower()
             mat_id_map = {norm(m["material"]): m["id"] for m in mats}
 
             # 4) Recepciones previas agrupadas por art_corr

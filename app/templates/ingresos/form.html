@@ -38,7 +38,6 @@
     }
     /* Anchos específicos para columnas */
     .line-table th:nth-child(1) { width: 8%; }  /* CÓDIGO */
-    .line-table th:nth-child(2) { width: 25%; } /* DESCRIPCIÓN - más ancha */
     .line-table th:nth-child(3) { width: 8%; }  /* SOLICITADO - más pequeño */
     .line-table th:nth-child(4) { width: 10%; } /* NETO UNITARIO */
     .line-table th:nth-child(5) { width: 10%; } /* NETO TOTAL */
@@ -47,14 +46,16 @@
     .line-table th:nth-child(8) { width: 8%; }  /* RECIBIDOS */
     .line-table th:nth-child(9) { width: 8%; }  /* TOTAL RECIBIDO */
     .line-table th:nth-child(10) { width: 8%; } /* PENDIENTES */
+      .line-table th:nth-child(2) { width: 35%; } /* DESCRIPCIÓN - más ancha */
     
     /* Estilos para celdas específicas */
-    .line-table td:nth-child(2) { 
-      text-align: left; 
-      font-weight: 500;
-      word-wrap: break-word;
-      max-width: 200px;
-    }
+      .line-table td:nth-child(2) { 
+        text-align: left; 
+        font-weight: 500;
+        word-wrap: break-word;
+        max-width: 400px;
+        white-space: pre-line;
+      }
     .line-table td:nth-child(3) { 
       font-weight: 600;
       color: #6c757d;
