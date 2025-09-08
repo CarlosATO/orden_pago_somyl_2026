@@ -114,7 +114,7 @@ def list_ingresos():
             )
             # Diccionario: clave normalizada -> id
             def norm(s):
-                # Elimina saltos de línea y espacios extra internos
+                # Elimina saltos de línea y reduce múltiples espacios a uno solo
                 return ' '.join((s or '').replace('\n', ' ').split()).lower()
             mat_id_map = {norm(m["material"]): m["id"] for m in mats}
 
@@ -143,7 +143,7 @@ def list_ingresos():
                 pend    = sol - prev_r
 
                 # Normalizar descripción para buscar material_id
-                norm_desc = (ln["descripcion"] or '').strip().lower()
+                norm_desc = norm(ln["descripcion"])
                 lines.append({
                     "codigo":         ln["codigo"],
                     "descripcion":    ln["descripcion"],
