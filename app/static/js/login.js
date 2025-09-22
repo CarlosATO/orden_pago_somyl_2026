@@ -5,6 +5,22 @@
 
   function qs(id) { return document.getElementById(id); }
 
+  function getCsrfToken() {
+    // 1) meta tag <meta name="csrf-token" content="...">
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta && meta.content) return meta.content;
+    // 2) hidden input named csrf_token
+    const hidden = document.querySelector('input[name="csrf_token"]');
+    if (hidden && hidden.value) return hidden.value;
+    // 3) cookie common names (XSRF-TOKEN, csrf_token)
+    const cookies = document.cookie.split(';').map(c => c.trim());
+    for (const c of cookies) {
+      if (c.startsWith('XSRF-TOKEN=')) return decodeURIComponent(c.split('=')[1]);
+      if (c.startsWith('csrf_token=')) return decodeURIComponent(c.split('=')[1]);
+    }
+    return null;
+  }
+
   function showAlert(container, message, category) {
     // category: success, danger, warning, info
     const div = document.createElement('div');
@@ -53,13 +69,17 @@
       if (loading) loading.style.display = 'block';
 
       try {
+        const csrfToken = getCsrfToken();
+        const headers = {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+        };
+        if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+
         const resp = await fetch(form.action || window.location.pathname, {
           method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest',
-            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
-          },
+          headers,
           body: payload.toString(),
           credentials: 'same-origin'
         });
