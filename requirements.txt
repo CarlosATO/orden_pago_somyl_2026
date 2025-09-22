@@ -28,3 +28,4 @@ jinja2
 pandas
 openpyxl
 weasyprint
+Flask-SeaSurf==0.3.0

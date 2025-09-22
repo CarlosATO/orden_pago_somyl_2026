@@ -35,6 +35,14 @@ def create_app():
             return value
     app.jinja_env.filters['clp'] = format_clp
     app.secret_key = "S3cr3to_2025_de_Somyl"
+    # CSRF protection using Flask-SeaSurf (sets XSRF-TOKEN cookie and expects X-CSRFToken header)
+    try:
+        from flask_seasurf import SeaSurf
+        csrf = SeaSurf()
+        csrf.init_app(app)
+        print('✅ SeaSurf CSRF protection initialized')
+    except Exception as e:
+        print(f'⚠️ SeaSurf not available or failed to initialize: {e}')
     
     # Configurar Supabase desde variables de entorno
     url = os.getenv('SUPABASE_URL') or 'https://reubvhoexrkagmtxklek.supabase.co'
