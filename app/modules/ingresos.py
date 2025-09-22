@@ -12,6 +12,13 @@ from utils.logger import registrar_log_actividad
 bp = Blueprint("ingresos", __name__, template_folder="../templates/ingresos")
 
 
+def wants_json():
+    """Detectar si la petición espera JSON (AJAX)."""
+    accept = request.headers.get('Accept', '')
+    xrw = request.headers.get('X-Requested-With', '')
+    return 'application/json' in accept or xrw == 'XMLHttpRequest'
+
+
 @bp.route("/", methods=["GET"])
 def list_ingresos():
     # Normalizar nombres de módulos para comparación robusta

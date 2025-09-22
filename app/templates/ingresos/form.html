@@ -97,6 +97,7 @@
   </form>
 
   {% if header %}
+  <div id="ingresosAlerts" aria-live="polite"></div>
   <form method="POST">
     <input type="hidden" name="oc" value="{{ header.orden_compra }}">
     <input type="hidden" name="proveedor_id" value="{{ header.proveedor_id }}">
@@ -333,10 +334,17 @@
         const val = parseFloat(td.textContent.replace(/[^0-9.-]+/g,""));
         if (!isNaN(val)) td.textContent = formatCLP(val);
       });
+      // Exponer funciones para uso externo (por ejemplo, ingresos.js)
+      window.actualizarSumas = actualizarSumas;
+      window.setupClamping = setupClamping;
+      window.checkCompleto = checkCompleto;
+      window.setupFormSubmit = setupFormSubmit;
+
       actualizarSumas();
       setupClamping();
       checkCompleto();
       setupFormSubmit();
     });
   </script>
+  <script src="{{ url_for('static', filename='js/ingresos.js') }}"></script>
 {% endblock %}

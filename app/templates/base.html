@@ -72,7 +72,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            height: 70px;
+            height: 90px; /* aumentar altura para logos altos */
             text-decoration: none;
             padding: 0 1rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.15);
@@ -84,6 +84,15 @@
             white-space: nowrap;
             transition: opacity 0.3s ease;
         }
+        .sidebar-logo img {
+            max-height: 64px; /* aumentar tamaño visible */
+            width: auto;
+            display: block;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.45)); /* mejora contraste sobre fondos claros */
+            margin-top: -6px; /* ajustar si la imagen tiene padding transparente arriba */
+            object-fit: contain;
+        }
+        .sidebar.collapsed .sidebar-logo img { display: none; }
         .sidebar.collapsed .sidebar-brand-text { opacity: 0; }
 
         .sidebar-nav {
@@ -307,10 +316,12 @@
     {% if current_user.is_authenticated and request.endpoint != 'auth.login' %}
     <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
-        <!-- Brand -->
-        <a class="sidebar-brand" href="{{ url_for('ordenes.new_orden') }}">
-            <div class="sidebar-brand-text">Nexus Somyl</div>
-        </a>
+        <!-- Brand (no clickable) -->
+        <div class="sidebar-brand" role="img" aria-label="Somyl">
+            <div class="sidebar-brand-text sidebar-logo">
+                <img src="{{ url_for('imagen', filename='logo_azul.png') }}" alt="Somyl" />
+            </div>
+        </div>
 
         <!-- Navigation -->
         <nav class="sidebar-nav">

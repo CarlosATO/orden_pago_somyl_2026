@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Nota Crédito</h2>
+    <p>Listado y gestión de notas de crédito.</p>
+    <div class="card mb-4">
+        <div class="card-header">Estadísticas</div>
+        <div class="card-body">
+            <ul>
+                <li>Total notas de crédito: {{ stats.total_notas if stats and stats.total_notas is defined else 0 }}</li>
+                <li>Total monto: ${{ stats.total_monto if stats and stats.total_monto is defined else 0 }}</li>
+                <li>Proveedores únicos: {{ stats.proveedores_unicos if stats and stats.proveedores_unicos is defined else 0 }}</li>
+            </ul>
+            <small>Actualizado: {{ fecha_actualizacion }}</small>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">Notas de crédito</div>
+        <div class="card-body">
+            {% if filas and filas|length > 0 %}
+            <table class="table table-bordered table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Proveedor</th>
+                        <th>Detalle</th>
+                        <th>Monto</th>
+                        <th>Fecha</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in filas %}
+                    <tr>
+                        <td>{{ f.id }}</td>
+                        <td>{{ f.proveedor_nombre }}</td>
+                        <td>{{ f.detalle_compra }}</td>
+                        <td>${{ f.costo_final_con_iva }}</td>
+                        <td>{{ f.fecha_op }}</td>
+                        <td>
+                            <form method="POST" action="{{ url_for('nota_credito.update_nota_credito') }}">
+                                <input type="hidden" name="id[]" value="{{ f.id }}">
+                                <input type="text" name="factura[]" placeholder="N° Nota Crédito" class="form-control" required>
+                                <button type="submit" class="btn btn-primary btn-sm mt-1">Registrar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="alert alert-info">No hay notas de crédito registradas.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

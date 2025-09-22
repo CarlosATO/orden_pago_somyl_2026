@@ -130,6 +130,13 @@ def create_app():
             return {'modulos_usuario': get_modulos_usuario()}
         return {'modulos_usuario': []}
 
+    # Servir imágenes internas (logo) desde la carpeta app/imagen
+    @app.route('/imagen/<path:filename>')
+    def imagen(filename):
+        # Sirve archivos desde el subdirectorio app/imagen de forma simple
+        imagen_dir = os.path.join(os.path.dirname(__file__), 'imagen')
+        return send_file(os.path.join(imagen_dir, filename))
+
     # Headers optimizados para performance y cache inteligente
     @app.after_request
     def after_request(response):

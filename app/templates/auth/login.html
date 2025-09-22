@@ -53,22 +53,27 @@
   .login-header {
     text-align: center;
     margin-bottom: 12px; /* antes 24px */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .company-logo {
+    /* El logo ahora usa una imagen; quitar fondo azul y permitir ancho flexible */
+    width: auto;
+    height: auto;
+    background: transparent;
+    border-radius: 8px;
+    display: block;
+    margin: 0 auto 10px;
+    padding: 0;
+    animation: fadeIn 0.6s ease-out;
   }
 
-  .company-logo {
-    width: 48px; /* más pequeño */
-    height: 48px;
-    background: linear-gradient(135deg, #0ea5e9 0%, #3b82f6 100%);
-    border-radius: 14px;
+  /* Centrar y alinear el bloque de info para que título e imagen compartan ancho */
+  .company-info {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: center;
-    margin: 0 auto 10px; /* menos espacio abajo */
-    color: white;
-    font-size: 1.5rem;
-    font-weight: 700;
-    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
-    animation: fadeIn 0.6s ease-out;
   }
 
   .company-title {
@@ -77,6 +82,9 @@
     color: #1e293b;
     margin-bottom: 4px;
     letter-spacing: -0.2px;
+    /* Limitar ancho del título para que la imagen pueda igualarlo */
+    max-width: 260px;
+    text-align: center;
   }
 
   .company-subtitle {
@@ -286,16 +294,27 @@
   .login-container * {
     backface-visibility: hidden;
   }
+
+  /* Logo image sizing: match title width and be responsive */
+  .company-logo img {
+    display: block;
+    width: 100%;
+    max-width: 260px;
+    height: auto;
+    object-fit: contain;
+  }
 </style>
 
 <div class="login-page-bg">
   <div class="login-container">
     <!-- Header reducido -->
     <div class="login-header">
-      <div class="company-logo">S</div>
+      <div class="company-logo">
+        <img src="{{ url_for('imagen', filename='logo_blanco.png') }}" alt="Logo Somyl" />
+      </div>
       <div class="company-info">
         <h1 class="company-title">Gestión Somyl S.A.</h1>
-        <p class="company-subtitle">Sistema Integral de Administración</p>
+        <p class="company-subtitle">Sistema Ordenes de pagos  y reportes</p>
         <div class="system-features">
           <span class="feature-badge">OC</span>
           <span class="feature-badge">OP</span>
