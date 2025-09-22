@@ -318,6 +318,7 @@
 
   <!-- Formulario de login -->
   <div class="login-form">
+    <div id="loginAlerts" aria-live="polite"></div>
     <form method="post" id="loginForm">
       <div class="form-group">
         <label for="email" class="form-label">Correo electrónico</label>
@@ -359,45 +360,6 @@
   </div>
   </div>
 </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('loginForm');
-    const btn = document.getElementById('btnLogin');
-    const loading = document.getElementById('loginLoading');
-    
-    if (form && btn && loading) {
-        form.addEventListener('submit', function(e) {
-            // Evitar doble submit
-            if (btn.disabled) {
-                e.preventDefault();
-                return false;
-            }
-            
-            // Mostrar estado de carga
-            btn.disabled = true;
-            btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Conectando...';
-            loading.style.display = 'block';
-            
-            // Timeout de seguridad para reactivar el botón si algo falla
-            setTimeout(() => {
-                if (btn.disabled) {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>Ingresar al Sistema';
-                    loading.style.display = 'none';
-                }
-            }, 10000); // 10 segundos
-        });
-    }
-
-    // Auto-focus en el campo de password si email ya está lleno
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-    
-    if (emailInput && passwordInput && emailInput.value.trim()) {
-        passwordInput.focus();
-    }
-});
-</script>
+<script src="{{ url_for('static', filename='js/login.js') }}"></script>
 
 {% endblock %}

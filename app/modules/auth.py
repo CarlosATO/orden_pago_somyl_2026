@@ -45,13 +45,24 @@ def load_user(user_id):
 @bp_auth.route('/login', methods=['GET', 'POST'])
 def login():
     from werkzeug.security import check_password_hash
+    from flask import jsonify
+
+    def wants_json():
+        # Detectar peticiones AJAX o que acepten JSON
+        accept = request.headers.get('Accept', '')
+        xrw = request.headers.get('X-Requested-With', '')
+        return 'application/json' in accept or xrw == 'XMLHttpRequest'
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
         user = User.get_by_email(email)
         if not user:
+            if wants_json():
+                return jsonify(success=False, message='Usuario no encontrado'), 400
             flash('Usuario no encontrado', 'warning')
         elif not check_password_hash(user.password, password):
+            if wants_json():
+                return jsonify(success=False, message='Contraseña incorrecta'), 401
             flash('Contraseña incorrecta', 'danger')
         else:
             login_user(user)
@@ -64,11 +75,12 @@ def login():
             
             if usuario_data and usuario_data.get('motivo_bloqueo') == 'CONTRASEÑA_TEMPORAL':
                 current_app.logger.info(f"Usuario {user.id} tiene contraseña temporal, redirigiendo a cambio de contraseña")
+                if wants_json():
+                    return jsonify(success=True, redirect=url_for('usuarios.change_password'), notice='Debes cambiar tu contraseña temporal antes de continuar')
                 flash('Debes cambiar tu contraseña temporal antes de continuar', 'warning')
                 return redirect(url_for('usuarios.change_password'))
             
-            flash(f'Bienvenido, {user.nombre}', 'success')
-            # Redirigir al primer módulo permitido
+            # Determinar primer módulo permitido
             from app.modules.usuarios import get_modulos_usuario
             modulos = get_modulos_usuario()
             # Orden de prioridad de módulos (ajustar según tu app)
@@ -88,12 +100,23 @@ def login():
                 ('gastos_directos', 'gastos_directos.form_gastos_directos'),
                 ('estado_presupuesto', 'estado_presupuesto.show_estado'),
             ]
+            redirect_url = None
             for modulo, endpoint in modulo_rutas:
                 if modulo in modulos:
-                    return redirect(url_for(endpoint))
-            # Si no tiene acceso a ningún módulo conocido, cerrar sesión y mostrar error
-            flash('No tienes acceso a ningún módulo. Contacta al administrador.', 'danger')
-            return redirect(url_for('auth.logout'))
+                    redirect_url = url_for(endpoint)
+                    break
+            if not redirect_url:
+                # Si no tiene acceso a ningún módulo conocido, cerrar sesión y mostrar error
+                if wants_json():
+                    logout_user()
+                    return jsonify(success=False, message='No tienes acceso a ningún módulo. Contacta al administrador.'), 403
+                flash('No tienes acceso a ningún módulo. Contacta al administrador.', 'danger')
+                return redirect(url_for('auth.logout'))
+
+            if wants_json():
+                return jsonify(success=True, redirect=redirect_url, message=f'Bienvenido, {user.nombre}')
+
+            flash(f'Bienvenido, {user.nombre}', 'success')
     return render_template('auth/login.html')
 
 @bp_auth.route('/logout')
