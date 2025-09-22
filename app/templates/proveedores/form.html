@@ -304,6 +304,15 @@
             <i class="bi bi-exclamation-triangle me-1"></i>RUT inválido. El formato debe ser xxxxxxxx-x.
           </div>
         </div>
+        <div class="col-md-2 mb-3">
+          <label for="subcontrato" class="form-label-modern">
+            <i class="bi bi-toggle-on me-1"></i>Subcontrato
+          </label>
+          <select name="subcontrato" id="subcontrato" class="form-control-modern">
+            <option value="0" {% if proveedor and not proveedor.get('subcontrato') %}selected{% endif %}>No</option>
+            <option value="1" {% if proveedor and proveedor.get('subcontrato') %}selected{% endif %}>Sí</option>
+          </select>
+        </div>
       </div>
 
       <div class="row">

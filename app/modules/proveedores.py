@@ -56,7 +56,15 @@ def normalize_data(data):
     # Campos especiales
     normalized['correo'] = data.get('correo', '').strip().lower()
     normalized['rut'] = data.get('rut', '').strip().upper()
-    
+
+    # Campo booleano: subcontrato (guardamos como integer 1/0 para la columna integer)
+    sub_raw = data.get('subcontrato', '')
+    sub_str = str(sub_raw).strip().lower() if sub_raw is not None else ''
+    if sub_str in ('1', 'true', 'on', 'si', 'sí', 'yes'):
+        normalized['subcontrato'] = 1
+    else:
+        normalized['subcontrato'] = 0
+
     return normalized
 
 @bp.route("/", methods=["GET"])
