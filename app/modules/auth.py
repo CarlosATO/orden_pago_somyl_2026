@@ -92,7 +92,25 @@ def login():
 
         # Verificar contraseña y medir su duración
         t_check_start = time.time()
-        passwd_ok = check_password_hash(user.password, password)
+        passwd_ok = False
+        stored = user.password or ''
+        try:
+            # Si el hash almacenado parece ser scrypt (ej: startswith 'scrypt:'), intentar verificar con passlib
+            if isinstance(stored, str) and stored.startswith('scrypt:'):
+                try:
+                    from passlib.hash import scrypt as passlib_scrypt
+                    passwd_ok = passlib_scrypt.verify(password, stored)
+                except Exception as e:
+                    # passlib no disponible o verificación falló; registrar y fallback
+                    current_app.logger.warning(f"[login] passlib.scrypt not available or verification failed: {e}")
+                    # Fallback a werkzeug (puede no reconocer scrypt)
+                    passwd_ok = check_password_hash(stored, password)
+            else:
+                # Hashes generados por Werkzeug u otros formatos compatibles
+                passwd_ok = check_password_hash(stored, password)
+        except Exception as e:
+            current_app.logger.error(f"[login] error verificando contraseña para {email}: {e}")
+            passwd_ok = False
         t_check_end = time.time()
         current_app.logger.info(f"[login] password_check_time={t_check_end - t_check_start:.3f}s for email={email}")
 

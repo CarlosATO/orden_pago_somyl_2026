@@ -581,3 +581,11 @@ def check_temp_password():
         return jsonify(temp_password=True)
     return jsonify(temp_password=False)
 
+@bp.route('/api/listado')
+@login_required
+@require_modulo('Usuarios')
+def api_list_usuarios():
+    supabase = current_app.config['SUPABASE']
+    usuarios = supabase.table('usuarios').select('id, nombre, email, activo, bloqueado, fecha_creacion').order('nombre').execute().data or []
+    return jsonify(usuarios)
+

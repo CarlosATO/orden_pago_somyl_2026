@@ -43,6 +43,15 @@ def create_app():
         print('✅ SeaSurf CSRF protection initialized')
     except Exception as e:
         print(f'⚠️ SeaSurf not available or failed to initialize: {e}')
+    # Enable CORS to allow requests from the frontend dev server (and support credentials)
+    try:
+        from flask_cors import CORS
+        # Allow origin from env or default to Vite dev server
+        frontend_origin = os.getenv('FRONTEND_ORIGIN', 'http://localhost:5175')
+        CORS(app, supports_credentials=True, origins=[frontend_origin])
+        print(f'✅ CORS enabled for origin: {frontend_origin}')
+    except Exception as e:
+        print(f'⚠️ flask_cors not available or failed to initialize: {e}')
     
     # Configurar Supabase desde variables de entorno
     url = os.getenv('SUPABASE_URL') or 'https://reubvhoexrkagmtxklek.supabase.co'
@@ -121,7 +130,8 @@ def create_app():
 
     from app.modules.auth import bp_auth, login_manager
     from app.modules.bienvenida import bp_bienvenida
-    app.register_blueprint(bp_auth)
+    # Register auth blueprint under /auth to match frontend requests
+    app.register_blueprint(bp_auth, url_prefix='/auth')
     login_manager.init_app(app)
 
     @app.context_processor
