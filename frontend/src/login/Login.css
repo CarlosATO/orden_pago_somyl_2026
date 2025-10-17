@@ -1,0 +1,93 @@
+/* Estilos para el login */
+:root{
+  --bg:#0f1720;
+  --card:#0f1720;
+  --muted:#cbd5e1;
+  --accent:#1e90ff;
+}
+
+.login-page{
+  position: fixed;
+  inset: 0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background: linear-gradient(180deg,#0b1220 0%, #0f1725 100%);
+  padding:40px;
+}
+
+.login-card{
+  width:420px;
+  max-width:calc(100% - 40px);
+  background: linear-gradient(180deg,#ffffff 0%, #f8fafc 100%);
+  border-radius:12px;
+  box-shadow:0 10px 30px rgba(2,6,23,0.6);
+  padding:28px;
+  margin:auto;
+}
+
+.brand{
+  text-align:center;
+  margin-bottom:18px;
+}
+
+.logo-placeholder{
+  width:64px;
+  height:64px;
+  margin:0 auto 8px auto;
+  border-radius:10px;
+  background:linear-gradient(135deg,#e6eefc,#cfe8ff);
+}
+
+.brand-title{
+  margin:0;
+  font-size:22px;
+  color:#0b3556;
+  font-weight:700;
+}
+
+.module-title{
+  margin:0;
+  font-size:14px;
+  color:#334155;
+  font-weight:600;
+  margin-bottom:6px;
+}
+
+.login-form{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.field span{
+  display:block;
+  font-size:13px;
+  color:#334155;
+  margin-bottom:6px;
+}
+
+.field input{
+  width:100%;
+  padding:10px 12px;
+  border-radius:8px;
+  border:1px solid #e2e8f0;
+  font-size:14px;
+}
+
+.btn-primary{
+  margin-top:6px;
+  background:linear-gradient(90deg,#2b8cff,#0066ff);
+  color:#fff;
+  padding:10px 14px;
+  border-radius:8px;
+  border:none;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.error{
+  margin-top:8px;
+  color:#b91c1c;
+  font-weight:600;
+}
