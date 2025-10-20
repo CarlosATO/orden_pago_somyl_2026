@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
+import OrdenCompra from './components/OrdenCompra';
 import './App.css';
 
 // Componentes placeholder para cada sección
@@ -10,7 +11,7 @@ function Dashboard() {
 }
 
 function OrdenesCompra() {
-  return <div className="content"><h1>Órdenes de Compra</h1><p>Crear, listar y gestionar OCs.</p></div>;
+  return <OrdenCompra />;
 }
 
 function IngresosRecepciones() {
