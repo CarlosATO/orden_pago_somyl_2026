@@ -26,9 +26,12 @@ function OrdenCompra() {
 
   // ========= Opciones fijas para selects simples =========
   const tiposEntregaOptions = [
-    { value: 'Retiro en tienda', label: 'Retiro en tienda' },
-    { value: 'Despacho en obra', label: 'Despacho en obra' },
-    { value: 'Despacho en oficina', label: 'Despacho en oficina' }
+    { value: '30 DÍAS', label: '30 DÍAS' },
+    { value: '45 DÍAS', label: '45 DÍAS' },
+    { value: '60 DÍAS', label: '60 DÍAS' },
+    { value: '90 DÍAS', label: '90 DÍAS' },
+    { value: 'INMEDIATO', label: 'INMEDIATO' },
+    { value: 'OTROS', label: 'OTROS' },
   ];
 
   const plazosPagoOptions = [
@@ -71,13 +74,19 @@ function OrdenCompra() {
 
   // ========= Función para buscar con autocompletado =========
   const loadOptions = async (inputValue, resource) => {
-    if (inputValue.length < 2) return [];
-
     try {
       const token = localStorage.getItem('authToken'); // Usar 'authToken' en lugar de 'token'
-      console.log(`🔍 Buscando ${resource} con término:`, inputValue);
+      console.log(`🔍 Buscando ${resource} con término:`, inputValue || '(vacío - mostrar primeros 10)');
+
+      // Si no hay término de búsqueda o es vacío, pedimos los primeros 10 items
+      // Si hay término de búsqueda, filtramos por ese término
+      const query = inputValue && inputValue.trim().length > 0
+        ? `?term=${encodeURIComponent(inputValue)}`
+        : `?limit=10`;
       
-      const response = await fetch(`/api/ordenes/helpers/autocomplete/${resource}?term=${inputValue}`, {
+      const url = `/api/ordenes/helpers/autocomplete/${resource}${query}`;
+
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -387,7 +396,7 @@ function OrdenCompra() {
               noOptionsMessage={() => "Escriba para buscar..."}
               loadingMessage={() => "Buscando..."}
               cacheOptions
-              defaultOptions
+              defaultOptions={true}
             />
           </div>
 
@@ -449,7 +458,7 @@ function OrdenCompra() {
               styles={customSelectStyles}
               noOptionsMessage={() => "Escriba para buscar..."}
               cacheOptions
-              defaultOptions
+              defaultOptions={true}
             />
           </div>
 
@@ -465,7 +474,7 @@ function OrdenCompra() {
               styles={customSelectStyles}
               noOptionsMessage={() => "Escriba para buscar..."}
               cacheOptions
-              defaultOptions
+              defaultOptions={true}
             />
           </div>
         </div>
@@ -497,7 +506,7 @@ function OrdenCompra() {
                   styles={customSelectStyles}
                   noOptionsMessage={() => "Escriba para buscar..."}
                   cacheOptions
-                  defaultOptions
+                  defaultOptions={true}
                 />
               </div>
 

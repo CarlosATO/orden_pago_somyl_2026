@@ -249,12 +249,21 @@ def get_next_oc_number(current_user):
     """
     supabase = current_app.config['SUPABASE']
     try:
-        last_oc = supabase.table("orden_de_compra").select("orden_compra").order("orden_compra", desc=True).limit(1).execute().data
-        next_num = (int(last_oc[0]["orden_compra"]) if last_oc else 0) + 1
+        # Consultar la tabla con el nombre exacto de la columna
+        last_oc = supabase.table("orden_de_compra").select("orden_compra").order("orden_compra", desc=True).limit(1).execute()
+        
+        # Log detallado para debugging
+        current_app.logger.info(f"Last OC response: {last_oc}")
+        
+        if last_oc.data and len(last_oc.data) > 0:
+            next_num = int(last_oc.data[0]["orden_compra"]) + 1
+        else:
+            next_num = 1
+            
         return jsonify({"success": True, "next_number": next_num})
     except Exception as e:
         current_app.logger.error(f"Error al obtener próximo número OC: {str(e)}")
-        return jsonify({"success": False, "next_number": 1})
+        return jsonify({"success": False, "message": str(e), "next_number": 1})
 
 
 # ================================================================
@@ -268,10 +277,20 @@ def get_autocomplete_data(current_user, resource):
     """
     Endpoint genérico para autocompletado.
     Recurso puede ser: 'proveedores', 'proyectos', 'trabajadores', 'materiales'.
+    
+    Parámetros:
+    - term: Término de búsqueda (opcional)
+    - limit: Número máximo de resultados (default: 20, se usa cuando no hay term)
     """
     term = request.args.get('term', '').strip()
-    if len(term) < 2:
-        return jsonify({"results": []})
+    limit = request.args.get('limit', '20')
+    
+    try:
+        limit = int(limit)
+        if limit > 50:  # Máximo 50 resultados
+            limit = 50
+    except ValueError:
+        limit = 20
 
     supabase = current_app.config['SUPABASE']
     
@@ -288,13 +307,19 @@ def get_autocomplete_data(current_user, resource):
 
     res_config = config[resource]
     try:
-        query = supabase.table(res_config['table']).select(f"{res_config['value_field']}, {res_config['label_field']}") \
-            .ilike(res_config['search_field'], f"%{term}%") \
-            .order(res_config['label_field']) \
-            .limit(20)
-
+        # Construir la query base
+        query = supabase.table(res_config['table']).select(f"{res_config['value_field']}, {res_config['label_field']}")
+        
+        # Si hay término de búsqueda, aplicar filtro ilike
+        if term and len(term) >= 2:
+            query = query.ilike(res_config['search_field'], f"%{term}%")
+        
+        # Aplicar filtros adicionales según el recurso
         if res_config.get('filter_active'):
             query = query.eq('activo', True)
+        
+        # Ordenar y limitar resultados
+        query = query.order(res_config['label_field']).limit(limit)
             
         response = query.execute()
 
@@ -312,3 +337,46 @@ def get_autocomplete_data(current_user, resource):
     except Exception as e:
         current_app.logger.error(f"Error en autocompletado para '{resource}': {str(e)}")
         return jsonify({"success": False, "message": "Error en la búsqueda"}), 500
+
+
+@bp.route("/helpers/material/<string:codigo>/ultimo-precio", methods=["GET"])
+@token_required
+def get_ultimo_precio_material(current_user, codigo):
+    """
+    Obtiene el último precio registrado para un material específico.
+    Busca en orden_de_compra el precio_unitario más reciente.
+    """
+    supabase = current_app.config['SUPABASE']
+    
+    try:
+        # Buscar el último precio unitario registrado para este material
+        result = supabase.table("orden_de_compra") \
+            .select("precio_unitario, fecha") \
+            .eq("codigo", codigo) \
+            .order("fecha", desc=True) \
+            .limit(1) \
+            .execute()
+        
+        if result.data and len(result.data) > 0:
+            ultimo_precio = result.data[0].get('precio_unitario', 0)
+            fecha = result.data[0].get('fecha')
+            
+            return jsonify({
+                "success": True,
+                "precio": float(ultimo_precio) if ultimo_precio else 0,
+                "fecha": fecha
+            })
+        else:
+            # No hay precios previos
+            return jsonify({
+                "success": True,
+                "precio": 0,
+                "fecha": None
+            })
+    except Exception as e:
+        current_app.logger.error(f"Error al obtener último precio de material {codigo}: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": str(e),
+            "precio": 0
+        }), 500
