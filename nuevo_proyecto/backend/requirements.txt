@@ -16,3 +16,6 @@ requests==2.31.0
 # ---- Para manejo de JWT (Autenticación) ----
 PyJWT==2.8.0
 bcrypt==4.2.1
+
+# ---- Generación de PDFs ----
+reportlab==4.0.7

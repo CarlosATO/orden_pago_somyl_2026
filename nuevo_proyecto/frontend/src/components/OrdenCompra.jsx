@@ -197,6 +197,71 @@ function OrdenCompra() {
     }
   };
 
+  // ========= Generar PDF =========
+  const handleGenerarPDF = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      
+      if (!token) {
+        setMensaje({ tipo: 'error', texto: 'No hay sesión activa' });
+        return;
+      }
+
+      // Preparar datos básicos para el PDF de prueba
+      const datosPDF = {
+        numero_oc: numeroOC,
+        proveedor: {
+          nombre: proveedor?.label || 'Proveedor no seleccionado',
+          rut: rutProveedor || 'Sin RUT'
+        },
+        fecha: new Date().toISOString().split('T')[0],
+        productos: lineas
+          .filter(linea => linea.material && linea.cantidad > 0)
+          .map(linea => ({
+            descripcion: linea.material?.label || linea.descripcion,
+            cantidad: linea.cantidad,
+            precio: linea.netoUnitario,
+            total: linea.total
+          })),
+        subtotal: parseFloat(calcularSumaNeto()),
+        iva: parseFloat(calcularIVA()),
+        total: parseFloat(calcularTotal())
+      };
+
+      console.log('📄 Generando PDF con datos:', datosPDF);
+
+      const response = await fetch('/api/generar-pdf-orden-compra', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(datosPDF)
+      });
+
+      if (response.ok) {
+        // Descargar el PDF
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `OrdenCompra_${numeroOC}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        setMensaje({ tipo: 'success', texto: '✅ PDF generado exitosamente' });
+      } else {
+        const error = await response.json();
+        setMensaje({ tipo: 'error', texto: `Error: ${error.error || 'No se pudo generar el PDF'}` });
+      }
+    } catch (error) {
+      console.error('Error al generar PDF:', error);
+      setMensaje({ tipo: 'error', texto: 'Error al generar el PDF' });
+    }
+  };
+
   // ========= Gestión de líneas de productos =========
   const agregarLinea = () => {
     const nuevaLinea = {
@@ -646,7 +711,7 @@ function OrdenCompra() {
       <div className="acciones-footer">
         <button 
           className="btn-pdf"
-          onClick={() => alert('Funcionalidad de PDF en desarrollo')}
+          onClick={handleGenerarPDF}
           disabled={!numeroOC}
         >
           <svg className="icon-btn" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">

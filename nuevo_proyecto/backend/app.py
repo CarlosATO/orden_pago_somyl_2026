@@ -24,10 +24,12 @@ def create_app():
     from .modules.auth import bp as auth_bp
     from .modules.ordenes import bp as ordenes_bp
     from .modules.proveedores import bp as proveedores_bp
+    from .rutas.pdf_orden_compra_routes import pdf_oc_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(ordenes_bp, url_prefix='/api/ordenes')
     app.register_blueprint(proveedores_bp, url_prefix='/api/proveedores')
+    app.register_blueprint(pdf_oc_bp, url_prefix='/api')
 
     # --- Ruta de prueba ---
     @app.route('/api/health')
