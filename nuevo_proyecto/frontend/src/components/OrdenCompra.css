@@ -1,10 +1,11 @@
 .orden-compra-container {
   padding: 2rem;
   width: 100%;
-  max-width: 100%;
-  background-color: #f5f7fa;
+  height: 100%;
   min-height: 100vh;
+  background-color: #f5f7fa;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 
 .orden-compra-header {
@@ -135,9 +136,18 @@
 /* ========= Grid de Formulario ========= */
 .form-grid {
   display: grid;
+  grid-template-columns: 200px 2fr 1fr; /* N°OC pequeño, Proveedor grande, RUT mediano */
+  gap: 1.5rem;
+  align-items: start;
+}
+
+/* Fila secundaria para los demás campos */
+.form-grid-secondary {
+  display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 1.5rem;
   align-items: start;
+  margin-top: 1.5rem;
 }
 
 .form-group {
@@ -200,12 +210,12 @@
   margin-top: 1rem;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  overflow: visible; /* Cambiado para permitir que el dropdown sea visible */
+  overflow: visible;
 }
 
 .tabla-header {
   display: grid;
-  grid-template-columns: 3.5fr 0.8fr 1.2fr 1.2fr 80px; /* Descripción más ancha, cantidad más angosta */
+  grid-template-columns: 3.5fr 0.8fr 1.2fr 1.2fr 80px;
   gap: 1rem;
   background-color: #f9fafb;
   padding: 1rem;
@@ -219,14 +229,14 @@
 
 .tabla-row {
   display: grid;
-  grid-template-columns: 3.5fr 0.8fr 1.2fr 1.2fr 80px; /* Mismo grid que el header */
+  grid-template-columns: 3.5fr 0.8fr 1.2fr 1.2fr 80px;
   gap: 1rem;
-  padding: 1.5rem 1rem; /* Más padding vertical */
-  min-height: 80px; /* Altura mínima para ver mejor el dropdown */
+  padding: 1.5rem 1rem;
+  min-height: 80px;
   border-bottom: 1px solid #f3f4f6;
   align-items: center;
   transition: background-color 0.2s;
-  position: relative; /* Para el posicionamiento del dropdown */
+  position: relative;
 }
 
 .tabla-row:hover {
@@ -249,13 +259,12 @@
 .col-descripcion {
   flex: 1;
   position: relative;
-  z-index: 10; /* Asegurar que el dropdown se vea por encima */
+  z-index: 10;
 }
 
-/* Forzar ancho fijo para el select de materiales */
 .col-descripcion > div {
   width: 100% !important;
-  min-width: 400px !important; /* Ancho mínimo fijo */
+  min-width: 400px !important;
 }
 
 .col-descripcion > div > div {
@@ -454,14 +463,18 @@
 
 /* ========= Responsive ========= */
 @media (max-width: 1024px) {
+  .form-grid {
+    grid-template-columns: 180px 1.5fr 1fr;
+  }
+  
+  .form-grid-secondary {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  }
+  
   .tabla-header,
   .tabla-row {
     grid-template-columns: 2fr 0.8fr 1fr 1fr 70px;
     gap: 0.75rem;
-  }
-  
-  .form-grid {
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   }
 }
 
@@ -480,6 +493,14 @@
     padding: 1.5rem;
   }
 
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-grid-secondary {
+    grid-template-columns: 1fr;
+  }
+
   .tabla-header {
     font-size: 0.75rem;
     padding: 0.75rem;
@@ -493,10 +514,6 @@
   .tabla-row {
     grid-template-columns: 1.5fr 0.6fr 0.8fr 0.8fr 60px;
     gap: 0.5rem;
-  }
-
-  .form-grid {
-    grid-template-columns: 1fr;
   }
 
   .totales-container {

@@ -48,15 +48,33 @@ function OrdenCompra() {
 
   const fetchProximoNumeroOC = async () => {
     try {
-      const token = localStorage.getItem('authToken'); // Usar 'authToken' en lugar de 'token'
+      const token = localStorage.getItem('authToken');
+      
+      if (!token) {
+        console.error('❌ No hay token de autenticación. Por favor inicia sesión nuevamente.');
+        setMensaje({ tipo: 'error', texto: 'Sesión expirada. Por favor inicia sesión nuevamente.' });
+        return;
+      }
+      
       console.log('🔍 Obteniendo próximo número de OC...');
+      console.log('🔑 Token presente:', token ? 'SÍ' : 'NO');
+      
       const response = await fetch('/api/ordenes/helpers/next-number', {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
       
       console.log('📡 Response status:', response.status);
+      
+      if (response.status === 401) {
+        console.error('❌ Token inválido o expirado');
+        const errorData = await response.json();
+        console.error('❌ Error completo:', errorData);
+        setMensaje({ tipo: 'error', texto: `Error de autenticación: ${errorData.message || 'Token inválido'}` });
+        return;
+      }
       
       if (response.ok) {
         const data = await response.json();
@@ -75,31 +93,59 @@ function OrdenCompra() {
   // ========= Función para buscar con autocompletado =========
   const loadOptions = async (inputValue, resource) => {
     try {
-      const token = localStorage.getItem('authToken'); // Usar 'authToken' en lugar de 'token'
-      console.log(`🔍 Buscando ${resource} con término:`, inputValue || '(vacío - mostrar primeros 10)');
+      const token = localStorage.getItem('authToken');
+      
+      if (!token) {
+        console.error('❌ No hay token de autenticación');
+        return [];
+      }
+      
+      // Normalizar inputValue (puede ser undefined, null, o string vacío)
+      const searchTerm = inputValue ? inputValue.trim() : '';
+      
+      console.log(`🔍 Buscando ${resource}:`, {
+        inputValue: inputValue,
+        searchTerm: searchTerm,
+        length: searchTerm.length
+      });
 
-      // Si no hay término de búsqueda o es vacío, pedimos los primeros 10 items
+      // Si no hay término de búsqueda o es muy corto, pedimos los primeros 10 items
       // Si hay término de búsqueda, filtramos por ese término
-      const query = inputValue && inputValue.trim().length > 0
-        ? `?term=${encodeURIComponent(inputValue)}`
+      const query = searchTerm.length >= 2
+        ? `?term=${encodeURIComponent(searchTerm)}`
         : `?limit=10`;
       
       const url = `/api/ordenes/helpers/autocomplete/${resource}${query}`;
+      console.log(`📡 URL completa:`, url);
 
       const response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
 
       console.log(`📡 Response ${resource}:`, response.status);
 
+      if (response.status === 401) {
+        console.error('❌ Token inválido o expirado al buscar', resource);
+        const errorData = await response.json();
+        console.error('❌ Error completo:', errorData);
+        return [];
+      }
+
       if (response.ok) {
         const data = await response.json();
-        console.log(`✅ Resultados ${resource}:`, data.results?.length || 0);
+        console.log(`✅ Resultados ${resource}:`, {
+          cantidad: data.results?.length || 0,
+          primeros: data.results?.slice(0, 3)
+        });
         return data.results || [];
+      } else {
+        const errorText = await response.text();
+        console.error(`❌ Error ${response.status} en ${resource}:`, errorText);
+        return [];
       }
-      return [];
     } catch (error) {
       console.error(`❌ Error al buscar ${resource}:`, error);
       return [];
@@ -107,19 +153,23 @@ function OrdenCompra() {
   };
 
   // ========= Handlers de autocompletado =========
-  const handleProveedorSearch = (inputValue) => {
+  const handleProveedorSearch = (inputValue, callback) => {
+    console.log('🔍 handleProveedorSearch llamado con:', inputValue);
     return loadOptions(inputValue, 'proveedores');
   };
 
-  const handleProyectoSearch = (inputValue) => {
+  const handleProyectoSearch = (inputValue, callback) => {
+    console.log('🔍 handleProyectoSearch llamado con:', inputValue);
     return loadOptions(inputValue, 'proyectos');
   };
 
-  const handleTrabajadorSearch = (inputValue) => {
+  const handleTrabajadorSearch = (inputValue, callback) => {
+    console.log('🔍 handleTrabajadorSearch llamado con:', inputValue);
     return loadOptions(inputValue, 'trabajadores');
   };
 
-  const handleMaterialSearch = (inputValue) => {
+  const handleMaterialSearch = (inputValue, callback) => {
+    console.log('🔍 handleMaterialSearch llamado con:', inputValue);
     return loadOptions(inputValue, 'materiales');
   };
 

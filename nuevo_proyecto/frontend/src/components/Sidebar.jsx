@@ -2,14 +2,21 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import './Sidebar.css';
 
-function Sidebar({ onLogout }) {
+function Sidebar({ onLogout, onToggle }) {
   // isCollapsed controla si el sidebar está reducido (solo íconos)
   const [isCollapsed, setIsCollapsed] = useState(false);
   // activeMenu almacena la clave del submenu abierto; null = ninguno
   const [activeMenu, setActiveMenu] = useState(null);
 
   const toggleCollapse = () => {
-    setIsCollapsed(prev => !prev);
+    setIsCollapsed(prev => {
+      const newValue = !prev;
+      // Notificar al componente padre sobre el cambio
+      if (onToggle) {
+        onToggle(newValue);
+      }
+      return newValue;
+    });
     // al colapsar cerramos cualquier submenu
     if (!isCollapsed) setActiveMenu(null);
   };

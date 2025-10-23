@@ -72,6 +72,7 @@ function GestionUsuarios() {
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('authToken'));
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
@@ -82,13 +83,17 @@ function App() {
     setIsAuthenticated(false);
   };
 
+  const handleSidebarToggle = (collapsed) => {
+    setSidebarCollapsed(collapsed);
+  };
+
   return (
     <Router>
       <div className="App">
         {isAuthenticated ? (
           <div className="app-layout">
-               <Sidebar onLogout={handleLogout} />
-               <div className="main-content">
+               <Sidebar onLogout={handleLogout} onToggle={handleSidebarToggle} />
+               <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
               <Routes>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/ordenes-compra" element={<OrdenesCompra />} />

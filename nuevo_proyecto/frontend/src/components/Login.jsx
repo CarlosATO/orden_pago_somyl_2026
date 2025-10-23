@@ -36,11 +36,21 @@ const Login = ({ onLoginSuccess }) => {
       }
 
       // Si el login es exitoso, guardamos el token
+      console.log('✅ Token recibido:', data.token ? `${data.token.substring(0, 20)}...` : 'NO HAY TOKEN');
+      
+      if (!data.token) {
+        throw new Error('No se recibió token del servidor');
+      }
+      
       localStorage.setItem('authToken', data.token);
       if (rememberMe) {
         localStorage.setItem('rememberMe', 'true');
       }
-      console.log('Token guardado, login exitoso');
+      
+      // Verificar que se guardó correctamente
+      const savedToken = localStorage.getItem('authToken');
+      console.log('✅ Token guardado correctamente:', savedToken ? 'SÍ' : 'NO');
+      console.log('✅ Login exitoso, redirigiendo...');
       
       // Llamamos a la función del componente padre para actualizar el estado
       onLoginSuccess();

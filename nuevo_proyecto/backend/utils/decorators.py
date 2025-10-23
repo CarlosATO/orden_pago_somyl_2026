@@ -7,9 +7,16 @@ def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
+        
         # Busca el token en el encabezado 'x-access-token'
         if 'x-access-token' in request.headers:
             token = request.headers['x-access-token']
+        
+        # También busca en 'Authorization: Bearer <token>'
+        elif 'Authorization' in request.headers:
+            auth_header = request.headers['Authorization']
+            if auth_header.startswith('Bearer '):
+                token = auth_header.split(' ')[1]
 
         if not token:
             return jsonify({'message': 'Falta el token de autenticación'}), 401

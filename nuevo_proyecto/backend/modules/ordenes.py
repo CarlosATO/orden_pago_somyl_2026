@@ -272,7 +272,7 @@ def get_next_oc_number(current_user):
 
 @bp.route("/helpers/autocomplete/<string:resource>", methods=["GET"])
 @token_required
-@cache_result(ttl_seconds=600) # Cachea por 10 minutos
+# @cache_result(ttl_seconds=600) # Comentado: causa error de serialización con User
 def get_autocomplete_data(current_user, resource):
     """
     Endpoint genérico para autocompletado.
