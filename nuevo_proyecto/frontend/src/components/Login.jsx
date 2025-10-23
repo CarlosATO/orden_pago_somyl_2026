@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import './Login.css'; // Crearemos este archivo para los estilos
+import './Login.css';
 
 const Login = ({ onLoginSuccess }) => {
   const [correo, setCorreo] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [infoMessage, setInfoMessage] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,6 +37,9 @@ const Login = ({ onLoginSuccess }) => {
 
       // Si el login es exitoso, guardamos el token
       localStorage.setItem('authToken', data.token);
+      if (rememberMe) {
+        localStorage.setItem('rememberMe', 'true');
+      }
       console.log('Token guardado, login exitoso');
       
       // Llamamos a la función del componente padre para actualizar el estado
@@ -50,12 +55,31 @@ const Login = ({ onLoginSuccess }) => {
 
   return (
     <div className="login-container">
+      <div className="login-left">
+        <h1>Bienvenido<br/>Gestion compras</h1>
+        <p>Plataforma para la gestión y seguimiento en tiempo real de sus órdenes de compra. Manteniendo  el control de sus adquisiciones y generando  reportes detallados.</p>
+        <div className="social-icons">
+          {/* Contact icon - links to the creator site. Update `contactUrl` if you want a different target. */}
+          {
+            /* default contact URL - change as needed */
+          }
+          <a
+            className="contact-link"
+            href="https://datix.cl"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Contacto del autor"
+          >
+            <i className="fa-solid fa-address-card" aria-hidden="true"></i>
+          </a>
+        </div>
+      </div>
+
       <div className="login-box">
-        <h2>Iniciar Sesión</h2>
-        <p>Bienvenido al sistema de seguimiento de órdenes.</p>
+        <h2>Sign in</h2>
         <form onSubmit={handleSubmit}>
           <div className="input-group">
-            <label htmlFor="correo">Correo Electrónico</label>
+            <label htmlFor="correo">Email Address</label>
             <input
               type="email"
               id="correo"
@@ -66,7 +90,7 @@ const Login = ({ onLoginSuccess }) => {
             />
           </div>
           <div className="input-group">
-            <label htmlFor="password">Contraseña</label>
+            <label htmlFor="password">Password</label>
             <input
               type="password"
               id="password"
@@ -76,10 +100,35 @@ const Login = ({ onLoginSuccess }) => {
               placeholder="********"
             />
           </div>
+          
+          <div className="remember-me">
+            <input
+              type="checkbox"
+              id="remember"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+            />
+            <label htmlFor="remember">Remember Me</label>
+          </div>
+
           {error && <p className="error-message">{error}</p>}
+          
           <button type="submit" disabled={loading}>
-            {loading ? 'Ingresando...' : 'Ingresar'}
+            {loading ? 'Signing in...' : 'Sign in now'}
           </button>
+          
+          <p className="forgot-password">
+            <a href="#" onClick={(e) => { e.preventDefault(); setInfoMessage('solicite el acceso a su jefatura directa'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>
+              Lost your password?
+            </a>
+          </p>
+          {infoMessage && (
+            <p className="info-message">{infoMessage}</p>
+          )}
+          
+          <p className="terms">
+            By clicking on "Sign in now" you agree to <a href="#">Terms of Service</a> | <a href="#">Privacy Policy</a>
+          </p>
         </form>
       </div>
     </div>
