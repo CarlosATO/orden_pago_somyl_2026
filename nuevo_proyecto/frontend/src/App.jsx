@@ -6,6 +6,13 @@ import OrdenCompra from './components/OrdenCompra';
 import Ingresos from './components/Ingresos';
 import OrdenesPago from './components/OrdenesPago';  // ← NUEVO
 import ProveedoresPage from './components/ProveedoresPage';
+import ProyectosPage from './components/ProyectosPage';
+import MaterialesPage from './components/MaterialesPage';
+import Items from './components/Items';
+import Trabajadores from './components/Trabajadores';
+function Materiales() {
+  return <MaterialesPage />;
+}
 import './App.css';
 
 // Componentes placeholder para cada sección
@@ -50,7 +57,7 @@ function OrdenesNoRecepcionadas() {
 }
 
 function Proyectos() {
-  return <div className="content"><h1>Proyectos</h1></div>;
+  return <ProyectosPage />;
 }
 
 // Proveedores page is a full React UI component
@@ -63,11 +70,11 @@ function MaterialesServicios() {
 }
 
 function ItemsPresupuestarios() {
-  return <div className="content"><h1>Ítems Presupuestarios</h1></div>;
+  return <Items />;
 }
 
 function TrabajadoresSolicitantes() {
-  return <div className="content"><h1>Trabajadores / Solicitantes</h1></div>;
+  return <Trabajadores />;
 }
 
 function GestionUsuarios() {
@@ -111,7 +118,7 @@ function App() {
                 <Route path="/ordenes-no-recepcionadas" element={<OrdenesNoRecepcionadas />} />
                 <Route path="/proyectos" element={<Proyectos />} />
                 <Route path="/proveedores" element={<Proveedores />} />
-                <Route path="/materiales-servicios" element={<MaterialesServicios />} />
+                <Route path="/materiales" element={<Materiales />} />
                 <Route path="/items-presupuestarios" element={<ItemsPresupuestarios />} />
                 <Route path="/trabajadores-solicitantes" element={<TrabajadoresSolicitantes />} />
                 <Route path="/gestion-usuarios" element={<GestionUsuarios />} />
