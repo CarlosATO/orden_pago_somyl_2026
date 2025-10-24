@@ -154,6 +154,16 @@
   transition: all 0.2s;
 }
 
+/* Solo el campo 'nombre' debe mostrar texto en azul oscuro para que el valor prellenado sea visible */
+input#nombre {
+  color: #0b3d91;
+}
+
+/* El campo correo mantiene color por defecto */
+input#correo {
+  color: inherit;
+}
+
 .form-group input:focus {
   outline: none;
   border-color: #3b82f6;
