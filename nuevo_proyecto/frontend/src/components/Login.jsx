@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { setAuthToken } from '../utils/auth';
 import './Login.css';
 
 const Login = ({ onLoginSuccess }) => {
@@ -42,13 +43,13 @@ const Login = ({ onLoginSuccess }) => {
         throw new Error('No se recibió token del servidor');
       }
       
-      localStorage.setItem('authToken', data.token);
+      setAuthToken(data.token);
       if (rememberMe) {
         localStorage.setItem('rememberMe', 'true');
       }
       
       // Verificar que se guardó correctamente
-      const savedToken = localStorage.getItem('authToken');
+  const savedToken = localStorage.getItem('authToken');
       console.log('✅ Token guardado correctamente:', savedToken ? 'SÍ' : 'NO');
       console.log('✅ Login exitoso, redirigiendo...');
       
