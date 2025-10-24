@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 import OrdenCompra from './components/OrdenCompra';
+import Ingresos from './components/Ingresos';
 import './App.css';
 
 // Componentes placeholder para cada sección
@@ -15,7 +16,7 @@ function OrdenesCompra() {
 }
 
 function IngresosRecepciones() {
-  return <div className="content"><h1>Ingresos / Recepciones</h1><p>Registrar la entrada de bienes/servicios comprados vía OC.</p></div>;
+  return <Ingresos />;
 }
 
 function OrdenesPago() {

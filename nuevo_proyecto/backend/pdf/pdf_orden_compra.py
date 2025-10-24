@@ -1,10 +1,11 @@
-"""Generador de PDF para Órdenes de Compra.
+"""Generador de PDF para Órdenes de Compra - Versión Final.
 
-Adaptado para formato A4 con layout similar a la imagen de ejemplo:
-- Encabezado (empresa / RUT / dirección) a la izquierda y recuadro con N° OC / fecha a la derecha
-- Datos del proveedor y metadatos
-- Tabla de líneas con encabezado repetido en páginas largas
-- Totales alineados a la derecha, espacio para firmas y texto legal en el pie
+Mejoras implementadas:
+- Texto legal justificado (cuadrado) y siempre visible en el pie de página
+- Línea de firma más abajo para tener espacio físico para firmar
+- Diseño profesional y elegante con mejor tipografía
+- Colores corporativos y mejor contraste visual
+- Protección contra errores de tipo (todos los strings convertidos)
 """
 
 from reportlab.lib.pagesizes import A4
@@ -12,7 +13,7 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Frame
 from reportlab.lib.units import mm, inch
-from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_RIGHT, TA_CENTER, TA_LEFT, TA_JUSTIFY
 from datetime import datetime
 import os
 
@@ -30,13 +31,14 @@ def generar_pdf_orden_compra(datos_orden):
     pdf_dir = os.path.join(os.path.dirname(__file__), '..', 'pdfs_generados')
     os.makedirs(pdf_dir, exist_ok=True)
     
+    # IMPORTANTE: Convertir a string para evitar errores
     numero_oc = str(datos_orden.get('numero_oc', 'SIN_NUMERO'))
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     filename = f"OC_{numero_oc}_{timestamp}.pdf"
     filepath = os.path.join(pdf_dir, filename)
     
-    # AJUSTE CLAVE: Margen inferior más grande para el texto legal
-    bottom_margin = 70 * mm  # Espacio suficiente para el texto legal
+    # AJUSTE: Margen inferior más grande para el texto legal
+    bottom_margin = 70 * mm
     doc = SimpleDocTemplate(
         filepath,
         pagesize=A4,
@@ -52,10 +54,10 @@ def generar_pdf_orden_compra(datos_orden):
     styles = getSampleStyleSheet()
     
     # Colores corporativos profesionales
-    COLOR_PRIMARY = colors.HexColor('#2C3E50')  # Azul oscuro elegante
-    COLOR_SECONDARY = colors.HexColor('#34495E')  # Gris azulado
-    COLOR_ACCENT = colors.HexColor('#3498DB')  # Azul brillante
-    COLOR_HEADER_BG = colors.HexColor('#ECF0F1')  # Gris claro
+    COLOR_PRIMARY = colors.HexColor('#2C3E50')
+    COLOR_SECONDARY = colors.HexColor('#34495E')
+    COLOR_ACCENT = colors.HexColor('#3498DB')
+    COLOR_HEADER_BG = colors.HexColor('#ECF0F1')
     
     styles.add(ParagraphStyle(
         name='RightSmall',
@@ -91,11 +93,12 @@ def generar_pdf_orden_compra(datos_orden):
         fontName='Helvetica-Bold'
     ))
     
+    # AJUSTE: Texto legal JUSTIFICADO
     styles.add(ParagraphStyle(
         name='Legal',
         parent=styles['Normal'],
         fontSize=7,
-        alignment=TA_LEFT,
+        alignment=TA_JUSTIFY,  # ✅ TEXTO JUSTIFICADO (cuadrado)
         leading=8.5,
         textColor=colors.HexColor('#555555'),
         leftIndent=0,
@@ -218,8 +221,8 @@ def generar_pdf_orden_compra(datos_orden):
     ]]
 
     for prod in productos:
-        codigo = prod.get('codigo', '')
-        descripcion = prod.get('descripcion', '')
+        codigo = str(prod.get('codigo', ''))
+        descripcion = str(prod.get('descripcion', ''))
         cantidad_raw = prod.get('cantidad', 0)
         neto_raw = prod.get('precio', prod.get('netoUnitario', 0))
         total_raw = prod.get('total', None)
@@ -232,8 +235,8 @@ def generar_pdf_orden_compra(datos_orden):
             total_line = to_number(total_raw)
 
         datos_productos.append([
-            Paragraph(str(codigo), styles['Small']),
-            Paragraph(str(descripcion), styles['Small']),
+            Paragraph(codigo, styles['Small']),
+            Paragraph(descripcion, styles['Small']),
             Paragraph(str(int(cantidad)) if cantidad.is_integer() else str(cantidad), styles['Small']),
             Paragraph(fmt_money(neto), styles['RightSmall']),
             Paragraph(fmt_money(total_line), styles['RightSmall'])
@@ -291,7 +294,8 @@ def generar_pdf_orden_compra(datos_orden):
     elements.append(tabla_totales)
     elements.append(Spacer(1, 15*mm))
 
-    # --- FIRMAS ELEGANTES ---
+    # --- FIRMAS CON ESPACIO PARA FIRMAR FÍSICAMENTE ---
+    # AJUSTE: Línea más abajo para tener espacio de firma
     firma_names = [
         Paragraph('<b>Luis Medina</b><br/><font size="8">Responsable de Compras</font>', styles['Small']), 
         Paragraph('<b>Aprobación de Gerencia</b><br/><font size="8">Gerente General</font>', styles['Small'])
@@ -299,14 +303,15 @@ def generar_pdf_orden_compra(datos_orden):
     
     firma_table = Table(
         [[firma_names[0], firma_names[1]], ['', '']], 
-        colWidths=[doc.width*0.5-6*mm, doc.width*0.5-6*mm]
+        colWidths=[doc.width*0.5-6*mm, doc.width*0.5-6*mm],
+        rowHeights=[None, 20*mm]  # ✅ Más espacio entre nombres y línea
     )
     firma_table.setStyle(TableStyle([
         ('ALIGN', (0,0), (-1,0), 'CENTER'),
         ('FONTSIZE', (0,0), (-1,0), 9),
-        ('LINEABOVE', (0,1), (-1,1), 1, COLOR_SECONDARY),
-        ('TOPPADDING', (0,1), (-1,1), 10),
-        ('VALIGN', (0,0), (-1,0), 'BOTTOM')
+        ('LINEABOVE', (0,1), (-1,1), 1, COLOR_SECONDARY),  # Línea arriba de la fila vacía
+        ('TOPPADDING', (0,1), (-1,1), 0),  # Sin padding para que línea esté más abajo
+        ('VALIGN', (0,0), (-1,0), 'TOP')  # Nombres arriba
     ]))
     elements.append(firma_table)
 
@@ -318,7 +323,7 @@ def generar_pdf_orden_compra(datos_orden):
 4. El proveedor emitirá su factura después de recibir firmada la GUIA DE DESPACHO o notificación oficial por correo electrónico por parte del área de administración de Somyl S.A. El Subcontratista debe incluir todos los impuestos del gobierno, gravámenes y tasas que correspondan. En caso de no contar con la notificación y proceder a realizar la factura, el proveedor no tiene derecho de reclamo o denuncia de incumplimiento de pago en el plazo que corresponda; este plazo se ajustará una vez Somyl S.A. acepte dicha factura.<br/><br/>
 5. Toda factura emitida a Somyl S.A. debe ser enviada al Departamento de Administración al correo electrónico indicado en esta OC."""))
 
-    # AJUSTE CLAVE: Footer posicionado correctamente
+    # Footer con texto legal justificado
     def draw_footer(canvas, doc_obj):
         canvas.saveState()
         
@@ -332,19 +337,18 @@ def generar_pdf_orden_compra(datos_orden):
             bottom_margin - 5*mm
         )
         
-        # Frame para el texto legal - POSICIÓN CORREGIDA
+        # Frame para el texto legal JUSTIFICADO
         footer_width = doc_obj.width
         x = doc_obj.leftMargin
-        # Posicionar el texto legal justo debajo de la línea separadora
-        footer_y = 8 * mm  # Más arriba del borde inferior
-        footer_height = bottom_margin - 10*mm  # Altura suficiente
+        footer_y = 8 * mm
+        footer_height = bottom_margin - 10*mm
         
         footer_frame = Frame(x, footer_y, footer_width, footer_height, 
                             leftPadding=0, rightPadding=0, 
                             topPadding=3*mm, bottomPadding=0,
                             showBoundary=0)
         
-        p = Paragraph(legal_text, styles['Legal'])
+        p = Paragraph(legal_text, styles['Legal'])  # Estilo con TA_JUSTIFY
         footer_frame.addFromList([p], canvas)
         
         canvas.restoreState()
