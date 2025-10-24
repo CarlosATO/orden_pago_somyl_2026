@@ -1,0 +1,161 @@
+.proveedores-page {
+  padding: 2rem;
+  width: 100%;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #eef3f8 100%);
+  box-sizing: border-box;
+}
+
+/* Scoped h1 to avoid global huge h1 from index.css */
+.proveedores-page h1 {
+  font-size: 1.8rem;
+  line-height: 1.2;
+  margin: 0 0 1rem 0;
+  color: #0f172a; /* dark slate */
+  font-weight: 700;
+}
+
+/* Page header container to keep spacing below the sidebar header */
+.proveedores-header {
+  display: block;
+  padding: 1rem 0 1.25rem 0;
+}
+
+.form-area {
+  margin-bottom: 2rem;
+  background-color: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  border: 1px solid rgba(0,0,0,0.04);
+}
+
+.proveedor-form {
+  max-width: 980px;
+}
+
+.proveedor-form .row {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 1rem;
+}
+
+.proveedor-form label {
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.4rem;
+  font-size: 0.95rem;
+}
+
+.proveedor-form input[type="text"],
+.proveedor-form input[type="email"],
+.proveedor-form input[type="number"] {
+  padding: 0.85rem 1rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  background-color: #f9fafb;
+  transition: all 0.2s ease;
+}
+
+.proveedor-form input[type="text"]:focus,
+.proveedor-form input[type="email"]:focus,
+.proveedor-form input[type="number"]:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 6px rgba(102,126,234,0.06);
+  background-color: #fff;
+}
+
+/* Force inputs to white background and dark text to avoid dark-mode inversion */
+.proveedor-form input[type="text"],
+.proveedor-form input[type="email"],
+.proveedor-form input[type="number"] {
+  background-color: #ffffff;
+  color: #0f172a;
+}
+
+.proveedor-form input::placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}
+
+/* Make form layout two-column on wide screens */
+.proveedor-form .grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.proveedor-form .row.inline {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.actions {
+  margin-top: 1rem;
+}
+
+.actions button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.6rem 1.1rem;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(102,126,234,0.14);
+  cursor: pointer;
+}
+
+.actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.proveedores-table-wrapper {
+  background: white;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+  border: 1px solid rgba(0,0,0,0.04);
+}
+
+.proveedores-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.proveedores-table th, .proveedores-table td {
+  padding: 0.9rem 0.8rem;
+  border-bottom: 1px solid #f3f4f6;
+  text-align: left;
+  color: #111827;
+}
+
+.proveedores-table thead th {
+  background: #fbfdff;
+  color: #374151;
+  font-weight: 700;
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.loading { color: #6b7280; font-size: 0.95rem; }
+
+.form-message { margin-bottom: 0.6rem; color: #065f46; }
+
+@media (max-width: 900px) {
+  .proveedor-form { max-width: 100%; }
+  .proveedores-table th, .proveedores-table td { padding: 0.6rem 0.5rem; }
+}

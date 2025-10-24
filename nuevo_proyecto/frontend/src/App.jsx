@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import OrdenCompra from './components/OrdenCompra';
 import Ingresos from './components/Ingresos';
 import OrdenesPago from './components/OrdenesPago';  // ← NUEVO
+import ProveedoresPage from './components/ProveedoresPage';
 import './App.css';
 
 // Componentes placeholder para cada sección
@@ -52,8 +53,9 @@ function Proyectos() {
   return <div className="content"><h1>Proyectos</h1></div>;
 }
 
+// Proveedores page is a full React UI component
 function Proveedores() {
-  return <div className="content"><h1>Proveedores</h1></div>;
+  return <ProveedoresPage />;
 }
 
 function MaterialesServicios() {
