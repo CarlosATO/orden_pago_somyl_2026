@@ -4,6 +4,7 @@ import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 import OrdenCompra from './components/OrdenCompra';
 import Ingresos from './components/Ingresos';
+import OrdenesPago from './components/OrdenesPago';  // ← NUEVO
 import './App.css';
 
 // Componentes placeholder para cada sección
@@ -19,8 +20,8 @@ function IngresosRecepciones() {
   return <Ingresos />;
 }
 
-function OrdenesPago() {
-  return <div className="content"><h1>Órdenes de Pago</h1><p>Autorizaciones de pago a proveedores (basadas en ingresos/facturas).</p></div>;
+function OrdenesPagoView() {
+  return <OrdenesPago />;  // wrapper for the imported OrdenesPago component
 }
 
 function FacturacionPendiente() {
@@ -72,7 +73,7 @@ function GestionUsuarios() {
 }
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('authToken'));
+  const [isAuthenticated, setIsAuthenticated] = useState(!localStorage.getItem('authToken'));
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const handleLoginSuccess = () => {
@@ -99,7 +100,7 @@ function App() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/ordenes-compra" element={<OrdenesCompra />} />
                 <Route path="/ingresos-recepciones" element={<IngresosRecepciones />} />
-                <Route path="/ordenes-pago" element={<OrdenesPago />} />
+                <Route path="/ordenes-pago" element={<OrdenesPagoView />} />  {/* wrapper component */}
                 <Route path="/facturacion-pendiente" element={<FacturacionPendiente />} />
                 <Route path="/informe-pagos" element={<InformePagos />} />
                 <Route path="/planificacion-presupuestaria" element={<PlanificacionPresupuestaria />} />
