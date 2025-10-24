@@ -72,6 +72,40 @@ def generar_pdf_orden_compra(datos_orden):
         text = f"{n:,.0f}".replace(',', '.')
         return f"${text}"
 
+    def to_number(value):
+        """Convertir distintos tipos de entrada (números, strings con $ y separadores) a float seguro.
+
+        Maneja formatos como:
+        - 150000
+        - "150000"
+        - "$150.000"
+        - "150.000"
+        - "150.000,50"
+        - "150000,50"
+        """
+        if value is None:
+            return 0.0
+        if isinstance(value, (int, float)):
+            return float(value)
+        s = str(value).strip()
+        # eliminar símbolo de moneda y espacios
+        s = s.replace('$', '').replace(' ', '')
+        # si contiene ambos separadores, asumimos formato europeo 1.234.567,89
+        if ',' in s and '.' in s:
+            s = s.replace('.', '')
+            s = s.replace(',', '.')
+        else:
+            # Si sólo tiene puntos (p.ej. 150.000) los quitamos (miles)
+            if s.count('.') > 0 and s.count(',') == 0:
+                s = s.replace('.', '')
+            # Si sólo tiene coma como separador decimal
+            if s.count(',') > 0 and s.count('.') == 0:
+                s = s.replace(',', '.')
+        try:
+            return float(s)
+        except Exception:
+            return 0.0
+
     # --- Encabezado: izquierda con empresa, derecha con N° OC / Fecha ---
     empresa_lines = []
     empresa = datos_orden.get('empresa', {})
@@ -133,13 +167,21 @@ def generar_pdf_orden_compra(datos_orden):
     for prod in productos:
         codigo = prod.get('codigo', '')
         descripcion = prod.get('descripcion', '')
-        cantidad = prod.get('cantidad', 0)
-        neto = prod.get('precio', prod.get('netoUnitario', 0))
-        total_line = prod.get('total', cantidad * neto)
+        cantidad_raw = prod.get('cantidad', 0)
+        neto_raw = prod.get('precio', prod.get('netoUnitario', 0))
+        total_raw = prod.get('total', None)
+
+        cantidad = to_number(cantidad_raw)
+        neto = to_number(neto_raw)
+        if total_raw is None:
+            total_line = cantidad * neto
+        else:
+            total_line = to_number(total_raw)
+
         datos_productos.append([
             codigo,
             Paragraph(descripcion, styles['Small']),
-            str(cantidad),
+            str(int(cantidad)) if cantidad.is_integer() else str(cantidad),
             fmt_money(neto),
             fmt_money(total_line)
         ])
