@@ -211,21 +211,29 @@ function OrdenCompra() {
       const datosPDF = {
         numero_oc: numeroOC,
         proveedor: {
+          id: proveedor?.value || null,
           nombre: proveedor?.label || 'Proveedor no seleccionado',
           rut: rutProveedor || 'Sin RUT'
         },
         fecha: new Date().toISOString().split('T')[0],
+        tipo_entrega: tipoEntrega?.label || tipoEntrega?.value || '',
+        plazo_pago: plazoPago?.label || plazoPago?.value || '',
+        proyecto: proyecto?.label || proyecto?.value || '',
+        solicitado_por: solicitadoPor?.label || solicitadoPor?.value || '',
+        plazo_entrega: tipoEntrega?.label || tipoEntrega?.value || '',
+        observaciones: observaciones || '',
         productos: lineas
-          .filter(linea => linea.material && linea.cantidad > 0)
+          .filter(linea => (linea.material || linea.descripcion) && (linea.cantidad && Number(linea.cantidad) > 0))
           .map(linea => ({
+            codigo: linea.material?.value || '',
             descripcion: linea.material?.label || linea.descripcion,
-            cantidad: linea.cantidad,
-            precio: linea.netoUnitario,
-            total: linea.total
+            cantidad: Number(linea.cantidad) || 0,
+            precio: Number(linea.netoUnitario) || 0,
+            total: Number(linea.total) || (Number(linea.cantidad || 0) * Number(linea.netoUnitario || 0))
           })),
-        subtotal: parseFloat(calcularSumaNeto()),
-        iva: parseFloat(calcularIVA()),
-        total: parseFloat(calcularTotal())
+        subtotal: Number(calcularSumaNeto()) || 0,
+        iva: Number(calcularIVA()) || 0,
+        total: Number(calcularTotal()) || 0
       };
 
       console.log('📄 Generando PDF con datos:', datosPDF);
