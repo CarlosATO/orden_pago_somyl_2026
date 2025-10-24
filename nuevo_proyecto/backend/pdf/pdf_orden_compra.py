@@ -48,13 +48,17 @@ def generar_pdf_orden_compra(datos_orden):
     filepath = os.path.join(pdf_dir, filename)
     
     # Crear el documento PDF en A4
+    # Reservar espacio adicional en el pie para el texto legal fijo
+    # Aumentamos el margen inferior para asegurar que las firmas queden justo encima
+    # y el texto legal quede pegado al borde inferior de la página.
+    bottom_margin = 40 * mm
     doc = SimpleDocTemplate(
         filepath,
         pagesize=A4,
         leftMargin=20*mm,
         rightMargin=20*mm,
         topMargin=20*mm,
-        bottomMargin=20*mm
+        bottomMargin=bottom_margin
     )
 
     elements = []
@@ -62,6 +66,7 @@ def generar_pdf_orden_compra(datos_orden):
     styles.add(ParagraphStyle(name='RightSmall', parent=styles['Normal'], alignment=TA_RIGHT, fontSize=9))
     styles.add(ParagraphStyle(name='Small', parent=styles['Normal'], fontSize=9))
     styles.add(ParagraphStyle(name='HeaderTitle', parent=styles['Heading1'], alignment=TA_RIGHT, fontSize=12))
+    styles.add(ParagraphStyle(name='Legal', parent=styles['Normal'], fontSize=7, alignment=TA_LEFT, leading=9))
 
     def fmt_money(value):
         try:
@@ -231,22 +236,47 @@ def generar_pdf_orden_compra(datos_orden):
     elements.append(tabla_totales)
     elements.append(Spacer(1, 18*mm))
 
-    # --- Firmas ---
-    firma_data = [[Paragraph('<b>_________________________</b>', styles['Small']), Paragraph('<b>_________________________</b>', styles['Small'])],
-                  [Paragraph('Luis Medina', styles['Small']), Paragraph('Aprobación de Gerencia', styles['Small'])]]
-    firma_table = Table(firma_data, colWidths=[doc.width*0.5-6*mm, doc.width*0.5-6*mm])
+    # --- Firmas: nombres arriba y línea para firma debajo (línea única atravesando ambas columnas) ---
+    firma_names = [Paragraph('Luis Medina', styles['Small']), Paragraph('Aprobación de Gerencia', styles['Small'])]
+    # fila de nombres, luego fila vacía que tendrá la línea superior (LINEABOVE)
+    firma_table = Table([[firma_names[0], firma_names[1]], ['', '']], colWidths=[doc.width*0.5-6*mm, doc.width*0.5-6*mm])
     firma_table.setStyle(TableStyle([
-        ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-        ('FONTSIZE', (0,0), (-1,-1), 9)
+        ('ALIGN', (0,0), (-1,0), 'CENTER'),
+        ('FONTSIZE', (0,0), (-1,0), 9),
+        ('LINEABOVE', (0,1), (-1,1), 0.8, colors.black),
+        ('TOPPADDING', (0,1), (-1,1), 12),
     ]))
     elements.append(firma_table)
     elements.append(Spacer(1, 6*mm))
 
-    # --- Texto legal pequeño al pie ---
-    legal = datos_orden.get('texto_legal', 'Documento generado automáticamente. Revise condiciones y términos aplicables.')
-    elements.append(Paragraph(legal, ParagraphStyle(name='Legal', fontSize=7, alignment=TA_LEFT)))
+    # Preparar texto legal que se dibujará fijo en el pie de página
+    legal_text = datos_orden.get('texto_legal', (
+        "1. La presente Orden de Compra (OC) podrá ser modificada, ajustada o terminada por Somyl S.A. en cualquier momento, de manera total o parcial, sin alegación de motivo o causa alguna, "
+        "mediante la notificación escrita física o por correo electrónico al proveedor con una anticipación de 5 (cinco) días.<br/><br/>"
+        "2. La presente Orden de Compra no obliga a Somyl S.A. a adquirir o comprar la totalidad de esta; el pago efectivo estará definido cuando el proveedor entregue la GUIA DE DESPACHO o "
+        "DOCUMENTO DE ACEPTACIÓN relacionada a la OC y aceptada por Somyl S.A.<br/><br/>"
+        "3. Los servicios o material suministrados bajo esta OC tendrán una garantía de 3 Meses o hasta la aceptación total del cliente final de Somyl S.A.<br/><br/>"
+        "4. El proveedor emitirá su factura después de recibir firmada la GUIA DE DESPACHO o notificación oficial por correo electrónico por parte del área de administración de Somyl S.A. El "
+        "Subcontratista debe incluir todos los impuestos del gobierno, gravámenes y tasas que correspondan. En caso de no contar con la notificación y proceder a realizar la factura, el proveedor no "
+        "tiene derecho de reclamo o denuncia de incumplimiento de pago en el plazo que corresponda; este plazo se ajustará una vez Somyl S.A. acepte dicha factura.<br/><br/>"
+        "5. Toda factura emitida a Somyl S.A. debe ser enviada al Departamento de Administración al correo electrónico indicado en esta OC."))
+    # --- Footer drawer: dibuja el texto legal en el pie fijo de cada página ---
+    def draw_footer(canvas, doc_obj):
+        canvas.saveState()
+        footer_width = doc_obj.width
+        x = doc_obj.leftMargin
+        # colocamos el bloque legal a 8mm del borde inferior y con altura suficiente
+        footer_y = 8 * mm
+        footer_height = bottom_margin - (12 * mm)
+        if footer_height < 10 * mm:
+            footer_height = 10 * mm
+        from reportlab.platypus import Frame
+        footer_frame = Frame(x, footer_y, footer_width, footer_height, showBoundary=0)
+        p = Paragraph(legal_text, styles['Legal'])
+        footer_frame.addFromList([p], canvas)
+        canvas.restoreState()
 
-    # Construir el PDF
-    doc.build(elements)
+    # Construir el PDF y aplicar footer en cada página
+    doc.build(elements, onFirstPage=draw_footer, onLaterPages=draw_footer)
 
     return filepath
