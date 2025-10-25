@@ -10,6 +10,7 @@ import ProyectosPage from './components/ProyectosPage';
 import MaterialesPage from './components/MaterialesPage';
 import Items from './components/Items';
 import Trabajadores from './components/Trabajadores';
+import Presupuestos from './components/Presupuestos';
 function Materiales() {
   return <MaterialesPage />;
 }
@@ -110,6 +111,7 @@ function App() {
                 <Route path="/ordenes-compra" element={<OrdenesCompra />} />
                 <Route path="/ingresos-recepciones" element={<IngresosRecepciones />} />
                 <Route path="/ordenes-pago" element={<OrdenesPagoView />} />  {/* wrapper component */}
+                  <Route path="/presupuestos" element={<Presupuestos />} />
                 <Route path="/facturacion-pendiente" element={<FacturacionPendiente />} />
                 <Route path="/informe-pagos" element={<InformePagos />} />
                 <Route path="/planificacion-presupuestaria" element={<PlanificacionPresupuestaria />} />

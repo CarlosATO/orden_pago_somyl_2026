@@ -1,5 +1,6 @@
 # ---- Framework y Servidor ----
 Flask==3.0.3
+Flask-CORS==4.0.0
 gunicorn==22.0.0
 gevent==24.11.1  # Worker asíncrono para producción (compatible con Python 3.13)
 Werkzeug==3.0.3

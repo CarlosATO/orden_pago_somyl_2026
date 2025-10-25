@@ -3,6 +3,7 @@
 # backend/app.py
 import os
 from flask import Flask, jsonify
+from flask_cors import CORS
 from dotenv import load_dotenv
 from supabase import create_client
 
@@ -11,6 +12,9 @@ load_dotenv()
 
 def create_app():
     app = Flask(__name__)
+    
+    # --- Configuración de CORS ---
+    CORS(app, resources={r"/*": {"origins": "*"}})
 
     # --- Configuración General ---
     app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
@@ -25,6 +29,7 @@ def create_app():
     from .modules.ordenes import bp as ordenes_bp
     from .modules.ingresos import bp as ingresos_bp
     from .modules.proveedores import bp as proveedores_bp
+    from .modules.presupuestos import bp as presupuestos_bp
     from .modules.proyectos import bp as proyectos_bp
     from .modules.materiales import bp as materiales_bp
     from .modules.items import bp as items_bp
@@ -35,6 +40,7 @@ def create_app():
     app.register_blueprint(ordenes_bp, url_prefix='/api/ordenes')
     app.register_blueprint(ingresos_bp, url_prefix='/api/ingresos')
     app.register_blueprint(proveedores_bp, url_prefix='/api/proveedores')
+    app.register_blueprint(presupuestos_bp, url_prefix='/api/presupuestos')
     app.register_blueprint(proyectos_bp, url_prefix='/api/proyectos')
     app.register_blueprint(materiales_bp, url_prefix='/api/materiales')
     app.register_blueprint(items_bp, url_prefix='/api/items')

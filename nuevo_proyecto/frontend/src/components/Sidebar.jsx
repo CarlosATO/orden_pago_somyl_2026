@@ -90,7 +90,7 @@ function Sidebar({ onLogout, onToggle }) {
             </div>
             {activeMenu === 'presupuesto' && (
               <ul className={isCollapsed ? 'submenu overlay' : 'submenu'}>
-                <li><Link to="/planificacion-presupuestaria">Planificación Presupuestaria</Link></li>
+                <li><Link to="/presupuestos">Planificación Presupuestaria</Link></li>
                 <li><Link to="/registro-gastos-directos">Registro de Gastos Directos</Link></li>
                 <li><Link to="/estado-presupuesto">Estado de Presupuesto</Link></li>
               </ul>
@@ -124,7 +124,7 @@ function Sidebar({ onLogout, onToggle }) {
               <ul className={isCollapsed ? 'submenu overlay' : 'submenu'}>
                 <li><Link to="/proyectos">Proyectos</Link></li>
                 <li><Link to="/proveedores">Proveedores</Link></li>
-                <li><Link to="/materiales-servicios">Materiales / Servicios</Link></li>
+                <li><Link to="/materiales">Materiales / Servicios</Link></li>
                 <li><Link to="/items-presupuestarios">Ítems Presupuestarios</Link></li>
                 <li><Link to="/trabajadores-solicitantes">Trabajadores / Solicitantes</Link></li>
               </ul>

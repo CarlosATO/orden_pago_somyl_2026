@@ -1,8 +1,8 @@
 /* ========================================
-   PROVEEDORES - DISEÑO MODERNO CON MODAL
+   MATERIALES - DISEÑO MODERNO CON MODAL
    ======================================== */
 
-.proveedores-page {
+.materiales-page {
   padding: 2rem;
   width: 100%;
   min-height: 100vh;
@@ -20,7 +20,7 @@
    HEADER CON BOTÓN CREAR
    ======================================== */
 
-.proveedores-header {
+.materiales-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -29,7 +29,7 @@
   margin-bottom: 2rem;
 }
 
-.proveedores-page h1 {
+.materiales-page h1 {
   font-size: 2rem;
   font-weight: 700;
   margin: 0;
@@ -39,8 +39,8 @@
   gap: 0.75rem;
 }
 
-.proveedores-page h1::before {
-  content: "🏢";
+.materiales-page h1::before {
+  content: "📦";
   font-size: 1.8rem;
 }
 
@@ -70,21 +70,29 @@
 }
 
 /* ========================================
-   BUSCADOR
+   BUSCADOR Y FILTROS
    ======================================== */
 
-.search-bar {
+.search-filter-bar {
   background: white;
   border-radius: 16px;
   padding: 1.5rem;
   margin-bottom: 2rem;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.search-filter-bar.vertical .filters-row {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
 }
 
 .search-input-wrapper {
   position: relative;
-  max-width: 600px;
 }
 
 .search-input-wrapper::before {
@@ -117,6 +125,25 @@
 
 .search-input::placeholder {
   color: #94a3b8;
+}
+
+.filter-select {
+  width: 100%;
+  padding: 1rem 1.2rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 1rem;
+  background-color: #f8fafc;
+  transition: all 0.25s ease;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  background-color: #fff;
 }
 
 /* ========================================
@@ -176,24 +203,24 @@
   50% { opacity: 0.5; }
 }
 
-.proveedores-table-wrapper {
+.materiales-table-wrapper {
   overflow-x: auto;
   border-radius: 12px;
   border: 1px solid #e2e8f0;
 }
 
-.proveedores-table {
+.materiales-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.95rem;
 }
 
-.proveedores-table thead {
+.materiales-table thead {
   background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   border-bottom: 2px solid #e2e8f0;
 }
 
-.proveedores-table th {
+.materiales-table th {
   padding: 1rem 0.9rem;
   text-align: left;
   color: #475569;
@@ -204,27 +231,27 @@
   border-bottom: 2px solid #e2e8f0;
 }
 
-.proveedores-table td {
+.materiales-table td {
   padding: 1rem 0.9rem;
   border-bottom: 1px solid #f1f5f9;
   color: #334155;
   vertical-align: middle;
 }
 
-.proveedores-table tbody tr {
+.materiales-table tbody tr {
   transition: all 0.2s ease;
 }
 
-.proveedores-table tbody tr:hover {
+.materiales-table tbody tr:hover {
   background-color: #f8fafc;
   transform: scale(1.002);
 }
 
-.proveedores-table tbody tr:last-child td {
+.materiales-table tbody tr:last-child td {
   border-bottom: none;
 }
 
-.proveedores-table button {
+.materiales-table button {
   background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
   color: white;
   padding: 0.5rem 1.2rem;
@@ -237,13 +264,13 @@
   box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
 }
 
-.proveedores-table button:hover {
+.materiales-table button:hover {
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
 }
 
-.proveedores-table button:active {
+.materiales-table button:active {
   transform: translateY(0);
 }
 
@@ -295,7 +322,7 @@
   background: white;
   border-radius: 20px;
   width: 100%;
-  max-width: 800px;
+  max-width: 700px;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
@@ -365,7 +392,7 @@
    FORMULARIO MINIMALISTA
    ======================================== */
 
-.proveedor-form {
+.material-form {
   width: 100%;
 }
 
@@ -430,31 +457,39 @@
   color: #94a3b8;
 }
 
+.form-input.uppercase {
+  text-transform: uppercase;
+}
+
+.form-select {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  background-color: #f8fafc;
+  transition: all 0.25s ease;
+  color: #0f172a;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.form-select:hover {
+  border-color: #cbd5e1;
+  background-color: #fff;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  background-color: #fff;
+}
+
 .form-grid-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
-}
-
-.form-checkbox-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  margin-top: 0.3rem;
-}
-
-.form-checkbox {
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
-  accent-color: #667eea;
-}
-
-.form-checkbox-label {
-  font-weight: 500;
-  color: #475569;
-  cursor: pointer;
-  user-select: none;
 }
 
 .form-message {
@@ -559,25 +594,25 @@
    ======================================== */
 
 .modal-content::-webkit-scrollbar,
-.proveedores-table-wrapper::-webkit-scrollbar {
+.materiales-table-wrapper::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 .modal-content::-webkit-scrollbar-track,
-.proveedores-table-wrapper::-webkit-scrollbar-track {
+.materiales-table-wrapper::-webkit-scrollbar-track {
   background: #f1f5f9;
   border-radius: 4px;
 }
 
 .modal-content::-webkit-scrollbar-thumb,
-.proveedores-table-wrapper::-webkit-scrollbar-thumb {
+.materiales-table-wrapper::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 4px;
 }
 
 .modal-content::-webkit-scrollbar-thumb:hover,
-.proveedores-table-wrapper::-webkit-scrollbar-thumb:hover {
+.materiales-table-wrapper::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
 
@@ -586,23 +621,27 @@
    ======================================== */
 
 @media (max-width: 768px) {
-  .proveedores-page {
+  .materiales-page {
     padding: 1rem;
   }
 
-  .proveedores-header {
+  .materiales-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
   }
 
-  .proveedores-page h1 {
+  .materiales-page h1 {
     font-size: 1.5rem;
   }
 
   .btn-create {
     width: 100%;
     justify-content: center;
+  }
+
+  .search-filter-bar {
+    grid-template-columns: 1fr;
   }
 
   .modal-content {
@@ -637,28 +676,24 @@
     grid-template-columns: 1fr;
   }
 
-  .proveedores-table th,
-  .proveedores-table td {
+  .materiales-table th,
+  .materiales-table td {
     padding: 0.7rem 0.5rem;
     font-size: 0.85rem;
-  }
-
-  .search-input-wrapper {
-    max-width: 100%;
   }
 }
 
 @media (max-width: 480px) {
-  .proveedores-page h1 {
+  .materiales-page h1 {
     font-size: 1.3rem;
   }
 
-  .proveedores-table {
+  .materiales-table {
     font-size: 0.8rem;
   }
 
-  .proveedores-table th,
-  .proveedores-table td {
+  .materiales-table th,
+  .materiales-table td {
     padding: 0.6rem 0.4rem;
   }
 }
