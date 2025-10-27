@@ -121,13 +121,18 @@ const Pagos = () => {
     try {
       const token = localStorage.getItem('authToken');
       
-      const params = new URLSearchParams(
-        Object.fromEntries(
-          Object.entries(filtros).filter(([_, v]) => v !== '')
-        )
-      );
+      // Construir params solo si hay filtros
+      const filtrosAplicados = Object.entries(filtros).filter(([_, v]) => v !== '');
+      const params = filtrosAplicados.length > 0 
+        ? new URLSearchParams(Object.fromEntries(filtrosAplicados))
+        : '';
       
-      const response = await fetch(`/api/pagos/stats?${params}`, {
+      // Construir URL con o sin "?"
+      const url = params 
+        ? `/api/pagos/stats?${params}`
+        : '/api/pagos/stats';
+      
+      const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -136,6 +141,8 @@ const Pagos = () => {
       const data = await response.json();
       if (data.success) {
         setStats(data.data);
+      } else {
+        console.error('Error en stats:', data.message);
       }
     } catch (error) {
       console.error('Error cargando estadísticas:', error);

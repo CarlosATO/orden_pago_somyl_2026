@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './Sidebar.css';
 
@@ -8,17 +8,17 @@ function Sidebar({ onLogout, onToggle }) {
   // activeMenu almacena la clave del submenu abierto; null = ninguno
   const [activeMenu, setActiveMenu] = useState(null);
 
+  // NUEVO: Notificar al padre cuando cambie isCollapsed
+  useEffect(() => {
+    if (onToggle) {
+      onToggle(isCollapsed);
+    }
+  }, [isCollapsed, onToggle]);
+
   const toggleCollapse = () => {
-    setIsCollapsed(prev => {
-      const newValue = !prev;
-      // Notificar al componente padre sobre el cambio
-      if (onToggle) {
-        onToggle(newValue);
-      }
-      return newValue;
-    });
+    setIsCollapsed(prev => !prev);
     // al colapsar cerramos cualquier submenu
-    if (!isCollapsed) setActiveMenu(null);
+    setActiveMenu(null);
   };
 
   const toggleMenu = (menu) => {
