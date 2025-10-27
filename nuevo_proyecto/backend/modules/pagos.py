@@ -35,25 +35,21 @@ def get_cached_proyectos():
 def calcular_estado_pago(fecha_pago, total_abonado, total_pago):
     """
     Calcular estado del pago:
-    - pagado: tiene fecha_pago (independiente de abonos) O saldo = 0
-    - abono: tiene abonos parciales (saldo > 0) sin fecha_pago
+    - pagado: tiene fecha_pago (preferible) O saldo = 0
+    - abono: tiene abonos parciales (saldo > 0)
     - pendiente: sin fecha_pago y sin abonos (o con saldo > 0)
     """
-    saldo = max(0, total_pago - total_abonado)
-    
-    # Caso 1: Tiene fecha de pago = PAGADO (sin importar abonos)
-    if fecha_pago:
-        return "pagado"
-    
-    # Caso 2: Sin fecha pero saldo = 0 (pagado completamente con abonos)
-    if saldo <= 0:
-        return "pagado"
-    
-    # Caso 3: Tiene abonos parciales (saldo > 0)
-    if total_abonado > 0 and saldo > 0:
+    saldo = max(0, total_pago - (total_abonado or 0))
+
+    # Caso 1: Si hay abonos parciales y queda saldo -> ABONO (priorizar abonos)
+    if (total_abonado or 0) > 0 and saldo > 0:
         return "abono"
-    
-    # Caso 4: Sin fecha, sin abonos, con saldo = PENDIENTE
+
+    # Caso 2: Si hay fecha de pago o el saldo es cero -> PAGADO
+    if fecha_pago or saldo <= 0:
+        return "pagado"
+
+    # Caso 3: Sin fecha, sin abonos, con saldo > 0 -> PENDIENTE
     return "pendiente"
 
 # ================================================================
