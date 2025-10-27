@@ -108,6 +108,7 @@ function Sidebar({ onLogout, onToggle }) {
             {activeMenu === 'informes' && (
               <ul className={isCollapsed ? 'submenu overlay' : 'submenu'}>
                 <li><Link to="/ordenes-no-recepcionadas">Órdenes No Recepcionadas</Link></li>
+                <li><Link to="/pagos">Informe Pagos</Link></li>
               </ul>
             )}
           </li>
