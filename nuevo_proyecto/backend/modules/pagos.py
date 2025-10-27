@@ -320,26 +320,36 @@ def get_stats(current_user):
             fecha_desde = request.args.get('fecha_desde', '').strip()
             fecha_hasta = request.args.get('fecha_hasta', '').strip()
             
-            # Query con filtros
-            query = supabase.table("orden_de_pago").select(
-                "orden_numero, costo_final_con_iva, proyecto",
-                count="exact"
-            )
-            
-            if proveedor:
-                query = query.ilike("proveedor_nombre", f"%{proveedor}%")
-            
-            if proyecto_id:
-                query = query.eq("proyecto", int(proyecto_id))
-            
-            if fecha_desde:
-                query = query.gte("fecha", fecha_desde)
-            
-            if fecha_hasta:
-                query = query.lte("fecha", fecha_hasta)
-            
-            result = query.execute()
-            all_rows = result.data or []
+            # Obtener todas las filas de `orden_de_pago` aplicando los mismos filtros
+            # que usa la vista detallada. Para evitar límites de Supabase, hacemos
+            # paginado por lotes (batching) igual que el sistema antiguo.
+            page_size = 1000
+            offset = 0
+            all_rows = []
+
+            while True:
+                q = supabase.table("orden_de_pago").select(
+                    "orden_numero, costo_final_con_iva, proyecto"
+                ).order("orden_numero", desc=True).range(offset, offset + page_size - 1)
+
+                if proveedor:
+                    q = q.ilike("proveedor_nombre", f"%{proveedor}%")
+                if proyecto_id:
+                    try:
+                        q = q.eq("proyecto", int(proyecto_id))
+                    except ValueError:
+                        pass
+                if fecha_desde:
+                    q = q.gte("fecha", fecha_desde)
+                if fecha_hasta:
+                    q = q.lte("fecha", fecha_hasta)
+
+                res = q.execute()
+                batch = res.data or []
+                all_rows.extend(batch)
+                if len(batch) < page_size:
+                    break
+                offset += page_size
             
             # Agrupar por orden_numero
             pagos_dict = {}
@@ -358,69 +368,129 @@ def get_stats(current_user):
             # Obtener fechas de pago y abonos
             fecha_map = {}
             abonos_map = {}
+
+            # Para evitar problemas de tipos y asegurar coincidencia con la vista
+            # antigua, traemos las filas de `fechas_de_pagos_op` por lotes y construimos
+            # un mapa con claves como strings y como ints.
+            try:
+                page_size = 1000
+                off = 0
+                fechas_data = []
+                while True:
+                    batch = supabase.table("fechas_de_pagos_op").select("orden_numero, fecha_pago").range(off, off + page_size - 1).execute().data or []
+                    if not batch:
+                        break
+                    fechas_data.extend(batch)
+                    off += page_size
+                # Construir mapa con claves string e int
+                for row in fechas_data:
+                    k = row.get("orden_numero")
+                    v = row.get("fecha_pago")
+                    if k is None:
+                        continue
+                    fecha_map[str(k)] = v
+                    try:
+                        fecha_map[int(k)] = v
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.error(f"Error obteniendo fechas en batches: {e}")
+
+            # Abonos: traer todos los abonos y acumular por orden
+            try:
+                abonos_data = supabase.table("abonos_op").select("orden_numero, monto_abono").execute().data or []
+                for ab in abonos_data:
+                    num = ab.get("orden_numero")
+                    try:
+                        monto = float(ab.get("monto_abono") or 0)
+                    except Exception:
+                        monto = 0
+                    if num is None:
+                        continue
+                    abonos_map[num] = abonos_map.get(num, 0) + monto
+                    try:
+                        abonos_map[int(num)] = abonos_map.get(int(num), 0) + monto
+                    except Exception:
+                        pass
+            except Exception as e:
+                logger.error(f"Error obteniendo abonos: {e}")
             
-            if orden_numeros:
-                # Fechas con retry
-                fechas_result = supabase.table("fechas_de_pagos_op").select(
-                    "orden_numero, fecha_pago"
-                ).in_("orden_numero", orden_numeros).execute()
-                
-                for r in (fechas_result.data or []):
-                    fecha_map[r["orden_numero"]] = r["fecha_pago"]
-                
-                # Abonos con retry
-                abonos_result = supabase.table("abonos_op").select(
-                    "orden_numero, monto_abono"
-                ).in_("orden_numero", orden_numeros).execute()
-                
-                for ab in (abonos_result.data or []):
-                    num = ab["orden_numero"]
-                    abonos_map[num] = abonos_map.get(num, 0) + float(ab.get("monto_abono") or 0)
-            
-            # Calcular métricas
+            # Calcular métricas siguiendo la nueva regla de negocio:
+            # - Se parte de los valores únicos de `orden_numero` en `orden_de_pago` (ya está en pagos_dict)
+            # - Si una orden aparece en `fechas_de_pagos_op` la consideramos pagada y NO la includimos
+            #   en el cálculo de "total_pendiente".
             total_ordenes = len(pagos_dict)
+
+            # Conjunto de órdenes con fecha de pago (pagadas)
+            ordenes_con_fecha = set(fecha_map.keys())
+
+            # Contadores
             pagadas = 0
             pendientes = 0
-            
+
             total_pendiente = 0.0
             saldo_por_proyecto = {}
-            
+
             # Proyectos
             proyectos = get_cached_proyectos()
             proyecto_map = {p["id"]: p["proyecto"] for p in proyectos}
-            
-            # Recorrer TODAS las órdenes para calcular correctamente
+
+            # Recorremos las órdenes únicas y aplicamos la misma lógica que el sistema antiguo:
+            # - Si una orden tiene `fecha_pago` en la tabla `fechas_de_pagos_op` → saldo = 0
+            # - Si no tiene fecha, saldo = max(0, total_pago - total_abonado)
+            # - `total_pendiente` es la suma de esos saldos
             for num, pago in pagos_dict.items():
                 total_abonado = abonos_map.get(num, 0)
                 total_pago = pago["total_pago"]
-                fecha_pago = fecha_map.get(num)  # Obtener fecha real o None
-                
-                # Calcular saldo
-                saldo = max(0, total_pago - total_abonado)
-                
-                # Usar la MISMA función que list_pagos para consistencia total
+                fecha_pago = fecha_map.get(num)
+
+                # Calcular saldo: si hay fecha de pago, consideramos saldo 0 (pago directo o completado)
+                saldo = 0 if fecha_pago else max(0, total_pago - total_abonado)
+
+                # Mantener consistencia usando la función de estado
                 estado = calcular_estado_pago(fecha_pago, total_abonado, total_pago)
-                
+
                 if estado == "pagado":
                     pagadas += 1
                 else:
-                    # Pendiente o Abono - ambos cuentan como "no pagados"
                     pendientes += 1
-                    
-                    # Sumar al total pendiente
                     total_pendiente += saldo
-                    
-                    # Saldo por proyecto
-                    proyecto_nombre = proyecto_map.get(pago["proyecto"], str(pago["proyecto"]))
-                    saldo_por_proyecto[proyecto_nombre] = saldo_por_proyecto.get(
-                        proyecto_nombre, 0
-                    ) + saldo
-            
-            # Filtrar proyectos con saldo > 1
+                    proyecto_nombre = proyecto_map.get(pago.get("proyecto"), str(pago.get("proyecto")))
+                    saldo_por_proyecto[proyecto_nombre] = saldo_por_proyecto.get(proyecto_nombre, 0) + saldo
+
+            # Log de depuración para diagnosticar valores inesperados
+            logger.debug(f"get_stats: filas_consultadas={len(all_rows)}, ordenes_unicas={len(pagos_dict)}, ordenes_con_fecha={len(ordenes_con_fecha)}")
+
+            # Filtrar proyectos con saldo significativo (> 1 para evitar ruidos)
             saldo_por_proyecto = {k: v for k, v in saldo_por_proyecto.items() if v > 1}
-            
+
             logger.info(f"📊 Stats calculadas exitosamente: pendientes={pendientes}, total_pendiente={total_pendiente}")
-            
+
+            # Si se solicita debug, devolver datos adicionales para diagnóstico
+            if request.args.get('debug') == '1':
+                muestra_ordenes = list(pagos_dict.keys())[:20]
+                muestra_fechas = {k: fecha_map.get(k) for k in muestra_ordenes}
+                muestra_abonos = {k: abonos_map.get(k, 0) for k in muestra_ordenes}
+                return jsonify({
+                    "success": True,
+                    "data": {
+                        "total_ordenes": total_ordenes,
+                        "pagadas": pagadas,
+                        "pendientes": pendientes,
+                        "total_pendiente": total_pendiente,
+                        "saldo_por_proyecto": saldo_por_proyecto,
+                        "debug": {
+                            "filas_consultadas": len(all_rows),
+                            "ordenes_unicas_consideradas": len(pagos_dict),
+                            "ordenes_con_fecha_count": len(fecha_map),
+                            "ordenes_con_abonos_count": len(abonos_map),
+                            "muestra_ordenes": muestra_ordenes,
+                            "muestra_fechas": muestra_fechas,
+                            "muestra_abonos": muestra_abonos
+                        }
+                    }
+                })
+
             return jsonify({
                 "success": True,
                 "data": {
