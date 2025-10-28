@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './Sidebar.css';
 
@@ -8,17 +8,17 @@ function Sidebar({ onLogout, onToggle }) {
   // activeMenu almacena la clave del submenu abierto; null = ninguno
   const [activeMenu, setActiveMenu] = useState(null);
 
+  // NUEVO: Notificar al padre cuando cambie isCollapsed
+  useEffect(() => {
+    if (onToggle) {
+      onToggle(isCollapsed);
+    }
+  }, [isCollapsed, onToggle]);
+
   const toggleCollapse = () => {
-    setIsCollapsed(prev => {
-      const newValue = !prev;
-      // Notificar al componente padre sobre el cambio
-      if (onToggle) {
-        onToggle(newValue);
-      }
-      return newValue;
-    });
+    setIsCollapsed(prev => !prev);
     // al colapsar cerramos cualquier submenu
-    if (!isCollapsed) setActiveMenu(null);
+    setActiveMenu(null);
   };
 
   const toggleMenu = (menu) => {
@@ -88,10 +88,11 @@ function Sidebar({ onLogout, onToggle }) {
               </div>
               {!isCollapsed && <span className="arrow">{activeMenu === 'presupuesto' ? '▾' : '▸'}</span>}
             </div>
-                {activeMenu === 'presupuesto' && (
+            {activeMenu === 'presupuesto' && (
               <ul className={isCollapsed ? 'submenu overlay' : 'submenu'}>
-                <li><Link to="/planificacion-presupuestaria">Planificación Presupuestaria</Link></li>
+                <li><Link to="/presupuestos">Planificación Presupuestaria</Link></li>
                 <li><Link to="/registro-gastos-directos">Registro de Gastos Directos</Link></li>
+                <li><Link to="/estado-presupuesto">Estado de Presupuesto</Link></li>
               </ul>
             )}
           </li>
@@ -107,6 +108,7 @@ function Sidebar({ onLogout, onToggle }) {
             {activeMenu === 'informes' && (
               <ul className={isCollapsed ? 'submenu overlay' : 'submenu'}>
                 <li><Link to="/ordenes-no-recepcionadas">Órdenes No Recepcionadas</Link></li>
+                <li><Link to="/pagos">Informe Pagos</Link></li>
               </ul>
             )}
           </li>
@@ -123,7 +125,7 @@ function Sidebar({ onLogout, onToggle }) {
               <ul className={isCollapsed ? 'submenu overlay' : 'submenu'}>
                 <li><Link to="/proyectos">Proyectos</Link></li>
                 <li><Link to="/proveedores">Proveedores</Link></li>
-                <li><Link to="/materiales-servicios">Materiales / Servicios</Link></li>
+                <li><Link to="/materiales">Materiales / Servicios</Link></li>
                 <li><Link to="/items-presupuestarios">Ítems Presupuestarios</Link></li>
                 <li><Link to="/trabajadores-solicitantes">Trabajadores / Solicitantes</Link></li>
               </ul>

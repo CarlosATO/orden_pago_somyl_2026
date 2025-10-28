@@ -1,809 +1,824 @@
-import re
-from datetime import date
-from collections import defaultdict
-from flask import Blueprint, request, jsonify, current_app, send_file
-from io import BytesIO
+import { useState, useEffect } from 'react';
+import Select from 'react-select';
+import AsyncSelect from 'react-select/async';
+import './OrdenesPago.css';
 
-# ========= Importaciones de Utilidades =========
-from backend.utils.decorators import token_required
-from backend.utils.cache import cache_result
+function OrdenesPago() {
+  // ========= Estados principales =========
+  const [numeroOP, setNumeroOP] = useState('');
+  const [proveedor, setProveedor] = useState(null);
+  const [proveedorData, setProveedorData] = useState(null);
+  const [documentos, setDocumentos] = useState([]);
+  const [lineasSeleccionadas, setLineasSeleccionadas] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [mensaje, setMensaje] = useState(null);
 
-bp = Blueprint("ordenes_pago", __name__)
+  // ========= Estados del formulario =========
+  const [autoriza, setAutoriza] = useState(null);
+  const [fechaFactura, setFechaFactura] = useState('');
+  const [vencimiento, setVencimiento] = useState('');
+  const [estadoPago, setEstadoPago] = useState('');
+  const [detalleCompra, setDetalleCompra] = useState('');
 
-# ========= Funciones Auxiliares =========
+  // ========= Estados de modales =========
+  const [mostrarHistorial, setMostrarHistorial] = useState(false);
+  const [historial, setHistorial] = useState([]);
+  const [mostrarCopiar, setMostrarCopiar] = useState(false);
 
-def normalize_text(text):
-    """Normaliza texto para comparación"""
-    if not text:
-        return ''
-    return ' '.join(str(text).replace('\n', ' ').split()).lower()
+  // ========= Cargar próximo número al montar =========
+  useEffect(() => {
+    fetchProximoNumero();
+  }, []);
 
+  const fetchProximoNumero = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setMensaje({ tipo: 'error', texto: 'Sesión expirada' });
+        return;
+      }
 
-def parse_monto(x):
-    """Convierte un string de moneda a float"""
-    if not x:
-        return 0.0
-    limpio = re.sub(r'[^\d,\.]', '', str(x))
-    partes = limpio.split(',')
-    if len(partes) > 1:
-        dec = partes[-1]
-        ent = ''.join(partes[:-1])
-        limpio2 = ent.replace('.', '') + '.' + dec
-    else:
-        limpio2 = partes[0].replace('.', '')
-    try:
-        return float(limpio2)
-    except (ValueError, TypeError):
-        return 0.0
-
-
-# ================================================================
-# ENDPOINT PRINCIPAL - OBTENER DOCUMENTOS PENDIENTES POR PROVEEDOR
-# ================================================================
-
-@bp.route("/", methods=["GET"])
-@token_required
-def get_documentos_pendientes(current_user):
-    """
-    Obtiene documentos pendientes de pago para un proveedor específico.
-    Query params: proveedor_id (opcional)
-    """
-    supabase = current_app.config['SUPABASE']
-    proveedor_id = request.args.get('proveedor_id', type=int)
-    
-    try:
-        # 1. Obtener próximo número de orden de pago
-        last_op = (
-            supabase.table("orden_de_pago")
-            .select("orden_numero")
-            .order("orden_numero", desc=True)
-            .limit(1)
-            .execute().data or []
-        )
-        next_num = (last_op[0]["orden_numero"] + 1) if last_op else 1
-        
-        response_data = {
-            "next_num": next_num,
-            "proveedor_seleccionado": None,
-            "documentos": []
+      const response = await fetch('/api/ordenes_pago/', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
-        
-        if not proveedor_id:
-            return jsonify({"success": True, "data": response_data})
-        
-        # 2. Obtener datos del proveedor
-        prov = (
-            supabase.table("proveedores")
-            .select("id, nombre, rut, paguese_a, cuenta, banco, correo")
-            .eq("id", proveedor_id)
-            .limit(1)
-            .execute().data or []
-        )
-        
-        if not prov:
-            return jsonify({"success": False, "message": "Proveedor no encontrado"}), 404
-        
-        response_data["proveedor_seleccionado"] = prov[0]
-        
-        # 3. Obtener todos los ingresos del proveedor
-        ingresos = (
-            supabase.table("ingresos")
-            .select("id, orden_compra, factura, guia_recepcion, art_corr, neto_recepcion, material")
-            .eq("proveedor", proveedor_id)
-            .execute().data or []
-        )
-        
-        # 4. Obtener IDs de ingresos ya usados en órdenes de pago
-        ordenes_pago = (
-            supabase.table("orden_de_pago")
-            .select("ingreso_id")
-            .eq("proveedor", proveedor_id)
-            .execute().data or []
-        )
-        
-        pagados_ids = {op["ingreso_id"] for op in ordenes_pago if op.get("ingreso_id")}
-        
-        # 5. Filtrar ingresos pendientes
-        pendientes = [i for i in ingresos if i["id"] not in pagados_ids]
-        
-        # 6. Agrupar por factura + OC
-        grupos = {}
-        for ing in pendientes:
-            factura_key = ing["factura"] if ing["factura"] else "SIN_DOCUMENTO"
-            key = (factura_key, ing["orden_compra"])
-            
-            if key not in grupos:
-                grupos[key] = {
-                    "documento": factura_key,
-                    "orden_compra": ing["orden_compra"],
-                    "total_neto": 0.0,
-                    "count": 0
-                }
-            
-            grupos[key]["total_neto"] += float(ing.get("neto_recepcion") or 0)
-            grupos[key]["count"] += 1
-        
-        # 7. Convertir a lista y ordenar
-        documentos = list(grupos.values())
-        documentos.sort(key=lambda d: d.get('orden_compra', 0), reverse=True)
-        
-        response_data["documentos"] = documentos
-        
-        return jsonify({"success": True, "data": response_data})
-        
-    except Exception as e:
-        current_app.logger.error(f"Error al obtener documentos pendientes: {str(e)}")
-        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+      });
 
-
-# ================================================================
-# ENDPOINT DETALLE - OBTENER LÍNEAS DE INGRESO
-# ================================================================
-
-@bp.route("/detalle", methods=["GET"])
-@token_required
-def get_detalle_documento(current_user):
-    """
-    Obtiene las líneas de ingreso para un documento específico.
-    Query params: documento, oc, proveedor_id
-    """
-    supabase = current_app.config['SUPABASE']
-    documento = request.args.get('documento')
-    oc = request.args.get('oc', type=int)
-    proveedor_id = request.args.get('proveedor_id', type=int)
-    
-    if not oc or not proveedor_id:
-        return jsonify({"success": False, "message": "Parámetros incompletos"}), 400
-    
-    try:
-        # 1. Construir query para ingresos
-        query = (
-            supabase.table("ingresos")
-            .select("id, orden_compra, factura, guia_recepcion, art_corr, recepcion, neto_unitario, material")
-            .eq("orden_compra", oc)
-            .eq("proveedor", proveedor_id)
-        )
-        
-        # Filtrar por documento
-        if documento and documento != "SIN_DOCUMENTO":
-            query = query.eq("factura", documento)
-        else:
-            query = query.or_("factura.is.null,factura.eq.")
-        
-        ingresos = query.execute().data or []
-        
-        # 2. Obtener IDs ya usados en órdenes de pago
-        ordenes_pago = (
-            supabase.table("orden_de_pago")
-            .select("ingreso_id")
-            .execute().data or []
-        )
-        
-        pagados_ids = {op["ingreso_id"] for op in ordenes_pago if op.get("ingreso_id")}
-        
-        # 3. Obtener nombres de materiales
-        mat_ids = {i["material"] for i in ingresos if i.get("material")}
-        mat_map = {}
-        
-        if mat_ids:
-            mats = (
-                supabase.table("materiales")
-                .select("id, material")
-                .in_("id", list(mat_ids))
-                .execute().data or []
-            )
-            mat_map = {m["id"]: m["material"] for m in mats}
-        
-        # 4. Construir resultado
-        result = []
-        for ing in ingresos:
-            if ing["id"] in pagados_ids:
-                continue
-            
-            material_nombre = mat_map.get(ing["material"], f"Material ID: {ing['material']}")
-            
-            result.append({
-                "ingreso_id": ing["id"],
-                "descripcion": material_nombre,
-                "cantidad": int(ing.get("recepcion") or 0),
-                "neto_unitario": float(ing.get("neto_unitario") or 0),
-                "neto_total": int(ing.get("recepcion") or 0) * float(ing.get("neto_unitario") or 0),
-                "art_corr": ing.get("art_corr"),
-                "orden_compra": ing.get("orden_compra"),
-                "material_id": ing.get("material"),
-                "documento": ing.get("factura") or "SIN_DOCUMENTO"
-            })
-        
-        return jsonify({"success": True, "data": result})
-        
-    except Exception as e:
-        current_app.logger.error(f"Error al obtener detalle: {str(e)}")
-        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
-
-
-# ================================================================
-# ENDPOINT CREAR ORDEN DE PAGO
-# ================================================================
-
-@bp.route("/", methods=["POST"])
-@token_required
-def create_orden_pago(current_user):
-    """
-    Crea una nueva orden de pago con las líneas seleccionadas.
-    """
-    data = request.get_json()
-    supabase = current_app.config['SUPABASE']
-    
-    try:
-        # 1. Validar datos requeridos
-        orden_numero = data.get("orden_numero")
-        proveedor_id = data.get("proveedor_id")
-        proveedor_nombre = data.get("proveedor_nombre")
-        autoriza_id = data.get("autoriza_id")
-        autoriza_nombre = data.get("autoriza_nombre")
-        fecha_factura = data.get("fecha_factura")
-        vencimiento = data.get("vencimiento")
-        estado_pago = data.get("estado_pago", "")
-        detalle_compra = data.get("detalle_compra", "").strip()
-        lineas = data.get("lineas", [])
-        
-        if not all([orden_numero, proveedor_id, autoriza_id, fecha_factura, vencimiento]):
-            return jsonify({"success": False, "message": "Faltan datos requeridos"}), 400
-        
-        if not detalle_compra:
-            return jsonify({"success": False, "message": "El detalle de compra es obligatorio"}), 400
-        
-        if not lineas:
-            return jsonify({"success": False, "message": "Debe seleccionar al menos una línea"}), 400
-        
-        # 2. Obtener próximo n_ingreso
-        last_ingreso = (
-            supabase.table("orden_de_pago")
-            .select("n_ingreso")
-            .order("n_ingreso", desc=True)
-            .limit(1)
-            .execute().data or []
-        )
-        n_ingreso = (last_ingreso[0]["n_ingreso"] if last_ingreso else 0) + 1
-        
-        # 3. Fecha actual
-        hoy = date.today().isoformat()
-        anio = date.today().year
-        
-        # 4. Preparar registros para inserción
-        registros = []
-        
-        for linea in lineas:
-            ingreso_id = linea.get("ingreso_id")
-            oc_numero = linea.get("orden_compra")
-            art_corr = linea.get("art_corr")
-            material_id = linea.get("material_id")
-            descripcion = linea.get("descripcion")
-            cantidad = int(linea.get("cantidad") or 0)
-            neto_unitario = float(linea.get("neto_unitario") or 0)
-            documento = linea.get("documento")
-            
-            # Obtener datos de la OC
-            oc_data = (
-                supabase.table("orden_de_compra")
-                .select("id, proyecto, condicion_de_pago, fac_sin_iva")
-                .eq("orden_compra", oc_numero)
-                .eq("art_corr", art_corr)
-                .limit(1)
-                .execute().data or []
-            )
-            
-            if not oc_data:
-                current_app.logger.warning(f"OC {oc_numero} art_corr {art_corr} no encontrada")
-                continue
-            
-            oc = oc_data[0]
-            orden_compra_id = oc["id"]
-            proyecto = oc.get("proyecto")
-            condicion_pago = oc.get("condicion_de_pago")
-            fac_sin_iva = oc.get("fac_sin_iva", 0)
-            
-            # Obtener tipo e item del material
-            mat_data = (
-                supabase.table("materiales")
-                .select("tipo, item")
-                .eq("id", material_id)
-                .limit(1)
-                .execute().data or []
-            )
-            
-            tipo_val = mat_data[0].get("tipo") if mat_data else None
-            item_val = mat_data[0].get("item") if mat_data else None
-            
-            # Calcular totales
-            neto_total = cantidad * neto_unitario
-            costo_final = neto_total if fac_sin_iva else neto_total * 1.19
-            
-            # Estado del documento
-            estado_doc = "completado" if documento and documento != "SIN_DOCUMENTO" else "pendiente"
-            factura_val = documento if documento != "SIN_DOCUMENTO" else ""
-            
-            # Construir registro
-            registros.append({
-                "ingreso_id": ingreso_id,
-                "orden_compra": orden_compra_id,  # FK al ID de orden_de_compra
-                "doc_recep": documento or "",
-                "art_corr": art_corr,
-                "material": material_id,
-                "material_nombre": descripcion,
-                "cantidad": cantidad,
-                "neto_unitario": neto_unitario,
-                "neto_total_recibido": neto_total,
-                "costo_final_con_iva": costo_final,
-                "orden_numero": orden_numero,
-                "proveedor": proveedor_id,
-                "proveedor_nombre": proveedor_nombre,
-                "autoriza": autoriza_id,
-                "autoriza_nombre": autoriza_nombre,
-                "fecha_factura": fecha_factura,
-                "vencimiento": vencimiento,
-                "estado_pago": estado_pago,
-                "detalle_compra": detalle_compra,
-                "proyecto": proyecto,
-                "condicion_pago": condicion_pago,
-                "factura": factura_val,
-                "estado_documento": estado_doc,
-                "tipo": tipo_val,
-                "item": item_val,
-                "fecha": hoy,
-                "anio": anio,
-                "n_ingreso": n_ingreso
-            })
-            
-            n_ingreso += 1
-        
-        # 5. Insertar registros
-        if not registros:
-            return jsonify({"success": False, "message": "No se generaron registros válidos"}), 400
-        
-        result = supabase.table("orden_de_pago").insert(registros).execute()
-        
-        if result.data:
-            return jsonify({
-                "success": True,
-                "message": f"Orden de Pago Nº{orden_numero} creada con {len(registros)} línea(s)",
-                "orden_numero": orden_numero,
-                "n_registros": len(registros)
-            })
-        else:
-            return jsonify({"success": False, "message": "Error al insertar registros"}), 500
-        
-    except Exception as e:
-        current_app.logger.error(f"Error al crear orden de pago: {str(e)}")
-        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
-
-
-# ================================================================
-# ENDPOINT COPIAR ORDEN DE PAGO
-# ================================================================
-
-@bp.route("/copiar/<int:orden_numero>", methods=["GET"])
-@token_required
-def copiar_orden_pago(current_user, orden_numero):
-    """
-    Obtiene los datos de una orden de pago existente para copiarla.
-    """
-    supabase = current_app.config['SUPABASE']
-    
-    try:
-        # Obtener todas las líneas de la orden de pago
-        lineas = (
-            supabase.table("orden_de_pago")
-            .select("*")
-            .eq("orden_numero", orden_numero)
-            .execute().data or []
-        )
-        
-        if not lineas:
-            return jsonify({"success": False, "message": f"Orden {orden_numero} no encontrada"}), 404
-        
-        # Tomar datos del encabezado de la primera línea
-        primera = lineas[0]
-        
-        # Obtener próximo número
-        last_op = (
-            supabase.table("orden_de_pago")
-            .select("orden_numero")
-            .order("orden_numero", desc=True)
-            .limit(1)
-            .execute().data or []
-        )
-        next_num = (last_op[0]["orden_numero"] + 1) if last_op else 1
-        
-        # Construir respuesta
-        response = {
-            "next_num": next_num,
-            "proveedor_id": primera.get("proveedor"),
-            "proveedor_nombre": primera.get("proveedor_nombre"),
-            "autoriza_id": primera.get("autoriza"),
-            "autoriza_nombre": primera.get("autoriza_nombre"),
-            "fecha_factura": primera.get("fecha_factura"),
-            "vencimiento": primera.get("vencimiento"),
-            "estado_pago": primera.get("estado_pago", ""),
-            "detalle_compra": primera.get("detalle_compra", ""),
-            "lineas": []
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setNumeroOP(data.data.next_num);
         }
-        
-        # Procesar líneas
-        for linea in lineas:
-            response["lineas"].append({
-                "descripcion": linea.get("material_nombre"),
-                "cantidad": linea.get("cantidad"),
-                "neto_unitario": linea.get("neto_unitario"),
-                "neto_total": linea.get("neto_total_recibido"),
-                "orden_compra": linea.get("orden_compra"),
-                "documento": linea.get("factura") or "SIN_DOCUMENTO",
-                "art_corr": linea.get("art_corr"),
-                "material_id": linea.get("material")
-            })
-        
-        return jsonify({"success": True, "data": response})
-        
-    except Exception as e:
-        current_app.logger.error(f"Error al copiar orden {orden_numero}: {str(e)}")
-        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+      }
+    } catch (error) {
+      console.error('Error al obtener próximo número:', error);
+    }
+  };
 
+  // ========= Cargar documentos del proveedor =========
+  const handleProveedorChange = async (selectedOption) => {
+    setProveedor(selectedOption);
+    setDocumentos([]);
+    setLineasSeleccionadas([]);
 
-# ================================================================
-# ENDPOINT HISTORIAL DE ÓRDENES
-# ================================================================
+    if (!selectedOption) {
+      setProveedorData(null);
+      return;
+    }
 
-@bp.route("/historial", methods=["GET"])
-@token_required
-@cache_result(ttl_seconds=60)
-def get_historial_ordenes(current_user):
-    """
-    Obtiene el historial de órdenes de pago creadas.
-    """
-    supabase = current_app.config['SUPABASE']
-    
-    try:
-        # Obtener todas las órdenes agrupadas
-        ordenes = (
-            supabase.table("orden_de_pago")
-            .select("orden_numero, proveedor_nombre, fecha, estado_pago, estado_documento")
-            .order("orden_numero", desc=True)
-            .execute().data or []
-        )
-        
-        # Agrupar por orden_numero
-        ordenes_agrupadas = {}
-        for op in ordenes:
-            num = op["orden_numero"]
-            if num not in ordenes_agrupadas:
-                ordenes_agrupadas[num] = {
-                    "orden_numero": num,
-                    "proveedor": op["proveedor_nombre"],
-                    "fecha": op["fecha"],
-                    "estado_pago": op["estado_pago"],
-                    "estado_documento": op["estado_documento"],
-                    "total": 0,
-                    "lineas": 0
-                }
-        
-        # Calcular totales
-        for op in ordenes:
-            num = op["orden_numero"]
-            ordenes_agrupadas[num]["lineas"] += 1
-        
-        # Calcular totales monetarios
-        for num in ordenes_agrupadas.keys():
-            lineas_orden = [op for op in ordenes if op["orden_numero"] == num]
-            total = 0
-            for linea in lineas_orden:
-                # Obtener el total de cada línea
-                linea_data = (
-                    supabase.table("orden_de_pago")
-                    .select("costo_final_con_iva")
-                    .eq("orden_numero", num)
-                    .execute().data or []
-                )
-                for ld in linea_data:
-                    total += float(ld.get("costo_final_con_iva") or 0)
-            
-            ordenes_agrupadas[num]["total"] = total
-        
-        # Convertir a lista
-        resultado = list(ordenes_agrupadas.values())
-        resultado.sort(key=lambda x: x["orden_numero"], reverse=True)
-        
-        return jsonify({"success": True, "data": resultado})
-        
-    except Exception as e:
-        current_app.logger.error(f"Error al obtener historial: {str(e)}")
-        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/ordenes_pago/?proveedor_id=${selectedOption.value}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setProveedorData(data.data.proveedor_seleccionado);
+          setDocumentos(data.data.documentos);
+          setMensaje(null);
+        }
+      } else if (response.status === 401) {
+        setMensaje({ tipo: 'error', texto: 'Sesión expirada' });
+      }
+    } catch (error) {
+      console.error('Error al cargar documentos:', error);
+      setMensaje({ tipo: 'error', texto: 'Error al cargar documentos' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-# ================================================================
-# ENDPOINT DOCUMENTOS PENDIENTES (para completar)
-# ================================================================
+  // ========= Seleccionar documento y cargar líneas =========
+  const handleSeleccionarDocumento = async (documento, oc) => {
+    if (!proveedor) return;
 
-@bp.route("/pendientes", methods=["GET"])
-@token_required
-def get_documentos_pendientes_completar(current_user):
-    """
-    Obtiene órdenes de pago con documentos pendientes de completar.
-    """
-    supabase = current_app.config['SUPABASE']
-    
-    try:
-        # Obtener órdenes con estado_documento = pendiente
-        pendientes = (
-            supabase.table("orden_de_pago")
-            .select("id, orden_numero, orden_compra, proveedor_nombre, material_nombre, cantidad, neto_total_recibido, fecha, detalle_compra, factura")
-            .eq("estado_documento", "pendiente")
-            .order("orden_numero", desc=True)
-            .execute().data or []
-        )
-        
-        # Obtener números de OC reales (no IDs)
-        for pend in pendientes:
-            oc_id = pend.get("orden_compra")
-            if oc_id:
-                oc_data = (
-                    supabase.table("orden_de_compra")
-                    .select("orden_compra")
-                    .eq("id", oc_id)
-                    .limit(1)
-                    .execute().data or []
-                )
-                if oc_data:
-                    pend["orden_compra_numero"] = oc_data[0]["orden_compra"]
-                else:
-                    pend["orden_compra_numero"] = "N/A"
-        
-        return jsonify({"success": True, "data": pendientes})
-        
-    except Exception as e:
-        current_app.logger.error(f"Error al obtener pendientes: {str(e)}")
-        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const url = `/api/ordenes_pago/detalle?documento=${encodeURIComponent(documento)}&oc=${oc}&proveedor_id=${proveedor.value}`;
 
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
-@bp.route("/pendientes/<int:id>", methods=["PUT"])
-@token_required
-def completar_documento_pendiente(current_user, id):
-    """
-    Completa el documento de una orden de pago pendiente.
-    """
-    data = request.get_json()
-    supabase = current_app.config['SUPABASE']
-    factura = data.get("factura", "").strip()
-    
-    if not factura:
-        return jsonify({"success": False, "message": "Número de documento requerido"}), 400
-    
-    try:
-        # Actualizar registro
-        result = (
-            supabase.table("orden_de_pago")
-            .update({"factura": factura, "estado_documento": "completado"})
-            .eq("id", id)
-            .execute()
-        )
-        
-        if result.data:
-            return jsonify({"success": True, "message": "Documento actualizado correctamente"})
-        else:
-            return jsonify({"success": False, "message": "No se pudo actualizar"}), 500
-        
-    except Exception as e:
-        current_app.logger.error(f"Error al completar documento {id}: {str(e)}")
-        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // Agregar líneas que no estén ya seleccionadas
+          const nuevasLineas = data.data.filter(linea =>
+            !lineasSeleccionadas.some(ls => ls.ingreso_id === linea.ingreso_id)
+          );
 
+          setLineasSeleccionadas([...lineasSeleccionadas, ...nuevasLineas]);
+          setMensaje({ tipo: 'success', texto: `${nuevasLineas.length} línea(s) agregada(s)` });
+        }
+      }
+    } catch (error) {
+      console.error('Error al cargar líneas:', error);
+      setMensaje({ tipo: 'error', texto: 'Error al cargar líneas del documento' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-# ================================================================
-# ENDPOINTS AUXILIARES
-# ================================================================
+  // ========= Eliminar línea seleccionada =========
+  const eliminarLinea = (ingresoId) => {
+    setLineasSeleccionadas(lineasSeleccionadas.filter(l => l.ingreso_id !== ingresoId));
+  };
 
-@bp.route("/helpers/check-iva/<int:oc_numero>", methods=["GET"])
-@token_required
-def check_iva_oc(current_user, oc_numero):
-    """
-    Verifica si una OC específica es sin IVA.
-    """
-    supabase = current_app.config['SUPABASE']
-    
-    try:
-        oc = (
-            supabase.table("orden_de_compra")
-            .select("fac_sin_iva")
-            .eq("orden_compra", oc_numero)
-            .limit(1)
-            .execute().data or []
-        )
-        
-        sin_iva = bool(oc[0].get("fac_sin_iva", 0)) if oc else False
-        
-        return jsonify({"success": True, "sin_iva": sin_iva})
-        
-    except Exception as e:
-        current_app.logger.error(f"Error al verificar IVA OC {oc_numero}: {str(e)}")
-        return jsonify({"success": False, "sin_iva": False}), 500
+  // ========= Calcular totales =========
+  const calcularTotales = () => {
+    const neto = lineasSeleccionadas.reduce((sum, linea) => sum + linea.neto_total, 0);
+    const iva = neto * 0.19; // TODO: Verificar si hay líneas sin IVA
+    const total = neto + iva;
 
+    return { neto, iva, total };
+  };
 
-# ================================================================
-# ENDPOINT GENERAR PDF
-# ================================================================
+  // ========= Guardar orden de pago =========
+  const handleGuardar = async () => {
+    // Validaciones
+    if (!proveedor) {
+      setMensaje({ tipo: 'error', texto: 'Debe seleccionar un proveedor' });
+      return;
+    }
 
-@bp.route("/pdf/<int:orden_numero>", methods=["GET"])
-@token_required
-def generar_pdf_orden(current_user, orden_numero):
-    """
-    Genera PDF de una orden de pago usando ReportLab.
-    """
-    supabase = current_app.config['SUPABASE']
-    
-    try:
-        from reportlab.lib.pagesizes import letter, A4
-        from reportlab.lib import colors
-        from reportlab.lib.units import inch
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
-        
-        # Obtener datos de la orden
-        lineas = (
-            supabase.table("orden_de_pago")
-            .select("*")
-            .eq("orden_numero", orden_numero)
-            .execute().data or []
-        )
-        
-        if not lineas:
-            return jsonify({"success": False, "message": "Orden no encontrada"}), 404
-        
-        # Datos del encabezado
-        primera = lineas[0]
-        
-        # Crear PDF en memoria
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch)
-        story = []
-        styles = getSampleStyleSheet()
-        
-        # Estilo personalizado para título
-        title_style = ParagraphStyle(
-            'CustomTitle',
-            parent=styles['Heading1'],
-            fontSize=18,
-            textColor=colors.HexColor('#2c5aa0'),
-            spaceAfter=20,
-            alignment=TA_CENTER
-        )
-        
-        # Título
-        story.append(Paragraph(f"<b>Orden de Pago #{orden_numero}</b>", title_style))
-        story.append(Spacer(1, 0.3*inch))
-        
-        # Información de la empresa (encabezado)
-        empresa_data = [
-            ["SOMYL S.A."],
-            ["RUT: 76.002.581-K"],
-            ["TELECOMUNICACIONES"],
-            ["PUERTA ORIENTE 361 OF 311 B TORRE B COLINA"],
-            ["Tel: 232642974"]
-        ]
-        
-        empresa_table = Table(empresa_data, colWidths=[6*inch])
-        empresa_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.grey),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
-        ]))
-        story.append(empresa_table)
-        story.append(Spacer(1, 0.2*inch))
-        
-        # Información del proveedor y detalles
-        info_data = [
-            ["<b>Páguese a:</b>", primera.get("proveedor_nombre", "")],
-            ["<b>Autorizado por:</b>", primera.get("autoriza_nombre", "")],
-            ["<b>Fecha Factura:</b>", primera.get("fecha_factura", "")],
-            ["<b>Vencimiento:</b>", primera.get("vencimiento", "")],
-            ["<b>Estado de Pago:</b>", primera.get("estado_pago", "")],
-            ["<b>Detalle:</b>", primera.get("detalle_compra", "")],
-        ]
-        
-        info_table = Table(info_data, colWidths=[2*inch, 4*inch])
-        info_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
-            ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-            ('FONTSIZE', (0, 0), (-1, -1), 10),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
-        ]))
-        story.append(info_table)
-        story.append(Spacer(1, 0.3*inch))
-        
-        # Tabla de materiales
-        material_data = [["Descripción", "Cantidad", "Neto Unit.", "Total Neto"]]
-        
-        total_neto = 0
-        total_iva = 0
-        
-        for linea in lineas:
-            desc = linea.get("material_nombre", "")
-            cant = linea.get("cantidad", 0)
-            neto_u = linea.get("neto_unitario", 0)
-            neto_t = linea.get("neto_total_recibido", 0)
-            
-            material_data.append([
-                desc,
-                str(cant),
-                f"${neto_u:,.0f}",
-                f"${neto_t:,.0f}"
-            ])
-            
-            total_neto += neto_t
-        
-        # Verificar si es sin IVA
-        oc_numero_check = lineas[0].get("orden_compra")
-        sin_iva = False
-        if oc_numero_check:
-            oc_check = (
-                supabase.table("orden_de_compra")
-                .select("fac_sin_iva")
-                .eq("id", oc_numero_check)
-                .limit(1)
-                .execute().data or []
-            )
-            sin_iva = bool(oc_check[0].get("fac_sin_iva", 0)) if oc_check else False
-        
-        total_iva = 0 if sin_iva else total_neto * 0.19
-        total_final = total_neto + total_iva
-        
-        material_table = Table(material_data, colWidths=[3*inch, 1*inch, 1.5*inch, 1.5*inch])
-        material_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2c5aa0')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 11),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
-            ('GRID', (0, 0), (-1, -1), 1, colors.black),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-        ]))
-        story.append(material_table)
-        story.append(Spacer(1, 0.3*inch))
-        
-        # Totales
-        totales_data = [
-            ["<b>Total Neto:</b>", f"${total_neto:,.0f}"],
-            [f"<b>IVA (19%){'- EXENTO' if sin_iva else ''}:</b>", f"${total_iva:,.0f}"],
-            ["<b>Total a Pagar:</b>", f"<b>${total_final:,.0f}</b>"]
-        ]
-        
-        totales_table = Table(totales_data, colWidths=[4*inch, 2*inch])
-        totales_table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
-            ('LINEABOVE', (0, -1), (-1, -1), 2, colors.black),
-        ]))
-        story.append(totales_table)
-        
-        # Generar PDF
-        doc.build(story)
-        buffer.seek(0)
-        
-        return send_file(
-            buffer,
-            mimetype='application/pdf',
-            as_attachment=True,
-            download_name=f'orden_pago_{orden_numero}.pdf'
-        )
-        
-    except ImportError:
-        return jsonify({
-            "success": False,
-            "message": "ReportLab no está instalado. Ejecute: pip install reportlab"
-        }), 500
-    except Exception as e:
-        current_app.logger.error(f"Error al generar PDF: {str(e)}")
-        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+    if (!autoriza) {
+      setMensaje({ tipo: 'error', texto: 'Debe seleccionar quien autoriza' });
+      return;
+    }
+
+    if (!fechaFactura || !vencimiento) {
+      setMensaje({ tipo: 'error', texto: 'Debe completar fechas de factura y vencimiento' });
+      return;
+    }
+
+    if (!detalleCompra.trim()) {
+      setMensaje({ tipo: 'error', texto: 'El detalle de compra es obligatorio' });
+      return;
+    }
+
+    if (lineasSeleccionadas.length === 0) {
+      setMensaje({ tipo: 'error', texto: 'Debe seleccionar al menos una línea' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+
+      const payload = {
+        orden_numero: numeroOP,
+        proveedor_id: proveedor.value,
+        proveedor_nombre: proveedor.label,
+        autoriza_id: autoriza.value,
+        autoriza_nombre: autoriza.label,
+        fecha_factura: fechaFactura,
+        vencimiento: vencimiento,
+        estado_pago: estadoPago,
+        detalle_compra: detalleCompra,
+        lineas: lineasSeleccionadas
+      };
+
+      const response = await fetch('/api/ordenes_pago/', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setMensaje({ tipo: 'success', texto: data.message });
+
+        // Limpiar formulario
+        setLineasSeleccionadas([]);
+        setDetalleCompra('');
+        setEstadoPago('');
+        await fetchProximoNumero();
+
+        // Recargar documentos del proveedor
+        if (proveedor) {
+          handleProveedorChange(proveedor);
+        }
+      } else {
+        setMensaje({ tipo: 'error', texto: data.message || 'Error al guardar' });
+      }
+    } catch (error) {
+      console.error('Error al guardar:', error);
+      setMensaje({ tipo: 'error', texto: 'Error al guardar la orden de pago' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ========= Generar PDF =========
+  const handleGenerarPDF = async () => {
+    if (!numeroOP) {
+      setMensaje({ tipo: 'error', texto: 'Debe crear la orden primero' });
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/ordenes_pago/pdf/${numeroOP}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `orden_pago_${numeroOP}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        setMensaje({ tipo: 'success', texto: 'PDF generado correctamente' });
+      } else {
+        const data = await response.json();
+        setMensaje({ tipo: 'error', texto: data.message || 'Error al generar PDF' });
+      }
+    } catch (error) {
+      console.error('Error al generar PDF:', error);
+      setMensaje({ tipo: 'error', texto: 'Error al generar PDF' });
+    }
+  };
+
+  // ========= Ver historial =========
+  const handleVerHistorial = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/ordenes_pago/historial', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setHistorial(data.data);
+          setMostrarHistorial(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error al cargar historial:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ========= Copiar orden =========
+  const handleCopiarOrden = async (ordenNumero) => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/ordenes_pago/copiar/${ordenNumero}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          const copiaData = data.data;
+
+          // Cargar datos en el formulario
+          setNumeroOP(copiaData.next_num);
+          setProveedor({ value: copiaData.proveedor_id, label: copiaData.proveedor_nombre });
+          setAutoriza({ value: copiaData.autoriza_id, label: copiaData.autoriza_nombre });
+          setFechaFactura(copiaData.fecha_factura);
+          setVencimiento(copiaData.vencimiento);
+          setEstadoPago(copiaData.estado_pago);
+          setDetalleCompra(copiaData.detalle_compra);
+          setLineasSeleccionadas(copiaData.lineas);
+
+          setMostrarHistorial(false);
+          setMensaje({ tipo: 'success', texto: `Orden ${ordenNumero} copiada. Modifique y guarde.` });
+        }
+      }
+    } catch (error) {
+      console.error('Error al copiar orden:', error);
+      setMensaje({ tipo: 'error', texto: 'Error al copiar la orden' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ========= Búsqueda de proveedores =========
+  const loadProveedores = async (inputValue) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const searchTerm = inputValue ? inputValue.trim() : '';
+
+      const query = searchTerm.length >= 2
+        ? `?term=${encodeURIComponent(searchTerm)}`
+        : `?limit=10`;
+
+      const response = await fetch(`/api/ordenes/helpers/autocomplete/proveedores${query}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.results || [];
+      }
+      return [];
+    } catch (error) {
+      console.error('Error al buscar proveedores:', error);
+      return [];
+    }
+  };
+
+  // ========= Búsqueda de trabajadores =========
+  const loadTrabajadores = async (inputValue) => {
+    try {
+      const token = localStorage.getItem('authToken');
+      const searchTerm = inputValue ? inputValue.trim() : '';
+
+      const query = searchTerm.length >= 2
+        ? `?term=${encodeURIComponent(searchTerm)}`
+        : `?limit=10`;
+
+      const response = await fetch(`/api/ordenes/helpers/autocomplete/trabajadores${query}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.results || [];
+      }
+      return [];
+    } catch (error) {
+      console.error('Error al buscar trabajadores:', error);
+      return [];
+    }
+  };
+
+  // ========= Estilos para react-select =========
+  const customSelectStyles = {
+    control: (base) => ({
+      ...base,
+      minHeight: '42px',
+      borderColor: '#d1d5db',
+      '&:hover': { borderColor: '#667eea' },
+      boxShadow: 'none'
+    }),
+    option: (base, state) => ({
+      ...base,
+      backgroundColor: state.isFocused ? '#dbeafe' : 'white',
+      color: '#1f2937',
+      cursor: 'pointer'
+    })
+  };
+
+  const totales = calcularTotales();
+
+  // ========= Renderizado =========
+  return (
+    <div className="ordenes-pago-container">
+      {/* ========= Header ========= */}
+      <div className="ordenes-pago-header">
+        <div className="header-title-group">
+          <div className="icon-wrapper">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="3" y="6" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="2"/>
+              <path d="M3 10H21" stroke="currentColor" strokeWidth="2"/>
+              <circle cx="7" cy="14" r="1" fill="currentColor"/>
+              <path d="M10 14H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <h1>Órdenes de Pago</h1>
+        </div>
+        <div className="header-actions">
+          <button className="btn-secondary" onClick={handleVerHistorial}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+              <path d="M12 6V12L16 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            Historial
+          </button>
+        </div>
+      </div>
+
+      {/* ========= Mensajes ========= */}
+      {mensaje && (
+        <div className={`mensaje mensaje-${mensaje.tipo}`}>
+          {mensaje.texto}
+          <button className="btn-close-mensaje" onClick={() => setMensaje(null)}>×</button>
+        </div>
+      )}
+
+      {/* ========= Selección de Proveedor ========= */}
+      <div className="ordenes-section card-elevated">
+        <div className="section-header">
+          <svg className="section-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" strokeWidth="2"/>
+            <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2"/>
+          </svg>
+          <h2>Seleccionar Proveedor</h2>
+        </div>
+        <div className="form-grid-single">
+          <div className="form-group">
+            <label>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
+                <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+              Proveedor
+            </label>
+            <AsyncSelect
+              value={proveedor}
+              onChange={handleProveedorChange}
+              loadOptions={loadProveedores}
+              placeholder="Buscar proveedor..."
+              isClearable
+              isSearchable
+              styles={customSelectStyles}
+              noOptionsMessage={() => "Escriba para buscar..."}
+              defaultOptions
+            />
+          </div>
+        </div>
+
+        {proveedorData && (
+          <div className="proveedor-info">
+            <div className="info-row">
+              <span className="info-label">RUT:</span>
+              <span>{proveedorData.rut}</span>
+            </div>
+            <div className="info-row">
+              <span className="info-label">Banco:</span>
+              <span>{proveedorData.banco || 'N/A'}</span>
+            </div>
+            <div className="info-row">
+              <span className="info-label">Cuenta:</span>
+              <span>{proveedorData.cuenta || 'N/A'}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ========= Documentos Pendientes ========= */}
+      {documentos.length > 0 && (
+        <div className="ordenes-section card-elevated">
+          <div className="section-header">
+            <svg className="section-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" strokeWidth="2"/>
+              <path d="M14 2V8H20" stroke="currentColor" strokeWidth="2"/>
+            </svg>
+            <h2>Documentos Pendientes</h2>
+            <span className="badge-count">{documentos.length}</span>
+          </div>
+
+          <div className="tabla-documentos">
+            <div className="tabla-header-docs">
+              <div>DOCUMENTO</div>
+              <div>ORDEN COMPRA</div>
+              <div>TOTAL NETO</div>
+              <div>ACCIONES</div>
+            </div>
+
+            {documentos.map((doc, idx) => (
+              <div key={idx} className="tabla-row-docs">
+                <div className="col-doc">
+                  {doc.documento === 'SIN_DOCUMENTO' ? (
+                    <span className="badge-sin-doc">Sin documento</span>
+                  ) : (
+                    <span className="badge-doc">{doc.documento}</span>
+                  )}
+                </div>
+                <div className="col-oc">
+                  <span className="badge-oc">{doc.orden_compra}</span>
+                </div>
+                <div className="col-total">
+                  ${doc.total_neto.toLocaleString('es-CL')}
+                </div>
+                <div className="col-acciones-docs">
+                  <button
+                    className="btn-seleccionar"
+                    onClick={() => handleSeleccionarDocumento(doc.documento, doc.orden_compra)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                    Seleccionar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ========= Líneas Seleccionadas ========= */}
+      {lineasSeleccionadas.length > 0 && (
+        <>
+          <div className="ordenes-section card-elevated">
+            <div className="section-header">
+              <svg className="section-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+                <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+                <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+                <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+              <h2>Detalle de Material Seleccionado</h2>
+            </div>
+
+            <div className="tabla-lineas">
+              <div className="tabla-header-lineas">
+                <div>DESCRIPCIÓN</div>
+                <div>CANTIDAD</div>
+                <div>NETO UNIT.</div>
+                <div>TOTAL</div>
+                <div>OC</div>
+                <div>DOC.</div>
+                <div>ACCIONES</div>
+              </div>
+
+              {lineasSeleccionadas.map((linea) => (
+                <div key={linea.ingreso_id} className="tabla-row-lineas">
+                  <div className="col-desc">{linea.descripcion}</div>
+                  <div className="col-cant">
+                    <span className="badge-numero">{linea.cantidad}</span>
+                  </div>
+                  <div className="col-precio">${linea.neto_unitario.toLocaleString('es-CL')}</div>
+                  <div className="col-precio">${linea.neto_total.toLocaleString('es-CL')}</div>
+                  <div className="col-oc">
+                    <span className="badge-oc">{linea.orden_compra}</span>
+                  </div>
+                  <div className="col-doc">
+                    {linea.documento === 'SIN_DOCUMENTO' ? (
+                      <span className="badge-sin-doc">Sin doc</span>
+                    ) : (
+                      <span className="badge-doc">{linea.documento}</span>
+                    )}
+                  </div>
+                  <div className="col-acciones-lineas">
+                    <button
+                      className="btn-eliminar"
+                      onClick={() => eliminarLinea(linea.ingreso_id)}
+                      title="Eliminar"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 6H5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                        <path d="M19 6V20C19 21 18 22 17 22H7C6 22 5 21 5 20V6" stroke="currentColor" strokeWidth="2"/>
+                        <path d="M8 6V4C8 3 9 2 10 2H14C15 2 16 3 16 4V6" stroke="currentColor" strokeWidth="2"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Totales */}
+            <div className="totales-container">
+              <div className="total-row">
+                <span className="total-label">Total Neto:</span>
+                <span className="total-value">${totales.neto.toLocaleString('es-CL')}</span>
+              </div>
+              <div className="total-row">
+                <span className="total-label">IVA (19%):</span>
+                <span className="total-value">${totales.iva.toLocaleString('es-CL')}</span>
+              </div>
+              <div className="total-row total-final">
+                <span className="total-label">Total a Pagar:</span>
+                <span className="total-value">${totales.total.toLocaleString('es-CL')}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ========= Datos de la Orden ========= */}
+          <div className="ordenes-section card-elevated">
+            <div className="section-header">
+              <svg className="section-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15" stroke="currentColor" strokeWidth="2"/>
+                <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+              <h2>Datos de la Orden de Pago</h2>
+            </div>
+
+            <div className="form-grid-orden">
+              <div className="form-group">
+                <label>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                  Nº Orden de Pago
+                </label>
+                <input type="text" value={numeroOP} readOnly className="input-readonly" />
+              </div>
+
+              <div className="form-group">
+                <label>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M4 20C4 16.6863 6.68629 14 10 14H14C17.3137 14 20 16.6863 20 20" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                  Autoriza
+                </label>
+                <AsyncSelect
+                  value={autoriza}
+                  onChange={setAutoriza}
+                  loadOptions={loadTrabajadores}
+                  placeholder="Seleccionar quien autoriza..."
+                  isClearable
+                  isSearchable
+                  styles={customSelectStyles}
+                  noOptionsMessage={() => "Escriba para buscar..."}
+                  defaultOptions
+                />
+              </div>
+
+              <div className="form-group">
+                <label>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2"/>
+                    <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2"/>
+                    <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                  Fecha Factura
+                </label>
+                <input
+                  type="date"
+                  value={fechaFactura}
+                  onChange={(e) => setFechaFactura(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2"/>
+                    <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2"/>
+                    <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                  Vencimiento
+                </label>
+                <input
+                  type="date"
+                  value={vencimiento}
+                  onChange={(e) => setVencimiento(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="2"/>
+                    <line x1="2" y1="10" x2="22" y2="10" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                  Estado de Pago
+                </label>
+                <input
+                  type="text"
+                  value={estadoPago}
+                  onChange={(e) => setEstadoPago(e.target.value)}
+                  placeholder="Ej: Pendiente, Pagado..."
+                />
+              </div>
+
+              <div className="form-group form-group-full">
+                <label>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                  Detalle de Compra (obligatorio)
+                </label>
+                <textarea
+                  value={detalleCompra}
+                  onChange={(e) => setDetalleCompra(e.target.value)}
+                  placeholder="Describa el detalle de la compra..."
+                  rows="3"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* ========= Acciones ========= */}
+          <div className="acciones-footer">
+            <button
+              className="btn-secondary"
+              onClick={handleGenerarPDF}
+              disabled={!numeroOP}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+              Generar PDF
+            </button>
+            <button
+              className="btn-guardar"
+              onClick={handleGuardar}
+              disabled={loading}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H16L21 8V19C21 20.1046 20.1046 21 19 21Z" stroke="currentColor" strokeWidth="2"/>
+                <path d="M7 3V8H15" stroke="currentColor" strokeWidth="2"/>
+                <rect x="9" y="13" width="6" height="8" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+              {loading ? 'Guardando...' : `Crear Orden de Pago #${numeroOP}`}
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* ========= Modal Historial ========= */}
+      {mostrarHistorial && (
+        <div className="modal-overlay" onClick={() => setMostrarHistorial(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Historial de Órdenes de Pago</h3>
+              <button className="btn-close-modal" onClick={() => setMostrarHistorial(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              {historial.length === 0 ? (
+                <p className="text-center">No hay órdenes registradas</p>
+              ) : (
+                <div className="tabla-historial">
+                  <div className="tabla-header-historial">
+                    <div>Nº ORDEN</div>
+                    <div>PROVEEDOR</div>
+                    <div>FECHA</div>
+                    <div>TOTAL</div>
+                    <div>ESTADO</div>
+                    <div>ACCIONES</div>
+                  </div>
+                  {historial.map((orden) => (
+                    <div key={orden.orden_numero} className="tabla-row-historial">
+                      <div className="col-orden">#{orden.orden_numero}</div>
+                      <div className="col-prov">{orden.proveedor}</div>
+                      <div className="col-fecha">{new Date(orden.fecha).toLocaleDateString('es-CL')}</div>
+                      <div className="col-total">${orden.total.toLocaleString('es-CL')}</div>
+                      <div className="col-estado">
+                        <span className={`badge-estado ${orden.estado_documento}`}>
+                          {orden.estado_documento}
+                        </span>
+                      </div>
+                      <div className="col-acciones-historial">
+                        <button
+                          className="btn-copiar"
+                          onClick={() => handleCopiarOrden(orden.orden_numero)}
+                          title="Copiar orden"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" strokeWidth="2"/>
+                            <path d="M5 15H4C2.89543 15 2 14.1046 2 13V4C2 2.89543 2.89543 2 4 2H13C14.1046 2 15 2.89543 15 4V5" stroke="currentColor" strokeWidth="2"/>
+                          </svg>
+                          Copiar
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========= Loading Overlay ========= */}
+      {loading && (
+        <div className="loading-overlay">
+          <div className="spinner"></div>
+          <p>Procesando...</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default OrdenesPago;

@@ -853,3 +853,24 @@ Si quieres que implemente alguna de estas mejoras, dime cuál y la agrego.
 **Última actualización:** 20 de octubre de 2025  
 **Versión:** 1.0.0  
 **Estado:** ✅ Producción
+
+## Registro de trabajo reciente: Módulo `pagos`
+
+Pequeño resumen técnico de las acciones realizadas durante la migración y diagnóstico (útil para quien retome el trabajo):
+
+- Archivo editado: `nuevo_proyecto/backend/modules/pagos.py`
+  - Alineé `get_stats` con la lógica de `list_pagos` (batch-fetch y agregación por `orden_numero`).
+  - Pasé las sumas monetarias a enteros redondeados con `int(round(...))` para evitar errores por precisión de punto flotante.
+  - Cambié la lógica de `calcular_estado_pago` para priorizar `abono` en abonos parciales (si hay abonos y queda saldo > 0 → `abono`; si saldo == 0 o hay fecha → `pagado`).
+  - Añadido endpoint de diagnóstico: `/api/pagos/stats?debug=1` (devuelve muestras y contadores para inspección rápida).
+  - Añadido mapeo básico para parámetros `estado` recibidos desde la UI (ej. `Con Abonos` → `abono`) para mejorar compatibilidad mientras se ajusta el frontend.
+
+Resultados observados en pruebas locales:
+
+- Orden 3188: ahora aparece como `pagado` con `saldo_pendiente: 0` (abonos suman exactamente el total).
+- Órdenes 3144 y 3126: aparecen como `abono` con `total_abonado` y `saldo_pendiente` correctos.
+- `/api/pagos/stats?debug=1` devuelve métricas coherentes con la vista detallada.
+
+Pendiente: todavía existe un desfase al filtrar desde la UI en algunos casos (la UI envía etiquetas human-readable y puede haber diferencias en el mapeo, ver `TAREAS_PENDIENTES.md`).
+
+Si retomas trabajo en `pagos`, revisa primero `TAREAS_PENDIENTES.md` y el ticket/branch: `backup-before-proveedores-change-20251024-130912`.

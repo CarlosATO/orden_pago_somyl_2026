@@ -13,6 +13,7 @@ import Trabajadores from './components/Trabajadores';
 import Presupuestos from './components/Presupuestos';
 import Pagos from './components/Pagos';
 import DocumentosPendientes from './components/DocumentosPendientes';
+import EstadoPresupuesto from './components/EstadoPresupuesto';
 import './App.css';
 
 // Componentes placeholder para cada sección
@@ -28,16 +29,16 @@ function IngresosRecepciones() {
   return <Ingresos />;
 }
 
-function OrdenesPago() {
-  return <div className="content"><h1>Órdenes de Pago</h1><p>Autorizaciones de pago a proveedores (basadas en ingresos/facturas).</p></div>;
+function OrdenesPagoView() {
+  return <OrdenesPago />;
 }
 
 function FacturacionPendiente() {
-  return <div className="content"><h1>Facturación Pendiente</h1><p>Seguimiento de ingresos/OCs que aún no tienen factura asociada.</p></div>;
+  return <DocumentosPendientes />;
 }
 
 function InformePagos() {
-  return <div className="content"><h1>Informe de Pagos</h1><p>Historial y estado de los pagos efectuados.</p></div>;
+  return <Pagos />;
 }
 
 function PlanificacionPresupuestaria() {
@@ -48,32 +49,34 @@ function RegistroGastosDirectos() {
   return <div className="content"><h1>Registro de Gastos Directos</h1><p>Entrada de gastos sin OC que afectan al presupuesto.</p></div>;
 }
 
-function EstadoPresupuesto() {
-  return <div className="content"><h1>Estado de Presupuesto</h1><p>Visualización comparativa del presupuesto vs. gastos (incluye OCs, pagos y gastos directos).</p></div>;
-}
+// EstadoPresupuesto component is imported from ./components/EstadoPresupuesto
 
 function OrdenesNoRecepcionadas() {
   return <div className="content"><h1>Órdenes No Recepcionadas</h1><p>Reporte específico.</p></div>;
 }
 
 function Proyectos() {
-  return <div className="content"><h1>Proyectos</h1></div>;
+  return <ProyectosPage />;
 }
 
 function Proveedores() {
-  return <div className="content"><h1>Proveedores</h1></div>;
+  return <ProveedoresPage />;
+}
+
+function Materiales() {
+  return <MaterialesPage />;
 }
 
 function MaterialesServicios() {
-  return <div className="content"><h1>Materiales / Servicios</h1></div>;
+  return <MaterialesPage />;
 }
 
 function ItemsPresupuestarios() {
-  return <div className="content"><h1>Ítems Presupuestarios</h1></div>;
+  return <Items />;
 }
 
 function TrabajadoresSolicitantes() {
-  return <div className="content"><h1>Trabajadores / Solicitantes</h1></div>;
+  return <Trabajadores />;
 }
 
 function GestionUsuarios() {
@@ -102,22 +105,25 @@ function App() {
       <div className="App">
         {isAuthenticated ? (
           <div className="app-layout">
-               <Sidebar onLogout={handleLogout} onToggle={handleSidebarToggle} />
-               <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+            <Sidebar onLogout={handleLogout} onToggle={handleSidebarToggle} />
+            <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
               <Routes>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/ordenes-compra" element={<OrdenesCompra />} />
                 <Route path="/ingresos-recepciones" element={<IngresosRecepciones />} />
-                <Route path="/ordenes-pago" element={<OrdenesPago />} />
+                <Route path="/ordenes-pago" element={<OrdenesPagoView />} />
+                <Route path="/presupuestos" element={<Presupuestos />} />
+                <Route path="/pagos" element={<Pagos />} />
+                <Route path="/documentos-pendientes" element={<DocumentosPendientes />} />
                 <Route path="/facturacion-pendiente" element={<FacturacionPendiente />} />
                 <Route path="/informe-pagos" element={<InformePagos />} />
                 <Route path="/planificacion-presupuestaria" element={<PlanificacionPresupuestaria />} />
                 <Route path="/registro-gastos-directos" element={<RegistroGastosDirectos />} />
-                {/* EstadoPresupuesto route removed (module deleted) */}
+                <Route path="/estado-presupuesto" element={<EstadoPresupuesto />} />
                 <Route path="/ordenes-no-recepcionadas" element={<OrdenesNoRecepcionadas />} />
                 <Route path="/proyectos" element={<Proyectos />} />
                 <Route path="/proveedores" element={<Proveedores />} />
-                <Route path="/materiales-servicios" element={<MaterialesServicios />} />
+                <Route path="/materiales" element={<Materiales />} />
                 <Route path="/items-presupuestarios" element={<ItemsPresupuestarios />} />
                 <Route path="/trabajadores-solicitantes" element={<TrabajadoresSolicitantes />} />
                 <Route path="/gestion-usuarios" element={<GestionUsuarios />} />
