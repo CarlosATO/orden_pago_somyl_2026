@@ -88,11 +88,10 @@ function Sidebar({ onLogout, onToggle }) {
               </div>
               {!isCollapsed && <span className="arrow">{activeMenu === 'presupuesto' ? '▾' : '▸'}</span>}
             </div>
-            {activeMenu === 'presupuesto' && (
+                {activeMenu === 'presupuesto' && (
               <ul className={isCollapsed ? 'submenu overlay' : 'submenu'}>
                 <li><Link to="/planificacion-presupuestaria">Planificación Presupuestaria</Link></li>
                 <li><Link to="/registro-gastos-directos">Registro de Gastos Directos</Link></li>
-                <li><Link to="/estado-presupuesto">Estado de Presupuesto</Link></li>
               </ul>
             )}
           </li>

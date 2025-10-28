@@ -4,6 +4,15 @@ import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 import OrdenCompra from './components/OrdenCompra';
 import Ingresos from './components/Ingresos';
+import OrdenesPago from './components/ordenesPago';
+import ProveedoresPage from './components/ProveedoresPage';
+import ProyectosPage from './components/ProyectosPage';
+import MaterialesPage from './components/MaterialesPage';
+import Items from './components/Items';
+import Trabajadores from './components/Trabajadores';
+import Presupuestos from './components/Presupuestos';
+import Pagos from './components/Pagos';
+import DocumentosPendientes from './components/DocumentosPendientes';
 import './App.css';
 
 // Componentes placeholder para cada sección
@@ -104,7 +113,7 @@ function App() {
                 <Route path="/informe-pagos" element={<InformePagos />} />
                 <Route path="/planificacion-presupuestaria" element={<PlanificacionPresupuestaria />} />
                 <Route path="/registro-gastos-directos" element={<RegistroGastosDirectos />} />
-                <Route path="/estado-presupuesto" element={<EstadoPresupuesto />} />
+                {/* EstadoPresupuesto route removed (module deleted) */}
                 <Route path="/ordenes-no-recepcionadas" element={<OrdenesNoRecepcionadas />} />
                 <Route path="/proyectos" element={<Proyectos />} />
                 <Route path="/proveedores" element={<Proveedores />} />

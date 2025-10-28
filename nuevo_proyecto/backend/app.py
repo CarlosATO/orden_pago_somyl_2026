@@ -25,9 +25,18 @@ def create_app():
     from .modules.ordenes import bp as ordenes_bp
     from .modules.ingresos import bp as ingresos_bp
     from .modules.proveedores import bp as proveedores_bp
+    from .modules.presupuestos import bp as presupuestos_bp
+    from .modules.pagos import bp as pagos_api_bp
+    from .modules.documentos_pendientes import bp as bp_documentos_pendientes
+    from .modules.proyectos import bp as proyectos_bp
+    from .modules.materiales import bp as materiales_bp
+    from .modules.items import bp as items_bp
+    from .modules.trabajadores import bp as trabajadores_bp
     from .rutas.pdf_orden_compra_routes import pdf_oc_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
+    app.register_blueprint(pagos_api_bp, url_prefix='/api/pagos')
+    app.register_blueprint(bp_documentos_pendientes, url_prefix='/api/documentos-pendientes')
     app.register_blueprint(ordenes_bp, url_prefix='/api/ordenes')
     app.register_blueprint(ingresos_bp, url_prefix='/api/ingresos')
     app.register_blueprint(proveedores_bp, url_prefix='/api/proveedores')
