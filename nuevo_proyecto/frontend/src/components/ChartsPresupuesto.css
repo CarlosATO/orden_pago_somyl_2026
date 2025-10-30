@@ -6,10 +6,13 @@
   align-items: flex-start;
 }
 .chart-card {
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 6px 18px rgba(10, 20, 40, 0.06);
-  padding: 12px 14px;
+  /* Alineamos el estilo de las tarjetas con las secciones principales */
+  background-color: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0,0,0,0.05);
+  transition: all 0.3s ease;
   flex: 0 0 48%; /* dos tarjetas lado a lado */
   max-width: 48%;
   box-sizing: border-box;
@@ -17,12 +20,15 @@
 .bars-row { display:flex; gap: 18px; align-items:flex-end; justify-content:space-between; }
 .bars-group { display:flex; gap: 10px; align-items:flex-end; }
 .bar-item { display:flex; flex-direction:column; align-items:center; width:120px; }
+.bar-number { font-size:12px; color:#111827; margin-bottom:6px; font-weight:600; }
 .bar-rect { width:36px; border-radius:4px 4px 0 0; transition:height .3s; }
 .bar-label { font-size:12px; color:#6b7280; margin-top:8px; text-align:center; }
 .bar-value { font-size:13px; margin-top:4px; font-weight:600; }
+.bar-value.small { font-size:12px; color:#374151; font-weight:500; }
 
 .balance-row { gap: 24px; display:flex; justify-content:space-around; }
 .balance-item { display:flex; flex-direction:column; align-items:center; width:160px; }
+.balance-number { font-size:12px; color:#111827; margin-bottom:6px; font-weight:600; }
 .balance-rect { width: 72px; border-radius:6px; margin-bottom:8px; }
 .balance-rect.positivo { background: #34c38f; }
 .balance-rect.negativo { background: #ff5b5b; }
@@ -35,3 +41,6 @@
   .chart-card { flex: 1 1 100%; max-width: 100%; }
   .bar-item { width: 100px; }
 }
+
+/* Hover behavior similar to other cards */
+.chart-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,0.12); transform: translateY(-2px); }

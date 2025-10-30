@@ -3,11 +3,14 @@ import './ChartsPresupuesto.css';
 
 function SimpleBar({ value, max, color, label }) {
   const height = max > 0 ? Math.round((value / max) * 120) : 0;
+  const formatted = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value);
   return (
     <div className="bar-item">
+      <div className="bar-number">{formatted}</div>
       <div className="bar-rect" style={{ height: `${height}px`, background: color }} title={label + ': ' + value} />
       <div className="bar-label">{label}</div>
-      <div className="bar-value">{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value)}</div>
+      {/* value below kept smaller */}
+      <div className="bar-value small">{formatted}</div>
     </div>
   );
 }
@@ -66,7 +69,7 @@ export default function ChartsPresupuesto({ proyectoId }) {
     <div className="charts-container">
       <div className="chart-card">
         <h3>Comparación: Presupuesto inicial VS Actual</h3>
-        <div className="bars-row">
+          <div className="bars-row">
           <div className="bars-group">
             <SimpleBar value={data.venta_presupuestada} max={groupMax} color="#2b79ff" label="Venta presupuestada" />
             <SimpleBar value={data.produccion_actual} max={groupMax} color="#34c38f" label="Producción actual" />
