@@ -100,21 +100,22 @@ def get_documentos_pendientes(current_user):
             .eq("proveedor", proveedor_id)
             .execute().data or []
         )
-        
+
         pagados_ids = {op["ingreso_id"] for op in ordenes_pago if op.get("ingreso_id")}
         
         # 5. Filtrar ingresos pendientes
         pendientes = [i for i in ingresos if i["id"] not in pagados_ids]
         
-        # 6. Agrupar por factura + OC
+        # 6. Agrupar por factura + OC (LÓGICA CORREGIDA)
         grupos = {}
         for ing in pendientes:
+            # ✅ FIX: Usar "SIN_DOCUMENTO" para facturas nulas
             factura_key = ing["factura"] if ing["factura"] else "SIN_DOCUMENTO"
             key = (factura_key, ing["orden_compra"])
             
             if key not in grupos:
                 grupos[key] = {
-                    "documento": factura_key,
+                    "documento": factura_key,  # ✅ Nombre consistente
                     "orden_compra": ing["orden_compra"],
                     "total_neto": 0.0,
                     "count": 0
@@ -326,8 +327,8 @@ def create_orden_pago(current_user):
             # Construir registro
             registros.append({
                 "ingreso_id": ingreso_id,
-                "orden_compra": orden_compra_id,  # FK al ID de orden_de_compra
-                "doc_recep": documento or "",
+                "orden_compra": orden_compra_id,
+                "doc_recep": documento or "",  # ✅ FIX: Campo correcto
                 "art_corr": art_corr,
                 "material": material_id,
                 "material_nombre": descripcion,
@@ -450,12 +451,11 @@ def copiar_orden_pago(current_user, orden_numero):
 
 
 # ================================================================
-# ENDPOINT HISTORIAL DE ÓRDENES
+# ENDPOINT HISTORIAL DE ÓRDENES (OPTIMIZADO)
 # ================================================================
 
 @bp.route("/historial", methods=["GET"])
 @token_required
-# @cache_result(ttl_seconds=60)  # Cache comentado: causa error de serialización con User
 def get_historial_ordenes(current_user):
     """
     Obtiene el historial de órdenes de pago creadas.
@@ -463,15 +463,15 @@ def get_historial_ordenes(current_user):
     supabase = current_app.config['SUPABASE']
     
     try:
-        # Obtener todas las órdenes agrupadas
+        # ✅ FIX: Una sola query con todos los datos necesarios
         ordenes = (
             supabase.table("orden_de_pago")
-            .select("orden_numero, proveedor_nombre, fecha, estado_pago, estado_documento")
+            .select("orden_numero, proveedor_nombre, fecha, estado_pago, estado_documento, costo_final_con_iva")
             .order("orden_numero", desc=True)
             .execute().data or []
         )
         
-        # Agrupar por orden_numero
+        # Agrupar por orden_numero y calcular totales
         ordenes_agrupadas = {}
         for op in ordenes:
             num = op["orden_numero"]
@@ -485,28 +485,9 @@ def get_historial_ordenes(current_user):
                     "total": 0,
                     "lineas": 0
                 }
-        
-        # Calcular totales
-        for op in ordenes:
-            num = op["orden_numero"]
-            ordenes_agrupadas[num]["lineas"] += 1
-        
-        # Calcular totales monetarios
-        for num in ordenes_agrupadas.keys():
-            lineas_orden = [op for op in ordenes if op["orden_numero"] == num]
-            total = 0
-            for linea in lineas_orden:
-                # Obtener el total de cada línea
-                linea_data = (
-                    supabase.table("orden_de_pago")
-                    .select("costo_final_con_iva")
-                    .eq("orden_numero", num)
-                    .execute().data or []
-                )
-                for ld in linea_data:
-                    total += float(ld.get("costo_final_con_iva") or 0)
             
-            ordenes_agrupadas[num]["total"] = total
+            ordenes_agrupadas[num]["lineas"] += 1
+            ordenes_agrupadas[num]["total"] += float(op.get("costo_final_con_iva") or 0)
         
         # Convertir a lista
         resultado = list(ordenes_agrupadas.values())
@@ -542,20 +523,22 @@ def get_documentos_pendientes_completar(current_user):
         )
         
         # Obtener números de OC reales (no IDs)
+        oc_ids = list(set([p.get("orden_compra") for p in pendientes if p.get("orden_compra")]))
+        oc_map = {}
+        
+        if oc_ids:
+            oc_data = (
+                supabase.table("orden_de_compra")
+                .select("id, orden_compra")
+                .in_("id", oc_ids)
+                .execute().data or []
+            )
+            oc_map = {oc["id"]: oc["orden_compra"] for oc in oc_data}
+        
+        # Asignar números de OC
         for pend in pendientes:
             oc_id = pend.get("orden_compra")
-            if oc_id:
-                oc_data = (
-                    supabase.table("orden_de_compra")
-                    .select("orden_compra")
-                    .eq("id", oc_id)
-                    .limit(1)
-                    .execute().data or []
-                )
-                if oc_data:
-                    pend["orden_compra_numero"] = oc_data[0]["orden_compra"]
-                else:
-                    pend["orden_compra_numero"] = "N/A"
+            pend["orden_compra_numero"] = oc_map.get(oc_id, "N/A")
         
         return jsonify({"success": True, "data": pendientes})
         
