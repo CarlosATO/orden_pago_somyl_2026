@@ -111,7 +111,7 @@ def create_orden(current_user):
 
 @bp.route("/", methods=["GET"])
 @token_required
-@cache_result(ttl_seconds=60) # Cachea la lista de órdenes por 1 minuto
+# @cache_result(ttl_seconds=60) # Cache comentado: causa error de serialización con User
 def get_listado_ordenes(current_user):
     """
     Devuelve un listado resumido de todas las órdenes de compra.
@@ -161,7 +161,7 @@ def get_listado_ordenes(current_user):
 
 @bp.route("/<int:oc_numero>", methods=["GET"])
 @token_required
-@cache_result(ttl_seconds=120) # Cachea el detalle por 2 minutos
+# @cache_result(ttl_seconds=120) # Cache comentado: causa error de serialización con User
 def get_detalle_orden(current_user, oc_numero):
     """
     Devuelve el detalle completo de una OC específica.

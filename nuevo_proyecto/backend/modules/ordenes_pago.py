@@ -455,7 +455,7 @@ def copiar_orden_pago(current_user, orden_numero):
 
 @bp.route("/historial", methods=["GET"])
 @token_required
-@cache_result(ttl_seconds=60)
+# @cache_result(ttl_seconds=60)  # Cache comentado: causa error de serialización con User
 def get_historial_ordenes(current_user):
     """
     Obtiene el historial de órdenes de pago creadas.

@@ -326,3 +326,36 @@ SUPABASE_KEY=${SUPABASE_KEY}
 **Última actualización:** 20 de octubre de 2025  
 **Autor:** Equipo de Desarrollo  
 **Versión:** 1.0.0
+
+
+Obtebcion de datos en base de datos de produccion.
+
+📊 Estructura de las Bases de Datos:
+Sistema Actual (Supabase)
+Tabla: proyectos
+ID: id (el ID principal que usamos aquí)
+Ejemplo: ID = 30 (BORGOÑO), ID = 55 (ENTEL ARCOS LONGAVÍ)
+Sistema de Producción (Nhost)
+Tabla 1: proyectos
+
+id = ID local del sistema de producción
+nombre = Nombre del proyecto
+supabase_proyecto_id = ID del proyecto en Supabase (este es nuestro link!)
+Tabla 2: datos_operativos
+
+id_proyecto = ID local (del sistema producción)
+venta_total = Monto de producción a sumar
+(otros campos...)
+🔗 Flujo de Consulta:
+Para obtener la "Producción actual" del proyecto con ID_Supabase = 30 (BORGOÑO):
+
+Buscar en Nhost proyectos donde supabase_proyecto_id = 30
+→ Obtenemos id_local (ej: 5)
+
+Buscar en Nhost datos_operativos donde id_proyecto = 5
+→ Obtenemos todas las filas de producción
+
+Sumar todos los valores de la columna venta_total
+→ Este total es la "Producción actual"
+
+Mostrar ese total en el cuadro de "Producción actual" del módulo EstadoPresupuesto

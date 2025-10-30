@@ -397,7 +397,7 @@ def api_buscar_oc(current_user):
 
 @bp.route("/historial/<int:oc_numero>", methods=["GET"])
 @token_required
-@cache_result(ttl_seconds=120)
+# @cache_result(ttl_seconds=120)  # Cache comentado: causa error de serialización con User
 def get_historial_ingresos(current_user, oc_numero):
     """
     Obtiene el historial de ingresos de una OC específica.

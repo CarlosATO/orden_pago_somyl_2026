@@ -8,6 +8,7 @@ Werkzeug==3.0.3
 # ---- Base de Datos y Cache ----
 supabase==2.5.1
 redis==5.0.4
+gql[requests]==3.5.0  # Cliente GraphQL para Nhost/Hasura
 # psycopg2-binary==2.9.9  # No necesario con Supabase
 
 # ---- Utilidades ----

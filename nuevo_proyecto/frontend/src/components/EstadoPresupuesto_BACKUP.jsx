@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect } from 'react';
 import './EstadoPresupuesto.css';
 
 function EstadoPresupuesto() {
@@ -9,11 +9,6 @@ function EstadoPresupuesto() {
     presupuesto_total: 0,
     real_total: 0,
     diferencia_total: 0
-  });
-  const [resumen, setResumen] = useState({
-    presupuesto_inicial: { venta: 0, gasto: 0, saldo: 0 },
-    estado_actual: { produccion: 0, gasto: 0, saldo: 0 },
-    indicadores: { ejecucion_presupuesto: 0, avance_produccion: 0, variacion_saldo: 0, meses_analizados: 0 }
   });
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState(null);
@@ -44,7 +39,7 @@ function EstadoPresupuesto() {
 
   useEffect(() => {
     fetchEstadoPresupuesto();
-  }, [proyectoSeleccionado]); // Re-fetch cuando cambie el proyecto seleccionado
+  }, []);
 
   useEffect(() => {
     if (mensaje) {
@@ -62,13 +57,7 @@ function EstadoPresupuesto() {
         return;
       }
 
-      // Construir URL con filtro de proyecto si no es 'todos'
-      let url = '/api/estado-presupuesto/';
-      if (proyectoSeleccionado && proyectoSeleccionado !== 'todos') {
-        url += `?proyecto_id=${proyectoSeleccionado}`;
-      }
-
-      const response = await fetch(url, {
+      const response = await fetch('/api/estado-presupuesto/', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -83,22 +72,10 @@ function EstadoPresupuesto() {
           console.log('✅ Proyectos:', data.data.proyectos);
           console.log('✅ Items:', data.data.items);
           console.log('✅ Totales:', data.data.totales);
-          console.log('✅ Resumen:', data.data.resumen);
           setMatriz(data.data.matriz);
-          
-          // IMPORTANTE: Solo actualizar la lista de proyectos si estamos viendo "todos"
-          // o si la lista está vacía (primera carga)
-          if (proyectoSeleccionado === 'todos' || proyectos.length === 0) {
-            setProyectos(data.data.proyectos);
-          }
-          
+          setProyectos(data.data.proyectos);
           setItems(data.data.items);
           setTotales(data.data.totales);
-          setResumen(data.data.resumen || {
-            presupuesto_inicial: { venta: 0, gasto: 0, saldo: 0 },
-            estado_actual: { produccion: 0, gasto: 0, saldo: 0 },
-            indicadores: { ejecucion_presupuesto: 0, avance_produccion: 0, variacion_saldo: 0, meses_analizados: 0 }
-          });
         } else {
           setMensaje({ tipo: 'error', texto: data.message || 'Error al cargar datos' });
         }
@@ -184,15 +161,18 @@ function EstadoPresupuesto() {
       const itemData = proyectoData.items[item.id];
       
       if (!itemData) {
+        console.warn(`⚠️ No se encontró itemData para item ${item.id} (${item.item})`);
         return false;
       }
 
+      console.log(`📋 Revisando item ${item.item}:`, {
+        total_presupuesto: itemData.total_presupuesto,
+        total_real: itemData.total_real,
+        vista: vistaActual
+      });
+
       if (vistaActual === 'comparativa') {
-        const tieneData = itemData.total_presupuesto > 0 || itemData.total_real > 0;
-        if (tieneData) {
-          console.log(`✅ Item incluido: ${item.item} (P: ${itemData.total_presupuesto}, R: ${itemData.total_real})`);
-        }
-        return tieneData;
+        return itemData.total_presupuesto > 0 || itemData.total_real > 0;
       }
       
       if (vistaActual === 'presupuesto') {
@@ -206,8 +186,7 @@ function EstadoPresupuesto() {
       return false;
     });
     
-    console.log(`🔢 Total items filtrados para ${proyectoData.nombre}: ${itemsFiltrados.length} de ${items.length} totales`);
-    console.log(`📋 Items mostrados:`, itemsFiltrados.map(i => i.item).join(', '));
+    console.log(`✅ Items filtrados para ${proyectoData.nombre}:`, itemsFiltrados.length, itemsFiltrados);
     return itemsFiltrados;
   };
 
@@ -269,88 +248,63 @@ function EstadoPresupuesto() {
         </div>
       )}
 
-      {/* Stats Cards - Nuevo formato */}
-      <div className="presupuesto-section">
-        {/* Columna Izquierda - Presupuesto Inicial */}
-        <div className="presupuesto-inicial">
-          <div className="section-header-blue">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      {/* Stats Cards */}
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon stat-presupuesto">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <path d="M9 7H7C5.89543 7 5 7.89543 5 9V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V9C19 7.89543 18.1046 7 17 7H15M9 7V5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5V7M9 7H15" stroke="currentColor" strokeWidth="2"/>
             </svg>
-            PRESUPUESTO INICIAL
           </div>
-          <div className="presupuesto-content">
-            <div className="presupuesto-row">
-              <span className="label">Venta presupuestada</span>
-              <span className="value value-blue">{formatMonto(resumen.presupuesto_inicial?.venta || 0)}</span>
-            </div>
-            <div className="presupuesto-row">
-              <span className="label">Gasto presupuestado</span>
-              <span className="value value-red">{formatMonto(resumen.presupuesto_inicial?.gasto || 0)}</span>
-            </div>
-            <div className="presupuesto-row presupuesto-saldo">
-              <span className="label-saldo">Saldo presupuestado</span>
-              <span className="value value-green">{formatMonto(resumen.presupuesto_inicial?.saldo || 0)}</span>
-            </div>
+          <div className="stat-content">
+            <div className="stat-value">{formatMonto(totales.presupuesto_total)}</div>
+            <div className="stat-label">Presupuesto Total</div>
           </div>
         </div>
 
-        {/* Columna Derecha - Estado Actual */}
-        <div className="estado-actual">
-          <div className="section-header-green">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path d="M3 3V21H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              <path d="M7 16L12 11L16 15L21 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        <div className="stat-card">
+          <div className="stat-icon stat-real">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+              <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+              <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
             </svg>
-            ESTADO ACTUAL
           </div>
-          <div className="estado-content">
-            <div className="estado-row">
-              <span className="label">Producción actual</span>
-              <span className="value value-green-border">{formatMonto(resumen.estado_actual?.produccion || 0)}</span>
+          <div className="stat-content">
+            <div className="stat-value">{formatMonto(totales.real_total)}</div>
+            <div className="stat-label">Gasto Real</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className={`stat-icon stat-diferencia ${totales.diferencia_total >= 0 ? 'positivo' : 'negativo'}`}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M7 10L12 15L17 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <div className="stat-content">
+            <div className={`stat-value ${totales.diferencia_total >= 0 ? 'positivo' : 'negativo'}`}>
+              {formatMonto(totales.diferencia_total)}
             </div>
-            <div className="estado-row">
-              <span className="label">Gasto actual</span>
-              <span className="value value-red">{formatMonto(resumen.estado_actual?.gasto || 0)}</span>
+            <div className="stat-label">Diferencia</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon stat-porcentaje">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+              <path d="M12 6V12L16 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <div className="stat-content">
+            <div className="stat-value">
+              {totales.presupuesto_total > 0 
+                ? `${((totales.real_total / totales.presupuesto_total) * 100).toFixed(1)}%`
+                : '0%'}
             </div>
-            <div className="estado-row estado-saldo">
-              <span className="label-saldo">Saldo actual</span>
-              <span className={`value ${(resumen.estado_actual?.saldo || 0) >= 0 ? 'value-green' : 'value-red'}`}>
-                {formatMonto(resumen.estado_actual?.saldo || 0)}
-              </span>
-            </div>
+            <div className="stat-label">Ejecución</div>
           </div>
-        </div>
-      </div>
-
-      {/* Stats Cards Inferiores */}
-      <div className="stats-grid-bottom">
-        <div className="stat-card-small">
-          <div className="stat-value-large stat-blue">
-            {resumen.indicadores?.ejecucion_presupuesto?.toFixed(1) || '0.0'}%
-          </div>
-          <div className="stat-label-small">EJECUCIÓN PRESUPUESTO</div>
-        </div>
-
-        <div className="stat-card-small">
-          <div className="stat-value-large stat-yellow">
-            {resumen.indicadores?.avance_produccion?.toFixed(1) || '0.0'}%
-          </div>
-          <div className="stat-label-small">AVANCE PRODUCCIÓN</div>
-        </div>
-
-        <div className="stat-card-small">
-          <div className="stat-value-large stat-green">
-            {formatMonto(resumen.indicadores?.variacion_saldo || 0)}
-          </div>
-          <div className="stat-label-small">VARIACIÓN SALDO</div>
-        </div>
-
-        <div className="stat-card-small">
-          <div className="stat-value-large stat-cyan">
-            {resumen.indicadores?.meses_analizados || 0}
-          </div>
-          <div className="stat-label-small">MESES ANALIZADOS</div>
         </div>
       </div>
 
@@ -363,17 +317,12 @@ function EstadoPresupuesto() {
             </svg>
             Proyecto
           </label>
-          <select 
-            value={proyectoSeleccionado} 
-            onChange={(e) => setProyectoSeleccionado(e.target.value)}
-            disabled={loading}
-          >
+          <select value={proyectoSeleccionado} onChange={(e) => setProyectoSeleccionado(e.target.value)}>
             <option value="todos">Todos los proyectos</option>
             {proyectos.map(p => (
               <option key={p.id} value={p.id}>{p.proyecto}</option>
             ))}
           </select>
-          {loading && <span className="loading-indicator">Cargando...</span>}
         </div>
 
         <div className="vista-toggle">
@@ -427,155 +376,158 @@ function EstadoPresupuesto() {
           </div>
         ) : (
           <div className="table-scroll-matriz">
-            <div className={`tabla-matriz vista-${vistaActual}`}>
-              {/* Header Principal */}
-              <div className="tabla-header-matriz">
-                <div className="header-cell sticky-col-item">Item</div>
-                {meses.map(m => (
-                  <div key={m.num} className="header-mes">
-                    {m.nombre}
-                  </div>
-                ))}
-                <div className="header-mes">Total</div>
-              </div>
-
-              {/* Sub-header para vista comparativa - SOLO DIFERENCIA */}
-              {vistaActual === 'comparativa' && (
-                <div className="tabla-subheader-matriz">
-                  <div className="subheader-spacer sticky-col-item"></div>
+            <table className="tabla-matriz">
+              <thead>
+                <tr>
+                  <th className="sticky-col" rowSpan={vistaActual === 'comparativa' ? 2 : 1}>Proy.</th>
+                  <th className="sticky-col-2" rowSpan={vistaActual === 'comparativa' ? 2 : 1}>Item</th>
                   {meses.map(m => (
-                    <div key={`dif-${m.num}`} className="subheader-cell">Dif.</div>
+                    <th key={m.num} colSpan={vistaActual === 'comparativa' ? 3 : 1}>
+                      {m.nombre}
+                    </th>
                   ))}
-                  <div key="total-dif" className="subheader-cell">Dif.</div>
-                </div>
-              )}
-
-              {/* Body - Filas de datos */}
-              <div className="tabla-body-matriz">
+                  <th colSpan={vistaActual === 'comparativa' ? 3 : 1}>Total</th>
+                </tr>
+                {vistaActual === 'comparativa' && (
+                  <tr>
+                    {meses.flatMap(m => [
+                      <th key={`pres-${m.num}`} className="sub-header">Pres.</th>,
+                      <th key={`real-${m.num}`} className="sub-header">Real</th>,
+                      <th key={`dif-${m.num}`} className="sub-header">Dif.</th>
+                    ])}
+                    <th key="total-pres" className="sub-header">Pres.</th>
+                    <th key="total-real" className="sub-header">Real</th>
+                    <th key="total-dif" className="sub-header">Dif.</th>
+                  </tr>
+                )}
+              </thead>
+              <tbody>
                 {proyectosFiltrados.map(proyecto => {
                   const proyectoData = matriz[proyecto.id];
-                  if (!proyectoData) {
-                    console.log(`❌ No se encontró proyectoData para proyecto ${proyecto.id}`);
-                    return null;
-                  }
+                  if (!proyectoData) return null;
 
                   const itemsFiltrados = getItemsFiltrados(proyectoData);
                   
-                  console.log(`📋 Proyecto ${proyectoData.nombre}: ${itemsFiltrados.length} items filtrados`);
-                  
-                  if (itemsFiltrados.length === 0) {
-                    console.log(`⚠️ No hay items para mostrar en proyecto ${proyectoData.nombre}`);
-                    return null;
-                  }
+                  if (itemsFiltrados.length === 0) return null;
 
-                  return (
-                    <Fragment key={proyecto.id}>
-                      {/* Fila de encabezado de proyecto */}
-                      <div className="tabla-row-proyecto">
-                        <div className="proyecto-header-cell">
-                          {proyectoData.nombre}
-                        </div>
-                      </div>
+                  return itemsFiltrados.map((item, itemIndex) => {
+                    const itemData = proyectoData.items[item.id];
 
-                      {/* Filas de items */}
-                      {itemsFiltrados.map((item, itemIndex) => {
-                        const itemData = proyectoData.items[item.id];
+                    return (
+                      <tr key={`${proyecto.id}-${item.id}`}>
+                        {itemIndex === 0 && (
+                          <td 
+                            className="sticky-col proyecto-cell" 
+                            rowSpan={itemsFiltrados.length}
+                            title={proyectoData.nombre}
+                          >
+                            {proyectoData.nombre}
+                          </td>
+                        )}
+                        <td className="sticky-col-2 item-cell">{itemData.nombre}</td>
                         
-                        if (!itemData) {
-                          console.log(`❌ No itemData para item ${item.id}`);
-                          return null;
-                        }
-
-                        console.log(`✅ Renderizando fila: ${proyectoData.nombre} - ${itemData.nombre}`);
-
-                        return (
-                          <div key={`${proyecto.id}-${item.id}`} className="tabla-row-matriz">
-                            <div className="data-cell sticky-col-item item-cell">{itemData.nombre}</div>
-                            
-                            {meses.flatMap(m => {
-                              const datos = itemData.meses[m.num] || { presupuesto: 0, real: 0, diferencia: 0 };
+                        {meses.flatMap(m => {
+                          const datos = itemData.meses[m.num] || { presupuesto: 0, real: 0, diferencia: 0 };
                           
-                              if (vistaActual === 'comparativa') {
-                                // SOLO MOSTRAR DIFERENCIA en comparativa
-                                return (
-                                  <div key={`dif-${proyecto.id}-${item.id}-${m.num}`} className={`data-cell monto-cell diferencia ${getColorClass(datos.diferencia)}`}>
-                                    {datos.presupuesto > 0 || datos.real > 0 ? formatMonto(datos.diferencia) : '-'}
-                                  </div>
-                                );
-                              } else if (vistaActual === 'presupuesto') {
-                                return (
-                                  <div key={`${proyecto.id}-${item.id}-${m.num}`} className="data-cell monto-cell">
-                                    {datos.presupuesto > 0 ? formatMonto(datos.presupuesto) : '-'}
-                                  </div>
-                                );
-                              } else {
-                                return (
-                                  <div 
-                                    key={`${proyecto.id}-${item.id}-${m.num}`}
-                                    className={`data-cell monto-cell ${datos.real > 0 ? 'clickable' : ''}`}
-                                    onClick={() => datos.real > 0 && handleCellClick(proyecto.id, item.id, m.num, datos)}
-                                  >
-                                    {datos.real > 0 ? formatMonto(datos.real) : '-'}
-                                  </div>
-                                );
-                              }
-                            })}
+                          if (vistaActual === 'comparativa') {
+                            return [
+                              <td key={`pres-${proyecto.id}-${item.id}-${m.num}`} className="monto-cell">
+                                {datos.presupuesto > 0 ? formatMonto(datos.presupuesto) : '-'}
+                              </td>,
+                              <td 
+                                key={`real-${proyecto.id}-${item.id}-${m.num}`}
+                                className={`monto-cell ${datos.real > 0 ? 'clickable' : ''}`}
+                                onClick={() => datos.real > 0 && handleCellClick(proyecto.id, item.id, m.num, datos)}
+                              >
+                                {datos.real > 0 ? formatMonto(datos.real) : '-'}
+                              </td>,
+                              <td key={`dif-${proyecto.id}-${item.id}-${m.num}`} className={`monto-cell diferencia ${getColorClass(datos.diferencia)}`}>
+                                {datos.presupuesto > 0 || datos.real > 0 ? formatMonto(datos.diferencia) : '-'}
+                              </td>
+                            ];
+                          } else if (vistaActual === 'presupuesto') {
+                            return [
+                              <td key={`${proyecto.id}-${item.id}-${m.num}`} className="monto-cell">
+                                {datos.presupuesto > 0 ? formatMonto(datos.presupuesto) : '-'}
+                              </td>
+                            ];
+                          } else {
+                            return [
+                              <td 
+                                key={`${proyecto.id}-${item.id}-${m.num}`}
+                                className={`monto-cell ${datos.real > 0 ? 'clickable' : ''}`}
+                                onClick={() => datos.real > 0 && handleCellClick(proyecto.id, item.id, m.num, datos)}
+                              >
+                                {datos.real > 0 ? formatMonto(datos.real) : '-'}
+                              </td>
+                            ];
+                          }
+                        })}
 
-                            {/* Total por fila */}
-                            {vistaActual === 'comparativa' ? (
-                              <div key={`total-dif-${proyecto.id}-${item.id}`} className={`data-cell monto-cell total-cell diferencia ${getColorClass(itemData.total_presupuesto - itemData.total_real)}`}>
-                                {formatMonto(itemData.total_presupuesto - itemData.total_real)}
-                              </div>
-                            ) : vistaActual === 'presupuesto' ? (
-                              <div className="data-cell monto-cell total-cell">{formatMonto(itemData.total_presupuesto)}</div>
-                            ) : (
-                              <div className="data-cell monto-cell total-cell">{formatMonto(itemData.total_real)}</div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </Fragment>
-                  );
+                        {/* Totales por fila */}
+                        {vistaActual === 'comparativa' ? (
+                          <>
+                            <td key={`total-pres-${proyecto.id}-${item.id}`} className="monto-cell total-cell">{formatMonto(itemData.total_presupuesto)}</td>
+                            <td key={`total-real-${proyecto.id}-${item.id}`} className="monto-cell total-cell">{formatMonto(itemData.total_real)}</td>
+                            <td key={`total-dif-${proyecto.id}-${item.id}`} className={`monto-cell total-cell diferencia ${getColorClass(itemData.total_presupuesto - itemData.total_real)}`}>
+                              {formatMonto(itemData.total_presupuesto - itemData.total_real)}
+                            </td>
+                          </>
+                        ) : vistaActual === 'presupuesto' ? (
+                          <td className="monto-cell total-cell">{formatMonto(itemData.total_presupuesto)}</td>
+                        ) : (
+                          <td className="monto-cell total-cell">{formatMonto(itemData.total_real)}</td>
+                        )}
+                      </tr>
+                    );
+                  });
                 })}
 
                 {/* Fila de totales */}
-                <div className="tabla-row-matriz total-row">
-                  <div className="data-cell sticky-col-item total-label">TOTALES</div>
-                  {meses.map(m => {
-                    const totalesMes = totalesPorMes[m.num] || { presupuesto: 0, real: 0, diferencia: 0 };
+                <tr className="total-row">
+                  <td className="sticky-col total-label">-</td>
+                  <td className="sticky-col-2 total-label">TOTALES</td>
+                  {meses.flatMap(m => {
+                    const totales = totalesPorMes[m.num] || { presupuesto: 0, real: 0, diferencia: 0 };
                     
                     if (vistaActual === 'comparativa') {
-                      return (
-                        <div key={`total-dif-${m.num}`} className={`data-cell monto-cell total-cell diferencia ${getColorClass(totalesMes.diferencia)}`}>
-                          {formatMonto(totalesMes.diferencia)}
-                        </div>
-                      );
+                      return [
+                        <td key={`total-pres-${m.num}`} className="monto-cell total-cell">{formatMonto(totales.presupuesto)}</td>,
+                        <td key={`total-real-${m.num}`} className="monto-cell total-cell">{formatMonto(totales.real)}</td>,
+                        <td key={`total-dif-${m.num}`} className={`monto-cell total-cell diferencia ${getColorClass(totales.diferencia)}`}>
+                          {formatMonto(totales.diferencia)}
+                        </td>
+                      ];
                     } else if (vistaActual === 'presupuesto') {
-                      return (
-                        <div key={`total-${m.num}`} className="data-cell monto-cell total-cell">
-                          {formatMonto(totalesMes.presupuesto)}
-                        </div>
-                      );
+                      return [
+                        <td key={`total-${m.num}`} className="monto-cell total-cell">
+                          {formatMonto(totales.presupuesto)}
+                        </td>
+                      ];
                     } else {
-                      return (
-                        <div key={`total-${m.num}`} className="data-cell monto-cell total-cell">
-                          {formatMonto(totalesMes.real)}
-                        </div>
-                      );
+                      return [
+                        <td key={`total-${m.num}`} className="monto-cell total-cell">
+                          {formatMonto(totales.real)}
+                        </td>
+                      ];
                     }
                   })}
                   {vistaActual === 'comparativa' ? (
-                    <div key="total-final-dif" className={`data-cell monto-cell total-cell diferencia ${getColorClass(totales.diferencia_total)}`}>
-                      {formatMonto(totales.diferencia_total)}
-                    </div>
+                    <>
+                      <td key="total-final-pres" className="monto-cell total-cell">{formatMonto(totales.presupuesto_total)}</td>
+                      <td key="total-final-real" className="monto-cell total-cell">{formatMonto(totales.real_total)}</td>
+                      <td key="total-final-dif" className={`monto-cell total-cell diferencia ${getColorClass(totales.diferencia_total)}`}>
+                        {formatMonto(totales.diferencia_total)}
+                      </td>
+                    </>
                   ) : vistaActual === 'presupuesto' ? (
-                    <div className="data-cell monto-cell total-cell">{formatMonto(totales.presupuesto_total)}</div>
+                    <td className="monto-cell total-cell">{formatMonto(totales.presupuesto_total)}</td>
                   ) : (
-                    <div className="data-cell monto-cell total-cell">{formatMonto(totales.real_total)}</div>
+                    <td className="monto-cell total-cell">{formatMonto(totales.real_total)}</td>
                   )}
-                </div>
-              </div>
-            </div>
+                </tr>
+              </tbody>
+            </table>
           </div>
         )}
       </div>
