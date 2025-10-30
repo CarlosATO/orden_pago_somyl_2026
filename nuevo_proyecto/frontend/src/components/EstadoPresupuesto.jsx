@@ -263,9 +263,6 @@ function EstadoPresupuesto() {
         </button>
   </div>
 
-  {/* Gráficos comparativos: Presupuesto vs Actual y Saldos */}
-  <ChartsPresupuesto proyectoId={proyectoSeleccionado} />
-
       {/* Mensaje */}
       {mensaje && (
         <div className={`alert alert-${mensaje.tipo === 'error' ? 'danger' : 'success'}`}>
@@ -325,9 +322,12 @@ function EstadoPresupuesto() {
             </div>
           </div>
         </div>
-      </div>
+  </div>
 
-      {/* Stats Cards Inferiores */}
+  {/* Gráficos comparativos: Presupuesto vs Actual y Saldos (debajo de los cuadros) */}
+  <ChartsPresupuesto proyectoId={proyectoSeleccionado} />
+
+  {/* Stats Cards Inferiores */}
       <div className="stats-grid-bottom">
         <div className="stat-card-small">
           <div className="stat-value-large stat-blue">
