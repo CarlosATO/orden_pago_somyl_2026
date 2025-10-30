@@ -1,9 +1,10 @@
 .charts-container {
-  display: flex;
+  /* Use a grid with the same column template as .presupuesto-section so charts
+     align exactly with the cards above (works when sidebar is expanded/collapsed) */
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 16px; /* same gap as presupuesto-section */
   margin-top: 16px;
-  flex-wrap: nowrap; /* preferir lado a lado */
-  align-items: flex-start;
 }
 .chart-card {
   /* Match visual style of the top cards (.presupuesto-inicial / .estado-actual) */
@@ -14,8 +15,9 @@
   border: 1px solid #e5e7eb;
   padding: 16px 20px;
   transition: all 0.2s ease;
-  flex: 0 0 48%; /* two cards side-by-side */
-  max-width: 48%;
+  /* let grid control widths to match the upper grid */
+  flex: 0 0 auto;
+  max-width: 100%;
   box-sizing: border-box;
 }
 .bars-row { display:flex; gap: 18px; align-items:flex-end; justify-content:space-between; }
