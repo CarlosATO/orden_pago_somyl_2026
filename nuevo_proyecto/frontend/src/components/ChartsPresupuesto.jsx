@@ -6,10 +6,9 @@ function SimpleBar({ value, max, color, label }) {
   const formatted = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value);
   return (
     <div className="bar-item">
-      <div className="bar-number">{formatted}</div>
       <div className="bar-rect" style={{ height: `${height}px`, background: color }} title={label + ': ' + value} />
       <div className="bar-label">{label}</div>
-      {/* value below kept smaller */}
+      {/* Mostrar cifra sólo abajo, en tamaño pequeño */}
       <div className="bar-value small">{formatted}</div>
     </div>
   );
@@ -68,7 +67,7 @@ export default function ChartsPresupuesto({ proyectoId }) {
   return (
     <div className="charts-container">
       <div className="chart-card">
-        <h3>Comparación: Presupuesto inicial VS Actual</h3>
+        <h3 className="chart-title">Comparación: Presupuesto inicial VS Actual</h3>
           <div className="bars-row">
           <div className="bars-group">
             <SimpleBar value={data.venta_presupuestada} max={groupMax} color="#2b79ff" label="Venta presupuestada" />
@@ -82,20 +81,20 @@ export default function ChartsPresupuesto({ proyectoId }) {
       </div>
 
       <div className="chart-card">
-        <h3>Comparación de Saldos</h3>
+        <h3 className="chart-title">Comparación de Saldos</h3>
         <div className="bars-row balance-row">
           <div className="balance-item">
             <div className={`balance-rect ${data.saldo_presupuestado >= 0 ? 'positivo' : 'negativo'}`} style={{ height: `${Math.round((Math.abs(data.saldo_presupuestado) / saldoMax) * 120)}px` }}>
             </div>
             <div className="bar-label">Saldo presupuestado</div>
-            <div className="bar-value">{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(data.saldo_presupuestado)}</div>
+            <div className="balance-number">{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(data.saldo_presupuestado)}</div>
           </div>
 
           <div className="balance-item">
             <div className={`balance-rect ${data.saldo_actual >= 0 ? 'positivo' : 'negativo'}`} style={{ height: `${Math.round((Math.abs(data.saldo_actual) / saldoMax) * 120)}px` }}>
             </div>
             <div className="bar-label">Saldo actual</div>
-            <div className="bar-value">{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(data.saldo_actual)}</div>
+            <div className="balance-number">{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(data.saldo_actual)}</div>
           </div>
         </div>
       </div>
