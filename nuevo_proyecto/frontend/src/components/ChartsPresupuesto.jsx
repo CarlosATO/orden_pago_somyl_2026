@@ -1,0 +1,101 @@
+import { useEffect, useState } from 'react';
+import './ChartsPresupuesto.css';
+
+function SimpleBar({ value, max, color, label }) {
+  const height = max > 0 ? Math.round((value / max) * 120) : 0;
+  return (
+    <div className="bar-item">
+      <div className="bar-rect" style={{ height: `${height}px`, background: color }} title={label + ': ' + value} />
+      <div className="bar-label">{label}</div>
+      <div className="bar-value">{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value)}</div>
+    </div>
+  );
+}
+
+export default function ChartsPresupuesto({ proyectoId }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const token = localStorage.getItem('authToken');
+        let url = '/api/graficos-presupuesto';
+        if (proyectoId && proyectoId !== 'todos') url += `?proyecto_id=${proyectoId}`;
+
+        const res = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+          }
+        });
+
+        if (!res.ok) {
+          setError('Error al obtener datos');
+          setLoading(false);
+          return;
+        }
+
+        const payload = await res.json();
+        if (payload && payload.success) {
+          setData(payload.data);
+        } else {
+          setError(payload.message || 'Respuesta inválida');
+        }
+      } catch (e) {
+        setError(String(e));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [proyectoId]);
+
+  if (loading) return <div className="charts-loading">Cargando gráficos...</div>;
+  if (error) return <div className="charts-error">{error}</div>;
+  if (!data) return null;
+
+  const groupMax = Math.max(data.venta_presupuestada, data.produccion_actual, data.gasto_presupuestado, data.gasto_actual, 1);
+  const saldoMax = Math.max(Math.abs(data.saldo_presupuestado), Math.abs(data.saldo_actual), 1);
+
+  return (
+    <div className="charts-container">
+      <div className="chart-card">
+        <h3>Comparación: Presupuesto inicial VS Actual</h3>
+        <div className="bars-row">
+          <div className="bars-group">
+            <SimpleBar value={data.venta_presupuestada} max={groupMax} color="#2b79ff" label="Venta presupuestada" />
+            <SimpleBar value={data.produccion_actual} max={groupMax} color="#34c38f" label="Producción actual" />
+          </div>
+          <div className="bars-group">
+            <SimpleBar value={data.gasto_presupuestado} max={groupMax} color="#ff5b5b" label="Gasto presupuestado" />
+            <SimpleBar value={data.gasto_actual} max={groupMax} color="#d6336c" label="Gasto actual" />
+          </div>
+        </div>
+      </div>
+
+      <div className="chart-card">
+        <h3>Comparación de Saldos</h3>
+        <div className="bars-row balance-row">
+          <div className="balance-item">
+            <div className={`balance-rect ${data.saldo_presupuestado >= 0 ? 'positivo' : 'negativo'}`} style={{ height: `${Math.round((Math.abs(data.saldo_presupuestado) / saldoMax) * 120)}px` }}>
+            </div>
+            <div className="bar-label">Saldo presupuestado</div>
+            <div className="bar-value">{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(data.saldo_presupuestado)}</div>
+          </div>
+
+          <div className="balance-item">
+            <div className={`balance-rect ${data.saldo_actual >= 0 ? 'positivo' : 'negativo'}`} style={{ height: `${Math.round((Math.abs(data.saldo_actual) / saldoMax) * 120)}px` }}>
+            </div>
+            <div className="bar-label">Saldo actual</div>
+            <div className="bar-value">{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(data.saldo_actual)}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

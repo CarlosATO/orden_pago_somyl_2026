@@ -39,6 +39,7 @@ def create_app():
     from .modules.items import bp as items_bp
     from .modules.trabajadores import bp as trabajadores_bp
     from .rutas.pdf_orden_compra_routes import pdf_oc_bp
+    from .rutas.graficos_presupuesto_routes import bp as graficos_presupuesto_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(pagos_api_bp, url_prefix='/api/pagos')
@@ -53,6 +54,7 @@ def create_app():
     app.register_blueprint(items_bp, url_prefix='/api/items')
     app.register_blueprint(trabajadores_bp, url_prefix='/api/trabajadores')
     app.register_blueprint(pdf_oc_bp, url_prefix='/api')
+    app.register_blueprint(graficos_presupuesto_bp, url_prefix='/api')
 
     # --- Ruta de prueba ---
     @app.route('/api/health')

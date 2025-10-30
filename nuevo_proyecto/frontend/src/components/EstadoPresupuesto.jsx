@@ -1,5 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
 import './EstadoPresupuesto.css';
+import ChartsPresupuesto from './ChartsPresupuesto';
 
 function EstadoPresupuesto() {
   const [matriz, setMatriz] = useState({});
@@ -260,7 +261,10 @@ function EstadoPresupuesto() {
           </svg>
           Actualizar
         </button>
-      </div>
+  </div>
+
+  {/* Gráficos comparativos: Presupuesto vs Actual y Saldos */}
+  <ChartsPresupuesto proyectoId={proyectoSeleccionado} />
 
       {/* Mensaje */}
       {mensaje && (
