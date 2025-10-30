@@ -28,6 +28,8 @@
 .bar-value { font-size:13px; margin-top:4px; font-weight:600; }
 .bar-value.small { font-size:12px; color:#374151; font-weight:500; }
 
+.negative-number { color: #ef4444; font-weight:700; }
+
 .balance-row { gap: 24px; display:flex; justify-content:space-around; }
 .balance-item { display:flex; flex-direction:column; align-items:center; width:160px; }
 .balance-number { font-size:12px; color:#111827; margin-top:6px; font-weight:600; }

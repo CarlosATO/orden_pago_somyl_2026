@@ -2,14 +2,16 @@ import { useEffect, useState } from 'react';
 import './ChartsPresupuesto.css';
 
 function SimpleBar({ value, max, color, label }) {
-  const height = max > 0 ? Math.round((value / max) * 120) : 0;
+  const height = max > 0 ? Math.round((Math.abs(value) / max) * 120) : 0;
   const formatted = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value);
+  const isNegative = Number(value) < 0;
+
   return (
     <div className="bar-item">
       <div className="bar-rect" style={{ height: `${height}px`, background: color }} title={label + ': ' + value} />
       <div className="bar-label">{label}</div>
       {/* Mostrar cifra sólo abajo, en tamaño pequeño */}
-      <div className="bar-value small">{formatted}</div>
+      <div className={`bar-value small ${isNegative ? 'negative-number' : ''}`}>{formatted}</div>
     </div>
   );
 }
@@ -87,14 +89,14 @@ export default function ChartsPresupuesto({ proyectoId }) {
             <div className={`balance-rect ${data.saldo_presupuestado >= 0 ? 'positivo' : 'negativo'}`} style={{ height: `${Math.round((Math.abs(data.saldo_presupuestado) / saldoMax) * 120)}px` }}>
             </div>
             <div className="bar-label">Saldo presupuestado</div>
-            <div className="balance-number">{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(data.saldo_presupuestado)}</div>
+            <div className={`balance-number ${data.saldo_presupuestado < 0 ? 'negative-number' : ''}`}>{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(data.saldo_presupuestado)}</div>
           </div>
 
           <div className="balance-item">
             <div className={`balance-rect ${data.saldo_actual >= 0 ? 'positivo' : 'negativo'}`} style={{ height: `${Math.round((Math.abs(data.saldo_actual) / saldoMax) * 120)}px` }}>
             </div>
             <div className="bar-label">Saldo actual</div>
-            <div className="balance-number">{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(data.saldo_actual)}</div>
+            <div className={`balance-number ${data.saldo_actual < 0 ? 'negative-number' : ''}`}>{new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(data.saldo_actual)}</div>
           </div>
         </div>
       </div>
