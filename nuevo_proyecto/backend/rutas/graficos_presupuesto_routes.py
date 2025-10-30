@@ -4,6 +4,8 @@ Devuelve un JSON con valores agregados para las barras solicitadas.
 """
 from flask import Blueprint, request, jsonify, current_app
 from backend.utils.decorators import token_required
+# Reuse production retrieval from estado_presupuesto to keep values consistent
+from backend.modules.estado_presupuesto import get_produccion_actual_nhost
 import logging
 
 bp = Blueprint('graficos_presupuesto', __name__)
@@ -95,15 +97,16 @@ def graficos_presupuesto(current_user):
                 except:
                     pass
 
-        # Para producción actual (venta real), el sistema original consulta Nhost.
-        # Aquí devolveremos 0 si no está disponible; el front-end puede seguir mostrando
-        # lo que recibe del endpoint principal si requiere datos más completos.
-        # Intentamos leer el campo 'produccion' guardado en la tabla proyectos si existe.
+        # Para producción actual consultamos Nhost (misma fuente que el endpoint
+        # /api/estado-presupuesto) para mantener los valores idénticos.
         produccion_total = 0
         for p in proyectos:
+            proyecto_id = p.get('id')
             try:
-                produccion_total += float(p.get('produccion') or 0)
-            except:
+                produccion_nhost = get_produccion_actual_nhost(proyecto_id)
+                produccion_total += float(produccion_nhost or 0)
+            except Exception:
+                # Si falla, no detener el proceso; sumar 0
                 pass
 
         # Calcular saldos
