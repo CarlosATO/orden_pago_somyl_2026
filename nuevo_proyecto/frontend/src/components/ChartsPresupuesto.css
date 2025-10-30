@@ -21,8 +21,8 @@
   box-sizing: border-box;
 }
 .bars-row { display:flex; gap: 18px; align-items:flex-end; justify-content:space-between; }
-.bars-group { display:flex; gap: 10px; align-items:flex-end; }
-.bar-item { display:flex; flex-direction:column; align-items:center; width:120px; }
+.bars-group { display:flex; gap: 10px; align-items:flex-end; flex: 1; min-width: 0; }
+.bar-item { display:flex; flex-direction:column; align-items:center; flex: 0 1 90px; min-width: 70px; }
 .bar-rect { width:36px; border-radius:4px 4px 0 0; transition:height .3s; }
 .bar-negative { box-shadow: inset 0 -4px 0 rgba(0,0,0,0.03); }
 .bar-positive { box-shadow: inset 0 -4px 0 rgba(255,255,255,0.06); }
@@ -43,9 +43,9 @@
 
 /* Responsive: en pantallas muy pequeñas permitir stack */
 @media (max-width: 900px) {
-  .charts-container { flex-wrap: wrap; }
+  .charts-container { grid-template-columns: 1fr; }
   .chart-card { flex: 1 1 100%; max-width: 100%; }
-  .bar-item { width: 100px; }
+  .bar-item { flex: 0 1 70px; min-width: 60px; }
 }
 
 /* Hover behavior similar to other cards */
