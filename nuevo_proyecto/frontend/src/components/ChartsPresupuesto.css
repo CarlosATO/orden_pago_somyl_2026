@@ -1,19 +1,20 @@
 .charts-container {
   display: flex;
-  gap: 18px;
-  margin-top: 12px;
+  gap: 16px; /* same gap as presupuesto-section */
+  margin-top: 16px;
   flex-wrap: nowrap; /* preferir lado a lado */
   align-items: flex-start;
 }
 .chart-card {
-  /* Alineamos el estilo de las tarjetas con las secciones principales */
-  background-color: white;
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(0,0,0,0.05);
-  transition: all 0.3s ease;
-  flex: 0 0 48%; /* dos tarjetas lado a lado */
+  /* Match visual style of the top cards (.presupuesto-inicial / .estado-actual) */
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+  padding: 16px 20px;
+  transition: all 0.2s ease;
+  flex: 0 0 48%; /* two cards side-by-side */
   max-width: 48%;
   box-sizing: border-box;
 }
@@ -46,7 +47,7 @@
 
 .chart-title {
   color: #111827;
-  font-size: 1.1rem;
+  font-size: 16px; /* slightly smaller */
   margin: 0 0 12px 0;
   font-weight: 700;
 }
