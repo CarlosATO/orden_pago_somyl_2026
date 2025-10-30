@@ -6,9 +6,15 @@ function SimpleBar({ value, max, color, label }) {
   const formatted = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(value);
   const isNegative = Number(value) < 0;
 
+  const rectColor = isNegative ? '#ef4444' : color;
+
   return (
     <div className="bar-item">
-      <div className="bar-rect" style={{ height: `${height}px`, background: color }} title={label + ': ' + value} />
+      <div
+        className={`bar-rect ${isNegative ? 'bar-negative' : 'bar-positive'}`}
+        style={{ height: `${height}px`, background: rectColor }}
+        title={label + ': ' + formatted}
+      />
       <div className="bar-label">{label}</div>
       {/* Mostrar cifra sólo abajo, en tamaño pequeño */}
       <div className={`bar-value small ${isNegative ? 'negative-number' : ''}`}>{formatted}</div>
