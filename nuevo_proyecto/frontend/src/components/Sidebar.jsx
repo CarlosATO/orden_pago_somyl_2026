@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { getCurrentUser } from '../utils/auth';
 import './Sidebar.css';
 
 function Sidebar({ onLogout, onToggle }) {
@@ -7,6 +8,14 @@ function Sidebar({ onLogout, onToggle }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   // activeMenu almacena la clave del submenu abierto; null = ninguno
   const [activeMenu, setActiveMenu] = useState(null);
+  // Usuario actual
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Obtener usuario al montar el componente
+  useEffect(() => {
+    const user = getCurrentUser();
+    setCurrentUser(user);
+  }, []);
 
   // NUEVO: Notificar al padre cuando cambie isCollapsed
   useEffect(() => {
@@ -40,117 +49,134 @@ function Sidebar({ onLogout, onToggle }) {
 
       <nav className="sidebar-nav">
         <ul>
+          {/* Dashboard - Link directo */}
           <li>
             <Link to="/dashboard" className="nav-link">
-              <span className="icon">📊</span>
-              {!isCollapsed && <span className="label">Dashboard / Inicio</span>}
+              <i className="fas fa-chart-line"></i>
+              {!isCollapsed && <span className="label">Dashboard</span>}
             </Link>
           </li>
 
+          {/* Adquisiciones - Flujo completo de compra */}
           <li className="has-sub">
             <div className="menu-item" onClick={() => toggleMenu('adquisiciones')}>
-              <div>
-                <span className="icon">🛒</span>
+              <div className="menu-content">
+                <i className="fas fa-shopping-cart"></i>
                 {!isCollapsed && <span className="label">Adquisiciones</span>}
               </div>
-              {!isCollapsed && <span className="arrow">{activeMenu === 'adquisiciones' ? '▾' : '▸'}</span>}
+              {!isCollapsed && (
+                <i className={`arrow fas fa-chevron-${activeMenu === 'adquisiciones' ? 'down' : 'right'}`}></i>
+              )}
             </div>
             {activeMenu === 'adquisiciones' && (
               <ul className={isCollapsed ? 'submenu overlay' : 'submenu'}>
-                <li><Link to="/ordenes-compra">Órdenes de Compra</Link></li>
-                <li><Link to="/ingresos-recepciones">Ingresos / Recepciones</Link></li>
+                <li><Link to="/ordenes-compra"><i className="fas fa-file-alt"></i> Órdenes de Compra</Link></li>
+                <li><Link to="/ingresos-recepciones"><i className="fas fa-box-open"></i> Ingresos / Recepciones</Link></li>
+                <li><Link to="/ordenes-no-recepcionadas"><i className="fas fa-truck-loading"></i> Órdenes No Recepcionadas</Link></li>
+                <li><Link to="/documentos-pendientes"><i className="fas fa-file-invoice"></i> Documentos Pendientes</Link></li>
               </ul>
             )}
           </li>
 
+          {/* Pagos - Flujo completo de pago */}
           <li className="has-sub">
             <div className="menu-item" onClick={() => toggleMenu('pagos')}>
-              <div>
-                <span className="icon">💰</span>
-                {!isCollapsed && <span className="label">Gestión de Pagos</span>}
+              <div className="menu-content">
+                <i className="fas fa-money-check-dollar"></i>
+                {!isCollapsed && <span className="label">Pagos</span>}
               </div>
-              {!isCollapsed && <span className="arrow">{activeMenu === 'pagos' ? '▾' : '▸'}</span>}
+              {!isCollapsed && (
+                <i className={`arrow fas fa-chevron-${activeMenu === 'pagos' ? 'down' : 'right'}`}></i>
+              )}
             </div>
             {activeMenu === 'pagos' && (
               <ul className={isCollapsed ? 'submenu overlay' : 'submenu'}>
-                <li><Link to="/ordenes-pago">Órdenes de Pago</Link></li>
-                <li><Link to="/facturacion-pendiente">Facturación Pendiente</Link></li>
-                <li><Link to="/informe-pagos">Informe de Pagos</Link></li>
+                <li><Link to="/ordenes-pago"><i className="fas fa-file-invoice-dollar"></i> Órdenes de Pago</Link></li>
+                <li><Link to="/pagos"><i className="fas fa-chart-bar"></i> Informe de Pagos</Link></li>
               </ul>
             )}
           </li>
 
+          {/* Presupuestos - Control presupuestario */}
           <li className="has-sub">
-            <div className="menu-item" onClick={() => toggleMenu('presupuesto')}>
-              <div>
-                <span className="icon">📉</span>
-                {!isCollapsed && <span className="label">Control Presupuestario</span>}
+            <div className="menu-item" onClick={() => toggleMenu('presupuestos')}>
+              <div className="menu-content">
+                <i className="fas fa-chart-pie"></i>
+                {!isCollapsed && <span className="label">Presupuestos</span>}
               </div>
-              {!isCollapsed && <span className="arrow">{activeMenu === 'presupuesto' ? '▾' : '▸'}</span>}
+              {!isCollapsed && (
+                <i className={`arrow fas fa-chevron-${activeMenu === 'presupuestos' ? 'down' : 'right'}`}></i>
+              )}
             </div>
-            {activeMenu === 'presupuesto' && (
+            {activeMenu === 'presupuestos' && (
               <ul className={isCollapsed ? 'submenu overlay' : 'submenu'}>
-                <li><Link to="/presupuestos">Planificación Presupuestaria</Link></li>
-                <li><Link to="/registro-gastos-directos">Registro de Gastos Directos</Link></li>
-                <li><Link to="/estado-presupuesto">Estado de Presupuesto</Link></li>
+                <li><Link to="/presupuestos"><i className="fas fa-project-diagram"></i> Presupuestos por Proyecto</Link></li>
+                <li><Link to="/registro-gastos-directos"><i className="fas fa-receipt"></i> Gastos Directos</Link></li>
+                <li><Link to="/estado-presupuesto"><i className="fas fa-chart-area"></i> Estado General</Link></li>
               </ul>
             )}
           </li>
 
+          {/* Maestros - Datos base del sistema */}
           <li className="has-sub">
-            <div className="menu-item" onClick={() => toggleMenu('informes')}>
-              <div>
-                <span className="icon">📈</span>
-                {!isCollapsed && <span className="label">Informes y Análisis</span>}
+            <div className="menu-item" onClick={() => toggleMenu('maestros')}>
+              <div className="menu-content">
+                <i className="fas fa-database"></i>
+                {!isCollapsed && <span className="label">Maestros</span>}
               </div>
-              {!isCollapsed && <span className="arrow">{activeMenu === 'informes' ? '▾' : '▸'}</span>}
+              {!isCollapsed && (
+                <i className={`arrow fas fa-chevron-${activeMenu === 'maestros' ? 'down' : 'right'}`}></i>
+              )}
             </div>
-            {activeMenu === 'informes' && (
+            {activeMenu === 'maestros' && (
               <ul className={isCollapsed ? 'submenu overlay' : 'submenu'}>
-                <li><Link to="/ordenes-no-recepcionadas">Órdenes No Recepcionadas</Link></li>
-                <li><Link to="/pagos">Informe Pagos</Link></li>
+                <li><Link to="/proveedores"><i className="fas fa-truck"></i> Proveedores</Link></li>
+                <li><Link to="/proyectos"><i className="fas fa-building"></i> Proyectos</Link></li>
+                <li><Link to="/materiales"><i className="fas fa-boxes"></i> Materiales / Servicios</Link></li>
+                <li><Link to="/trabajadores-solicitantes"><i className="fas fa-users"></i> Trabajadores</Link></li>
+                <li><Link to="/items-presupuestarios"><i className="fas fa-list-ul"></i> Ítems Presupuestarios</Link></li>
               </ul>
             )}
           </li>
 
-          <li className="has-sub">
-            <div className="menu-item" onClick={() => toggleMenu('configuracion')}>
-              <div>
-                <span className="icon">⚙️</span>
-                {!isCollapsed && <span className="label">Configuración</span>}
-              </div>
-              {!isCollapsed && <span className="arrow">{activeMenu === 'configuracion' ? '▾' : '▸'}</span>}
-            </div>
-            {activeMenu === 'configuracion' && (
-              <ul className={isCollapsed ? 'submenu overlay' : 'submenu'}>
-                <li><Link to="/proyectos">Proyectos</Link></li>
-                <li><Link to="/proveedores">Proveedores</Link></li>
-                <li><Link to="/materiales">Materiales / Servicios</Link></li>
-                <li><Link to="/items-presupuestarios">Ítems Presupuestarios</Link></li>
-                <li><Link to="/trabajadores-solicitantes">Trabajadores / Solicitantes</Link></li>
-              </ul>
-            )}
-          </li>
-
+          {/* Administración - Gestión del sistema */}
           <li className="has-sub">
             <div className="menu-item" onClick={() => toggleMenu('administracion')}>
-              <div>
-                <span className="icon">👤</span>
-                {!isCollapsed && <span className="label">Administración del Sistema</span>}
+              <div className="menu-content">
+                <i className="fas fa-user-shield"></i>
+                {!isCollapsed && <span className="label">Administración</span>}
               </div>
-              {!isCollapsed && <span className="arrow">{activeMenu === 'administracion' ? '▾' : '▸'}</span>}
+              {!isCollapsed && (
+                <i className={`arrow fas fa-chevron-${activeMenu === 'administracion' ? 'down' : 'right'}`}></i>
+              )}
             </div>
             {activeMenu === 'administracion' && (
               <ul className={isCollapsed ? 'submenu overlay' : 'submenu'}>
-                <li><Link to="/gestion-usuarios">Gestión de Usuarios</Link></li>
+                <li><Link to="/gestion-usuarios"><i className="fas fa-users-cog"></i> Gestión de Usuarios</Link></li>
               </ul>
             )}
           </li>
         </ul>
       </nav>
       <div className="sidebar-footer">
+        {/* Perfil del Usuario */}
+        {currentUser && (
+          <div className="user-profile">
+            <div className="user-avatar">
+              <i className="fas fa-user-circle"></i>
+            </div>
+            {!isCollapsed && (
+              <div className="user-info">
+                <span className="user-name">{currentUser.nombre}</span>
+                <span className="user-email">{currentUser.email}</span>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {/* Botón de Cerrar Sesión */}
         <button className="sidebar-logout-btn" onClick={onLogout}>
-          <span className="icon">🔒</span>
+          <i className="fas fa-right-from-bracket"></i>
           {!isCollapsed && <span className="label">Cerrar Sesión</span>}
         </button>
       </div>

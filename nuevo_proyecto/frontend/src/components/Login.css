@@ -51,6 +51,37 @@
   gap: 1rem;
 }
 
+/* Estilos específicos para el enlace de contacto */
+.social-icons .contact-link {
+  width: 52px !important;
+  height: 52px !important;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.25) !important;
+  color: white !important;
+  font-size: 1.4rem !important;
+  text-decoration: none;
+  border: 2px solid rgba(255,255,255,0.4) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(5px);
+}
+
+.social-icons .contact-link:hover {
+  background: rgba(255,255,255,0.4) !important;
+  transform: translateY(-3px) scale(1.1) !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.4) !important;
+  border-color: rgba(255,255,255,0.7) !important;
+}
+
+.social-icons .contact-link i {
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+  font-weight: bold;
+}
+
+/* Estilos generales (fallback) */
 .social-icons a {
   width: 45px;
   height: 45px;
@@ -81,25 +112,6 @@
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
 }
 
-.contact-link {
-  width: 48px;
-  height: 48px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.06);
-  color: rgba(255,255,255,0.95);
-  font-size: 1.25rem;
-  text-decoration: none;
-  border: 1px solid rgba(255,255,255,0.08);
-}
-
-.contact-link:hover {
-  background: rgba(255,255,255,0.12);
-  transform: translateY(-2px);
-}
-
 .social-icons a:hover {
   background: rgba(255,255,255,0.25);
   transform: translateY(-2px);
@@ -108,8 +120,8 @@
 .login-box {
   background: rgba(20, 20, 40, 0.85);
   backdrop-filter: blur(15px);
-  padding: 3.5rem 3rem;
-  width: 480px;
+  padding: 3.5rem 2.5rem;
+  width: 420px; /* Más angosto: antes 480px, ahora 420px */
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -146,8 +158,9 @@
   border-radius: 6px;
   background: rgba(255,255,255,0.95);
   font-size: 1rem;
-  color: #0b0b0b; /* texto en negro para que se vea al escribir */
-  caret-color: #0b0b0b;
+  color: #1e3a8a; /* Azul oscuro para contraste */
+  font-weight: 500;
+  caret-color: #1e3a8a;
   transition: all 0.3s ease;
   box-sizing: border-box;
 }
@@ -157,17 +170,20 @@
   border-color: #ff6b35;
   background: white;
   box-shadow: 0 0 0 3px rgba(255,107,53,0.1);
+  color: #1e3a8a; /* Mantener azul oscuro al hacer foco */
 }
 
-/* Asegurar que inputs de tipo password también muestren texto negro y placeholder legible */
+/* Asegurar que inputs de tipo password también muestren texto azul oscuro */
 .input-group input[type="password"] {
-  color: #0b0b0b !important;
-  caret-color: #0b0b0b !important;
+  color: #1e3a8a !important;
+  font-weight: 500 !important;
+  caret-color: #1e3a8a !important;
 }
 
 .input-group input::placeholder {
-  color: #6b7280; /* gris legible */
+  color: #94a3b8; /* gris más claro para el placeholder */
   opacity: 1;
+  font-weight: 400;
 }
 
 .remember-me {

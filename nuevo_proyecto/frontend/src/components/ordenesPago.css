@@ -336,16 +336,17 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.625rem 1rem;
+  padding: 0.5rem 0.85rem;
   background: var(--success-green);
   color: var(--white);
   border: none;
   border-radius: 6px;
   font-weight: 600;
-  font-size: 0.875rem;
+  font-size: 0.82rem;
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);
+  min-width: 140px;
 }
 
 .btn-enviar-correo:hover {

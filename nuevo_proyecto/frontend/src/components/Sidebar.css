@@ -1,61 +1,74 @@
+/* =========================================
+   SIDEBAR - Diseño Minimalista y Profesional
+   ========================================= */
+
 .sidebar {
-  width: 240px;
+  width: 260px;
   height: 100vh;
-  background: linear-gradient(180deg, #2b0f0f 0%, #3a0f0f 100%);
-  color: #f3e9e0;
+  background: #1a1d2e;
+  color: #e4e6eb;
   position: fixed;
   left: 0;
   top: 0;
   overflow-y: auto;
-  padding-top: 18px;
-  box-shadow: 6px 0 24px rgba(0,0,0,0.6);
-  transition: width 200ms ease;
+  overflow-x: hidden;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+  transition: width 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1000;
 }
 
 .sidebar.collapsed {
-  width: 72px;
+  width: 70px;
 }
+
+/* =========================================
+   HEADER
+   ========================================= */
 
 .sidebar-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px 12px 12px;
+  padding: 20px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  background: #141824;
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: radial-gradient(circle at 30% 30%, #ffd3a5, #f39c12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #3a0f0f;
-  font-weight: 700;
+.brand h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+  letter-spacing: -0.2px;
 }
 
 .collapse-btn {
-  background: linear-gradient(180deg,#ffb86b,#ff9f43);
-  border: none;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  color: #3a0f0f;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: #e4e6eb;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 18px;
+  transition: all 0.2s ease;
+  font-weight: bold;
 }
 
+.collapse-btn:hover {
+  background: rgba(255,255,255,0.12);
+  transform: scale(1.05);
+}
+
+/* =========================================
+   NAVEGACIÓN
+   ========================================= */
+
 .sidebar-nav {
-  padding-top: 12px;
+  padding: 16px 0;
 }
 
 .sidebar-nav ul {
@@ -64,83 +77,147 @@
   margin: 0;
 }
 
-.sidebar-nav li {
-  margin: 0;
-  position: relative;
+.sidebar-nav > ul > li {
+  margin: 2px 0;
 }
 
-.nav-link, .menu-item {
+/* Links directos (sin submenú) */
+.nav-link {
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: inherit;
+  gap: 12px;
+  color: #b8bcc8;
   text-decoration: none;
-  padding: 8px 12px;
-  border-radius: 8px;
-  margin: 4px 8px;
+  padding: 12px 16px;
+  margin: 0 12px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 500;
 }
 
-/* Asegurar que la estructura interna (icon + label) esté en línea y alineada */
-.menu-item > div,
-.nav-link > .icon + .label {
-  display: inline-flex;
+.nav-link:hover {
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+}
+
+.nav-link.active {
+  background: linear-gradient(90deg, #4c6ef5 0%, #5c7cfa 100%);
+  color: #fff;
+}
+
+/* Items de menú con submenú */
+.menu-item {
+  display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  padding: 12px 16px;
+  margin: 0 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #b8bcc8;
+  font-weight: 500;
 }
 
-.nav-link:hover, .menu-item:hover {
-  background: rgba(255,255,255,0.03);
+.menu-item:hover {
+  background: rgba(255,255,255,0.06);
+  color: #fff;
 }
 
-.icon {
-  width: 28px;
-  min-width: 28px;
-  text-align: center;
-  font-size: 16px;
-}
-
-.label {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.menu-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   font-size: 14px;
 }
 
-.arrow {
-  margin-left: auto;
-  opacity: 0.9;
+/* Iconos de FontAwesome */
+.menu-content i,
+.nav-link i {
+  width: 20px;
+  font-size: 16px;
+  text-align: center;
+  flex-shrink: 0;
 }
 
+/* Flechas de expansión */
+.arrow {
+  font-size: 11px;
+  color: #6c7486;
+  transition: transform 0.2s ease;
+}
+
+/* =========================================
+   SUBMENÚS
+   ========================================= */
+
 .submenu {
-  background: linear-gradient(180deg,#321212,#2b0f0f);
-  margin: 6px 10px 12px 10px;
-  padding: 8px;
+  background: rgba(0,0,0,0.15);
+  margin: 4px 12px 8px 12px;
+  padding: 6px 0;
   border-radius: 8px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+  border-left: 2px solid rgba(76,110,245,0.4);
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .submenu li {
-  margin: 6px 0;
+  margin: 0;
 }
 
 .submenu a {
-  display: block;
-  padding: 6px 10px;
-  font-size: 0.9em;
-  color: #f3e9e0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #9ca3b4;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border-radius: 6px;
+  margin: 2px 8px;
 }
 
-/* overlay para cuando el sidebar está colapsado: el submenu aparece flotando */
+.submenu a:hover {
+  background: rgba(255,255,255,0.05);
+  color: #fff;
+  padding-left: 20px;
+}
+
+.submenu a i {
+  width: 16px;
+  font-size: 13px;
+  opacity: 0.7;
+}
+
+/* Submenú flotante cuando sidebar está colapsado */
 .submenu.overlay {
   position: absolute;
-  left: 72px;
-  top: 8px;
+  left: 70px;
+  top: 0;
   width: 220px;
-  z-index: 40;
-  transform: translateY(-6px);
+  z-index: 50;
+  background: #1a1d2e;
+  box-shadow: 4px 4px 16px rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.1);
+  margin: 0;
 }
 
-/* ocultar labels cuando está colapsado */
+/* =========================================
+   ESTADO COLAPSADO
+   ========================================= */
+
 .sidebar.collapsed .label,
 .sidebar.collapsed .arrow {
   display: none;
@@ -149,53 +226,177 @@
 .sidebar.collapsed .nav-link,
 .sidebar.collapsed .menu-item {
   justify-content: center;
+  padding-left: 25px;
+  padding-right: 25px;
 }
 
-/* small touch: scroll fade */
+/* =========================================
+   SCROLLBAR PERSONALIZADO
+   ========================================= */
+
+.sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.1);
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.15);
+  border-radius: 3px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+/* =========================================
+   FADE DE SCROLL
+   ========================================= */
+
 .sidebar::after {
   content: '';
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 60px;
+  height: 80px;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(58,15,15,0), rgba(10,10,10,0.45));
+  background: linear-gradient(180deg, transparent 0%, rgba(26,29,46,0.9) 100%);
 }
 
-/* footer / logout */
+/* =========================================
+   FOOTER / LOGOUT
+   ========================================= */
+
 .sidebar-footer {
   position: absolute;
-  bottom: 18px;
+  bottom: 20px;
   left: 12px;
   right: 12px;
+  z-index: 10;
 }
 
-.sidebar-footer .sidebar-logout-btn {
+/* Perfil del Usuario */
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.user-profile:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.12);
+}
+
+.user-avatar {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #4c6ef5 0%, #5c7cfa 100%);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 20px;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-email {
+  font-size: 11px;
+  color: #9ca3b4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Botón de Logout */
+.sidebar-logout-btn {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: linear-gradient(180deg,#ff7a59,#ff6a3a);
-  color: #3a0f0f;
-  border: none;
-  padding: 8px 10px;
-  border-radius: 8px;
-  cursor: pointer;
   justify-content: center;
+  gap: 10px;
+  background: rgba(239,68,68,0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239,68,68,0.3);
+  padding: 11px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
-.sidebar-footer .sidebar-logout-btn .icon {
-  width: 20px;
-  text-align: center;
+.sidebar-logout-btn:hover {
+  background: rgba(239,68,68,0.2);
+  border-color: rgba(239,68,68,0.5);
+  color: #fff;
+}
+
+.sidebar-logout-btn i {
+  font-size: 16px;
 }
 
 .sidebar.collapsed .sidebar-footer {
-  left: 8px;
-  right: 8px;
+  left: 11px;
+  right: 11px;
 }
 
-.sidebar.collapsed .sidebar-footer .sidebar-logout-btn {
-  padding: 8px;
+.sidebar.collapsed .user-profile {
   justify-content: center;
+  padding: 10px;
+}
+
+.sidebar.collapsed .user-info {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-logout-btn {
+  padding: 12px 8px;
+  gap: 0;
+}
+
+/* =========================================
+   RESPONSIVE
+   ========================================= */
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    max-width: 280px;
+    transform: translateX(-100%);
+  }
+  
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .sidebar.collapsed {
+    transform: translateX(-100%);
+  }
 }

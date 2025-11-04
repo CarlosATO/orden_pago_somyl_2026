@@ -6,6 +6,7 @@
   margin: 0 auto;
   background-color: #f8f9fa;
   min-height: 100vh;
+  overflow-x: hidden; /* Prevenir scroll horizontal en la página completa */
 }
 
 /* ========= HEADER ========= */
@@ -21,6 +22,27 @@
   font-weight: 700;
   color: #1e293b;
   margin: 0;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn-success {
+  background-color: #10b981;
+  color: white;
+  border: none;
+  padding: 0.625rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-success:hover {
+  background-color: #059669;
+  transform: translateY(-1px);
 }
 
 /* ========= MENSAJES ========= */
@@ -67,9 +89,10 @@
 /* ========= LAYOUT SUPERIOR: TABLAS LADO A LADO ========= */
 .pagos-top-section {
   display: grid;
-  grid-template-columns: 400px 1fr;
+  grid-template-columns: minmax(350px, 400px) 1fr; /* Usar minmax para responsividad */
   gap: 1.5rem;
   margin-bottom: 1.5rem;
+  overflow-x: hidden; /* Prevenir scroll horizontal en esta sección */
 }
 
 /* ========= TABLA DE ESTADÍSTICAS (2x2) - MINIMALISTA ========= */
@@ -270,24 +293,34 @@
   color: #9ca3af;
 }
 
-/* ========= TABLA PRINCIPAL - STICKY HEADER + ANCHO MÁXIMO ========= */
-.tabla-container {
+/* ========= TABLA PRINCIPAL - DOBLE CONTENEDOR PARA SCROLL ========= */
+/* Wrapper externo: borde, sombra y border-radius */
+.tabla-wrapper {
   background: white;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   border: 1px solid #e5e7eb;
-  overflow: auto;
   margin-bottom: 1.5rem;
-  max-height: calc(100vh - 420px); /* Aumentado para mostrar más filas */
+  /* NO overflow hidden - dejar que el contenedor interno maneje el scroll */
+}
+
+/* Contenedor interno: maneja el scroll */
+.tabla-container {
+  overflow-x: auto !important; /* FORZAR scroll horizontal */
+  overflow-y: auto !important; /* FORZAR scroll vertical */
+  max-height: calc(100vh - 420px); /* Altura máxima para scroll vertical */
   min-height: 500px; /* Asegurar altura mínima */
-  position: relative;
+  -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
+  border-radius: 8px; /* Aplicar border-radius aquí */
 }
 
 .tabla-pagos {
-  width: 100%;
+  width: 2000px !important; /* FORZAR ancho grande para garantizar scroll */
   border-collapse: collapse;
   font-size: 0.8rem;
-  table-layout: fixed;
+  table-layout: fixed; /* Mantener anchos de columna fijos */
+  margin: 0;
+  border: none;
 }
 
 /* DEFINIR ANCHOS MÁXIMOS POR COLUMNA */
@@ -313,7 +346,7 @@
   color: #374151;
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 2; /* Reducido para evitar conflictos */
   border-bottom: 2px solid #e5e7eb;
 }
 
@@ -325,11 +358,12 @@
   font-size: 0.7rem;
   letter-spacing: 0.5px;
   white-space: nowrap;
-  background: #f9fafb;
+  background: #f9fafb; /* Fondo para que el sticky funcione */
   color: #374151;
   overflow: hidden;
   text-overflow: ellipsis;
   border-right: 1px solid #f3f4f6;
+  position: relative; /* Agregar para evitar problemas de sticky */
 }
 
 .tabla-pagos th:last-child {
@@ -349,6 +383,20 @@
 
 .tabla-pagos tbody tr:hover {
   background-color: #f5f5f5;
+}
+
+/* FILA PAGADA - TODA LA FILA EN VERDE */
+.tabla-pagos tbody tr.fila-pagada {
+  background-color: #d1fae5 !important; /* Verde claro */
+}
+
+.tabla-pagos tbody tr.fila-pagada:hover {
+  background-color: #a7f3d0 !important; /* Verde más oscuro al hover */
+}
+
+.tabla-pagos tbody tr.fila-pagada td {
+  color: #065f46; /* Texto verde oscuro */
+  font-weight: 500;
 }
 
 .tabla-pagos td {

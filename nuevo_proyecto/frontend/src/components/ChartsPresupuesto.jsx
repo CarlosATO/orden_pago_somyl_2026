@@ -28,7 +28,16 @@ export default function ChartsPresupuesto({ proyectoId }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // No cargar nada si no hay proyecto seleccionado
+    if (!proyectoId || proyectoId === '') {
+      setData(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
     const fetchData = async () => {
+      console.log('📊 Cargando gráficos para proyecto:', proyectoId);
       setLoading(true);
       setError(null);
       try {
@@ -51,11 +60,13 @@ export default function ChartsPresupuesto({ proyectoId }) {
 
         const payload = await res.json();
         if (payload && payload.success) {
+          console.log('✅ Gráficos cargados correctamente');
           setData(payload.data);
         } else {
           setError(payload.message || 'Respuesta inválida');
         }
       } catch (e) {
+        console.error('❌ Error al cargar gráficos:', e);
         setError(String(e));
       } finally {
         setLoading(false);

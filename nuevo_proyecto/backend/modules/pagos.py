@@ -1,9 +1,12 @@
 # nuevo_proyecto/backend/modules/pagos.py
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, send_file
 from datetime import date, datetime, timedelta
 from backend.utils.decorators import token_required
 import logging
+import io
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 bp = Blueprint("pagos_api", __name__)
 logger = logging.getLogger(__name__)
@@ -911,5 +914,294 @@ def get_filters(current_user):
         })
         
     except Exception as e:
-        logger.error(f"Error en get_filters: {e}")
-        return jsonify({"success": False, "message": str(e)}), 500
+        logger.error(f"Error en filters: {e}")
+        return jsonify({"success": False, "message": "Error al cargar filtros"}), 500
+
+
+# ================================================================
+# EXPORTAR A EXCEL
+# ================================================================
+
+@bp.route("/exportar-excel", methods=["GET"])
+@token_required
+def exportar_pagos_excel(current_user):
+    """
+    Exporta las órdenes de pago a Excel aplicando los mismos filtros que la vista
+    """
+    try:
+        supabase = current_app.config['SUPABASE']
+        
+        # Obtener filtros de los query params
+        proveedor = request.args.get('proveedor', '').strip()
+        proyecto_id = request.args.get('proyecto', '').strip()
+        fecha_desde = request.args.get('fecha_desde', '').strip()
+        fecha_hasta = request.args.get('fecha_hasta', '').strip()
+        estado = request.args.get('estado', '').strip()
+        
+        logger.info(f"Exportando Excel con filtros: proveedor={proveedor}, proyecto={proyecto_id}, estado={estado}")
+        
+        # Construir query con filtros
+        query = supabase.table("orden_de_pago").select(
+            "orden_numero, fecha, proveedor_nombre, rut_proveedor, detalle_compra, "
+            "factura, costo_final_con_iva, proyecto, item, orden_compra"
+        ).order("orden_numero", desc=True)
+        
+        if proveedor:
+            query = query.ilike("proveedor_nombre", f"%{proveedor}%")
+        if proyecto_id:
+            try:
+                query = query.eq("proyecto", int(proyecto_id))
+            except ValueError:
+                pass
+        if fecha_desde:
+            query = query.gte("fecha", fecha_desde)
+        if fecha_hasta:
+            query = query.lte("fecha", fecha_hasta)
+        
+        # Ejecutar query en lotes para obtener TODOS los registros (sin límite de paginación)
+        all_rows = []
+        batch_size = 1000
+        offset = 0
+        
+        while True:
+            # Supabase requiere re-construir el query con .range() en cada iteración
+            batch_result = supabase.table("orden_de_pago").select(
+                "orden_numero, fecha, proveedor_nombre, rut_proveedor, detalle_compra, "
+                "factura, costo_final_con_iva, proyecto, item, orden_compra"
+            ).order("orden_numero", desc=True)
+            
+            # Reaplicar filtros
+            if proveedor:
+                batch_result = batch_result.ilike("proveedor_nombre", f"%{proveedor}%")
+            if proyecto_id:
+                try:
+                    batch_result = batch_result.eq("proyecto", int(proyecto_id))
+                except ValueError:
+                    pass
+            if fecha_desde:
+                batch_result = batch_result.gte("fecha", fecha_desde)
+            if fecha_hasta:
+                batch_result = batch_result.lte("fecha", fecha_hasta)
+            
+            # Aplicar paginación
+            batch_result = batch_result.range(offset, offset + batch_size - 1)
+            batch_data = batch_result.execute().data or []
+            
+            if not batch_data:
+                break
+                
+            all_rows.extend(batch_data)
+            
+            # Si trajo menos registros que el batch_size, ya no hay más
+            if len(batch_data) < batch_size:
+                break
+                
+            offset += batch_size
+        
+        if not all_rows:
+            return jsonify({"success": False, "message": "No hay datos para exportar"}), 404
+        
+        # Agrupar por orden_numero y calcular totales
+        pagos_dict = {}
+        for r in all_rows:
+            num = r["orden_numero"]
+            if num not in pagos_dict:
+                pagos_dict[num] = {
+                    "orden_numero": num,
+                    "fecha": r["fecha"],
+                    "proveedor_nombre": r["proveedor_nombre"],
+                    "rut_proveedor": r["rut_proveedor"],
+                    "detalle_compra": r["detalle_compra"],
+                    "factura": r["factura"],
+                    "total_pago": 0,
+                    "proyecto": r["proyecto"],
+                    "item": r["item"],
+                    "orden_compra": r["orden_compra"]
+                }
+            try:
+                monto = int(round(float(r.get("costo_final_con_iva") or 0)))
+            except Exception:
+                monto = 0
+            pagos_dict[num]["total_pago"] += monto
+        
+        # Obtener fechas de pago
+        fechas_data = supabase.table("fechas_de_pagos_op").select("orden_numero, fecha_pago").execute().data or []
+        fecha_map = {}
+        for row in fechas_data:
+            k = row.get("orden_numero")
+            v = row.get("fecha_pago")
+            if k is not None:
+                fecha_map[str(k)] = v
+                try:
+                    fecha_map[int(k)] = v
+                except Exception:
+                    pass
+        
+        # Obtener abonos
+        abonos_data = supabase.table("abonos_op").select("orden_numero, monto_abono").execute().data or []
+        abonos_map = {}
+        for ab in abonos_data:
+            num = ab.get("orden_numero")
+            try:
+                monto = int(round(float(ab.get("monto_abono") or 0)))
+            except Exception:
+                monto = 0
+            if num is None:
+                continue
+            abonos_map[num] = abonos_map.get(num, 0) + monto
+            try:
+                abonos_map[int(num)] = abonos_map.get(int(num), 0) + monto
+            except Exception:
+                pass
+        
+        # Obtener proyectos
+        proyectos = get_cached_proyectos()
+        proyecto_map = {p["id"]: p["proyecto"] for p in proyectos}
+        
+        # Calcular estados y saldos
+        pagos_list = []
+        for num, pago in pagos_dict.items():
+            total_abonado = abonos_map.get(num, 0)
+            total_pago = pago["total_pago"]
+            fecha_pago = fecha_map.get(num)
+            
+            # Calcular estado usando la misma función
+            estado_calculado = calcular_estado_pago(fecha_pago, total_abonado, total_pago)
+            
+            # Filtrar por estado si se especificó
+            if estado and estado_calculado != estado:
+                continue
+            
+            saldo = 0 if fecha_pago else max(0, total_pago - total_abonado)
+            proyecto_nombre = proyecto_map.get(pago.get("proyecto"), str(pago.get("proyecto")))
+            
+            pagos_list.append({
+                "orden_numero": num,
+                "fecha": pago["fecha"],
+                "proveedor_nombre": pago["proveedor_nombre"],
+                "rut_proveedor": pago["rut_proveedor"],
+                "detalle_compra": pago["detalle_compra"],
+                "factura": pago["factura"],
+                "total_pago": total_pago,
+                "proyecto_nombre": proyecto_nombre,
+                "item": pago["item"],
+                "orden_compra": pago["orden_compra"],
+                "fecha_pago": fecha_pago or "",
+                "total_abonado": total_abonado,
+                "saldo_pendiente": saldo,
+                "estado": estado_calculado
+            })
+        
+        # Crear workbook
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Órdenes de Pago"
+        
+        # Estilos
+        header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # Título
+        ws.merge_cells('A1:N1')
+        title_cell = ws['A1']
+        title_cell.value = f"INFORME DE ÓRDENES DE PAGO - {datetime.now().strftime('%d/%m/%Y')}"
+        title_cell.font = Font(bold=True, size=14)
+        title_cell.alignment = Alignment(horizontal='center', vertical='center')
+        title_cell.fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
+        
+        # Headers
+        headers = ["OP", "Fecha", "Proveedor", "RUT", "Detalle", "Factura", "Total", 
+                   "Proyecto", "Item", "OC", "Fecha Pago", "Abonos", "Saldo", "Estado"]
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center')
+            cell.border = border
+        
+        # Datos
+        for idx, pago in enumerate(pagos_list, 4):
+            ws.cell(row=idx, column=1, value=pago["orden_numero"]).border = border
+            ws.cell(row=idx, column=2, value=pago["fecha"]).border = border
+            ws.cell(row=idx, column=3, value=pago["proveedor_nombre"]).border = border
+            ws.cell(row=idx, column=4, value=pago["rut_proveedor"]).border = border
+            ws.cell(row=idx, column=5, value=pago["detalle_compra"]).border = border
+            ws.cell(row=idx, column=6, value=pago["factura"]).border = border
+            
+            # Total (formato moneda)
+            cell_total = ws.cell(row=idx, column=7, value=pago["total_pago"])
+            cell_total.number_format = '#,##0'
+            cell_total.border = border
+            
+            ws.cell(row=idx, column=8, value=pago["proyecto_nombre"]).border = border
+            ws.cell(row=idx, column=9, value=pago["item"]).border = border
+            ws.cell(row=idx, column=10, value=pago["orden_compra"]).border = border
+            ws.cell(row=idx, column=11, value=pago["fecha_pago"]).border = border
+            
+            # Abonos (formato moneda)
+            cell_abonos = ws.cell(row=idx, column=12, value=pago["total_abonado"])
+            cell_abonos.number_format = '#,##0'
+            cell_abonos.border = border
+            
+            # Saldo (formato moneda)
+            cell_saldo = ws.cell(row=idx, column=13, value=pago["saldo_pendiente"])
+            cell_saldo.number_format = '#,##0'
+            cell_saldo.border = border
+            
+            # Estado con color
+            cell_estado = ws.cell(row=idx, column=14, value=pago["estado"].upper())
+            cell_estado.border = border
+            if pago["estado"] == "pagado":
+                cell_estado.fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid")
+                cell_estado.font = Font(color="065F46", bold=True)
+            elif pago["estado"] == "pendiente":
+                cell_estado.fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
+                cell_estado.font = Font(color="991B1B", bold=True)
+            else:  # abono
+                cell_estado.fill = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")
+                cell_estado.font = Font(color="92400E", bold=True)
+        
+        # Ajustar anchos de columnas
+        ws.column_dimensions['A'].width = 8   # OP
+        ws.column_dimensions['B'].width = 12  # Fecha
+        ws.column_dimensions['C'].width = 30  # Proveedor
+        ws.column_dimensions['D'].width = 15  # RUT
+        ws.column_dimensions['E'].width = 40  # Detalle
+        ws.column_dimensions['F'].width = 15  # Factura
+        ws.column_dimensions['G'].width = 15  # Total
+        ws.column_dimensions['H'].width = 25  # Proyecto
+        ws.column_dimensions['I'].width = 10  # Item
+        ws.column_dimensions['J'].width = 10  # OC
+        ws.column_dimensions['K'].width = 12  # Fecha Pago
+        ws.column_dimensions['L'].width = 15  # Abonos
+        ws.column_dimensions['M'].width = 15  # Saldo
+        ws.column_dimensions['N'].width = 12  # Estado
+        
+        # Guardar en memoria
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        filename = f"ordenes_pago_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            attachment_filename=filename
+        )
+        
+    except Exception as e:
+        logger.error(f"Error al exportar Excel: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            "success": False,
+            "message": f"Error al generar Excel: {str(e)}"
+        }), 500

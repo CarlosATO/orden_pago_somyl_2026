@@ -4,6 +4,33 @@ Sistema web completo con backend en **Flask**, frontend en **React + Vite**, bas
 
 ---
 
+## 🆕 Últimas Actualizaciones
+
+### ✅ Módulo de Usuarios Implementado (3 Nov 2025)
+Se ha completado la implementación del **módulo de Gestión de Usuarios** con todas las funcionalidades del sistema antiguo:
+
+**Características principales:**
+- ✅ CRUD completo de usuarios
+- ✅ Gestión de permisos por módulos (tabla `usuario_modulo`)
+- ✅ Activación/Desactivación de usuarios
+- ✅ Bloqueo/Desbloqueo de cuentas
+- ✅ Reset de contraseñas con generación automática de contraseñas temporales
+- ✅ Filtros por estado (Activos, Inactivos, Bloqueados)
+- ✅ Búsqueda en tiempo real por nombre o email
+- ✅ Dashboard con estadísticas (Total, Activos, Inactivos, Bloqueados)
+- ✅ Modal para mostrar contraseñas temporales con botón de copia
+- ✅ Validaciones completas (email, password, unicidad)
+
+**Archivos creados:**
+- Backend: `backend/modules/usuarios.py` (700+ líneas)
+- Frontend: `frontend/src/components/Usuarios.jsx` (800+ líneas)
+- Estilos: `frontend/src/components/Usuarios.css` (600+ líneas)
+- Documentación: [`MODULO_USUARIOS.md`](./MODULO_USUARIOS.md) ← **VER DOCUMENTACIÓN COMPLETA**
+
+**Endpoints API:** `/api/usuarios/*` (11 endpoints REST)
+
+---
+
 ## 📋 Tabla de Contenidos
 
 1. [Requisitos Previos](#-requisitos-previos)
@@ -850,11 +877,139 @@ Si quieres que implemente alguna de estas mejoras, dime cuál y la agrego.
 
 ---
 
-**Última actualización:** 20 de octubre de 2025  
-**Versión:** 1.0.0  
+**Última actualización:** 3 de noviembre de 2025  
+**Versión:** 1.0.1  
 **Estado:** ✅ Producción
 
-## Registro de trabajo reciente: Módulo `pagos`
+---
+
+## 📝 Registro de Trabajo Reciente
+
+### 🔧 3 de Noviembre de 2025: Fix Módulo `ordenes_no_recepcionadas`
+
+**PROBLEMA CRÍTICO RESUELTO:** El módulo mostraba 376 órdenes pendientes cuando en producción solo hay 31.
+
+#### 🔍 Diagnóstico
+
+**Causa raíz identificada:**
+1. ❌ **Falta de paginación** - Solo se obtenían los primeros 1000 registros de Supabase
+2. ❌ **Falta filtro de fecha** - Se mostraban OCs de más de 2 años de antigüedad
+
+**Proceso de diagnóstico:**
+- Comparación con sistema en producción (https://pagos.datix.cl)
+- Análisis de código antiguo en repositorio `CarlosATO/seguimiento_ordenes`
+- Scripts de diagnóstico creados:
+  - `diagnostico_oc_pendientes.py` - Análisis inicial
+  - `diagnostico_filtros_avanzado.py` - Análisis de filtros por fecha/monto
+  - `test_fecha_exacta.py` - Identificación del período exacto
+
+#### ✅ Soluciones Implementadas
+
+**Archivo modificado:** `nuevo_proyecto/backend/modules/ordenes_no_recepcionadas.py`
+
+**Cambios aplicados:**
+
+1. **Paginación completa para ingresos:**
+```python
+def get_all_ingresos(supabase):
+    """Obtiene TODOS los ingresos con paginación"""
+    all_ingresos = []
+    start = 0
+    page_size = 1000
+    
+    while True:
+        response = supabase.table("ingresos").select(
+            "orden_compra, art_corr"
+        ).range(start, start + page_size - 1).execute()
+        
+        rows = response.data or []
+        if not rows or len(rows) < page_size:
+            break
+        
+        all_ingresos.extend(rows)
+        start += page_size
+    
+    return all_ingresos
+```
+
+2. **Paginación completa para órdenes de compra:**
+```python
+# Obtener TODAS las líneas con paginación
+oc_lines = []
+start = 0
+page_size = 1000
+
+while True:
+    response = supabase.table("orden_de_compra").select(
+        "orden_compra, proveedor, fecha, total, art_corr, elimina_oc"
+    ).gte("fecha", fecha_limite).order("orden_compra", desc=True).range(
+        start, start + page_size - 1
+    ).execute()
+    
+    rows = response.data or []
+    if not rows or len(rows) < page_size:
+        break
+    
+    oc_lines.extend(rows)
+    start += page_size
+```
+
+3. **Filtro de fecha (último año):**
+```python
+from datetime import datetime, timedelta
+
+# Calcular fecha límite (último año - 12 meses)
+fecha_limite = (datetime.now() - timedelta(days=365)).date().isoformat()
+
+# Aplicar filtro en la consulta
+.gte("fecha", fecha_limite)
+```
+
+#### 📊 Resultados
+
+**Antes del fix:**
+- Total OCs mostradas: **376**
+- Monto total: $407,113,917
+- Causa: Solo primeros 1000 registros + sin filtro de fecha
+
+**Después del fix:**
+- Total OCs mostradas: **31** ✅
+- Monto total: **$19,331,932** ✅
+- 100% coincidente con sistema en producción
+
+#### 🎯 Lógica del Sistema
+
+El módulo aplica la siguiente lógica (idéntica al sistema antiguo):
+
+1. Obtiene **TODAS** las líneas de órdenes de compra (con paginación)
+2. Obtiene **TODOS** los ingresos registrados (con paginación)
+3. Filtra solo OCs del **último año**
+4. Filtra OCs no marcadas como eliminadas (`elimina_oc != "1"`)
+5. Compara línea por línea usando tupla `(orden_compra, art_corr)`
+6. Una OC se considera pendiente si tiene **AL MENOS UNA** línea sin ingreso
+7. El monto mostrado es la **suma SOLO de las líneas pendientes**
+
+#### ⚠️ Lecciones Aprendidas
+
+**IMPORTANTE para futuros desarrollos:**
+
+1. **SIEMPRE usar paginación** con Supabase (límite por defecto ~1000 registros)
+2. **Verificar filtros de fecha** - sistemas en producción suelen mostrar solo datos recientes
+3. **Comparar resultados** con sistema antiguo antes de implementar
+4. **Usar scripts de diagnóstico** para validar lógica de negocio
+
+#### 🔗 Referencias
+
+- Sistema en producción: https://pagos.datix.cl
+- Código antiguo: https://github.com/CarlosATO/seguimiento_ordenes/blob/main/app/modules/informes.py
+- Tablas involucradas:
+  - `orden_de_compra` - Líneas de órdenes de compra
+  - `ingresos` - Recepciones de materiales/servicios
+  - `proveedores` - Información de proveedores
+
+---
+
+### 📌 Módulo `pagos` (20 de Octubre de 2025)
 
 Pequeño resumen técnico de las acciones realizadas durante la migración y diagnóstico (útil para quien retome el trabajo):
 

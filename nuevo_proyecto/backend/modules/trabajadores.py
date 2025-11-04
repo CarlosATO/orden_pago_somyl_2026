@@ -49,6 +49,25 @@ def api_get_trabajadores(current_user):
         return jsonify({"success": False, "message": "Error al obtener los trabajadores"}), 500
 
 
+# Nuevo endpoint: obtener trabajador por id
+@bp.route("/<int:id>", methods=["GET"])
+@token_required
+def api_get_trabajador_by_id(current_user, id):
+    """
+    Devuelve los datos de un trabajador por id (incluye correo).
+    """
+    try:
+        supabase = current_app.config['SUPABASE']
+        trabajador = supabase.table("trabajadores").select("id, nombre, correo").eq("id", id).execute().data
+        if not trabajador:
+            return jsonify({"message": "Trabajador no encontrado"}), 404
+        # Devolver directamente el objeto trabajador para compatibilidad con el frontend
+        return jsonify(trabajador[0])
+    except Exception as e:
+        current_app.logger.error(f"Error al obtener trabajador por id: {str(e)}")
+        return jsonify({"success": False, "message": "Error al obtener trabajador"}), 500
+
+
 @bp.route("/new", methods=["POST"])
 @token_required
 def new_trabajador(current_user):

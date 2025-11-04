@@ -168,6 +168,55 @@ const Pagos = () => {
     setPage(1);
   };
   
+  // ========= EXPORTAR A EXCEL =========
+  
+  const exportarExcel = async () => {
+    try {
+      setMensaje({ tipo: 'info', texto: 'Generando Excel...' });
+      
+      const token = localStorage.getItem('authToken');
+      
+      // Construir params con los filtros actuales
+      const params = new URLSearchParams(
+        Object.fromEntries(
+          Object.entries(filtros).filter(([_, v]) => v !== '')
+        )
+      );
+      
+      const url = params.toString() 
+        ? `/api/pagos/exportar-excel?${params}`
+        : '/api/pagos/exportar-excel';
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Error al generar Excel');
+      }
+      
+      // Descargar archivo Excel
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `ordenes_pago_${new Date().toISOString().slice(0,10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      setMensaje({ tipo: 'success', texto: 'Excel generado exitosamente' });
+      
+    } catch (error) {
+      console.error('Error exportando Excel:', error);
+      setMensaje({ tipo: 'error', texto: error.message || 'Error al exportar a Excel' });
+    }
+  };
+  
   // ========= FUNCIONES DE FECHA DE PAGO =========
   
   const handleFechaPagoChange = async (orden_numero, fecha_pago) => {
@@ -341,9 +390,14 @@ const Pagos = () => {
       {/* Header */}
       <div className="pagos-header">
         <h1>Órdenes de Pago</h1>
-        <button className="btn btn-secondary" onClick={limpiarFiltros}>
-          Limpiar Filtros
-        </button>
+        <div className="header-buttons">
+          <button className="btn btn-success" onClick={exportarExcel}>
+            📊 Exportar a Excel
+          </button>
+          <button className="btn btn-secondary" onClick={limpiarFiltros}>
+            Limpiar Filtros
+          </button>
+        </div>
       </div>
       
       {/* Layout Superior: Estadísticas (Izq) + Proyectos Pendientes (Der) */}
@@ -468,26 +522,27 @@ const Pagos = () => {
       </div>
       
       {/* Tabla Principal */}
-      <div className="tabla-container">
-        {loading ? (
-          <div className="loading">Cargando...</div>
-        ) : (
-          <table className="tabla-pagos">
-            <colgroup>
-              <col /><col /><col /><col /><col /><col /><col /><col />
-              <col /><col /><col /><col /><col /><col /><col />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>OP</th>
-                <th>Fecha</th>
-                <th>Proveedor</th>
-                <th>RUT</th>
-                <th>Detalle</th>
-                <th>Factura</th>
-                <th>Total</th>
-                <th>Proyecto</th>
-                <th>Item</th>
+      <div className="tabla-wrapper">
+        <div className="tabla-container">
+          {loading ? (
+            <div className="loading">Cargando...</div>
+          ) : (
+            <table className="tabla-pagos">
+              <colgroup>
+                <col /><col /><col /><col /><col /><col /><col /><col />
+                <col /><col /><col /><col /><col /><col /><col />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>OP</th>
+                  <th>Fecha</th>
+                  <th>Proveedor</th>
+                  <th>RUT</th>
+                  <th>Detalle</th>
+                  <th>Factura</th>
+                  <th>Total</th>
+                  <th>Proyecto</th>
+                  <th>Item</th>
                 <th>OC</th>
                 <th>Fecha Pago</th>
                 <th>Abonos</th>
@@ -505,7 +560,7 @@ const Pagos = () => {
                 </tr>
               ) : (
                 pagos.map(pago => (
-                  <tr key={pago.orden_numero}>
+                  <tr key={pago.orden_numero} className={pago.estado === 'pagado' ? 'fila-pagada' : ''}>
                     <td>{pago.orden_numero}</td>
                     <td>{pago.fecha}</td>
                     <td title={pago.proveedor_nombre}>{pago.proveedor_nombre}</td>
@@ -556,6 +611,7 @@ const Pagos = () => {
             </tbody>
           </table>
         )}
+        </div>
       </div>
       
       {/* Paginación */}

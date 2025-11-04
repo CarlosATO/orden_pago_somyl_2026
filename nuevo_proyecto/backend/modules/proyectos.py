@@ -26,7 +26,7 @@ def get_proyectos(current_user):
 
         return jsonify({
             "success": True,
-            "proyectos": proyectos
+            "data": proyectos  # Cambiado de "proyectos" a "data" para consistencia
         })
 
     except Exception as e:

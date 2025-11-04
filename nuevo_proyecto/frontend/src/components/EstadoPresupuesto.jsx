@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import './EstadoPresupuesto.css';
 import ChartsPresupuesto from './ChartsPresupuesto';
 
@@ -17,10 +17,11 @@ function EstadoPresupuesto() {
     indicadores: { ejecucion_presupuesto: 0, avance_produccion: 0, variacion_saldo: 0, meses_analizados: 0 }
   });
   const [loading, setLoading] = useState(false);
+  const [loadingProyectos, setLoadingProyectos] = useState(true); // Nuevo: loading separado para proyectos
   const [mensaje, setMensaje] = useState(null);
   
   // Filtros
-  const [proyectoSeleccionado, setProyectoSeleccionado] = useState('todos');
+  const [proyectoSeleccionado, setProyectoSeleccionado] = useState(''); // Cambiado de 'todos' a '' para no cargar nada
   const [vistaActual, setVistaActual] = useState('comparativa');
   
   // Modal de detalle
@@ -43,18 +44,49 @@ function EstadoPresupuesto() {
     { num: 12, nombre: 'Dic' }
   ];
 
-  useEffect(() => {
-    fetchEstadoPresupuesto();
-  }, [proyectoSeleccionado]); // Re-fetch cuando cambie el proyecto seleccionado
+  // Funciones de carga de datos
+  const fetchProyectos = useCallback(async () => {
+    console.log('🔄 Iniciando carga de proyectos...');
+    setLoadingProyectos(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setMensaje({ tipo: 'error', texto: 'Sesión expirada' });
+        return;
+      }
 
-  useEffect(() => {
-    if (mensaje) {
-      const timer = setTimeout(() => setMensaje(null), 5000);
-      return () => clearTimeout(timer);
+      const response = await fetch('/api/proyectos/', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          console.log('✅ Proyectos cargados:', data.data?.length || 0);
+          console.log('📋 Lista de proyectos:', data.data);
+          setProyectos(data.data || []);
+        } else {
+          console.error('❌ Error en respuesta:', data.message);
+        }
+      } else if (response.status === 401) {
+        setMensaje({ tipo: 'error', texto: 'Sesión expirada' });
+      } else {
+        console.error('❌ Error HTTP:', response.status, response.statusText);
+        setMensaje({ tipo: 'error', texto: `Error ${response.status} al cargar proyectos` });
+      }
+    } catch (error) {
+      console.error('❌ Error al cargar proyectos:', error);
+      setMensaje({ tipo: 'error', texto: 'Error al cargar lista de proyectos' });
+    } finally {
+      console.log('✅ Carga de proyectos finalizada');
+      setLoadingProyectos(false);
     }
-  }, [mensaje]);
+  }, []);
 
-  const fetchEstadoPresupuesto = async () => {
+  const fetchEstadoPresupuesto = useCallback(async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('authToken');
@@ -63,11 +95,14 @@ function EstadoPresupuesto() {
         return;
       }
 
-      // Construir URL con filtro de proyecto si no es 'todos'
-      let url = '/api/estado-presupuesto/';
-      if (proyectoSeleccionado && proyectoSeleccionado !== 'todos') {
-        url += `?proyecto_id=${proyectoSeleccionado}`;
+      // Solo permitir IDs específicos, NO "todos"
+      if (!proyectoSeleccionado || proyectoSeleccionado === '') {
+        setLoading(false);
+        return;
       }
+
+      // Construir URL con filtro de proyecto (siempre con ID específico)
+      const url = `/api/estado-presupuesto/?proyecto_id=${proyectoSeleccionado}`;
 
       const response = await fetch(url, {
         headers: {
@@ -87,11 +122,8 @@ function EstadoPresupuesto() {
           console.log('✅ Resumen:', data.data.resumen);
           setMatriz(data.data.matriz);
           
-          // IMPORTANTE: Solo actualizar la lista de proyectos si estamos viendo "todos"
-          // o si la lista está vacía (primera carga)
-          if (proyectoSeleccionado === 'todos' || proyectos.length === 0) {
-            setProyectos(data.data.proyectos);
-          }
+          // NO actualizar la lista de proyectos aquí
+          // La lista de proyectos se carga solo con fetchProyectos()
           
           setItems(data.data.items);
           setTotales(data.data.totales);
@@ -114,7 +146,40 @@ function EstadoPresupuesto() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [proyectoSeleccionado]);
+
+  useEffect(() => {
+    // Cargar lista de proyectos al montar el componente
+    fetchProyectos();
+  }, [fetchProyectos]);
+
+  useEffect(() => {
+    // Cargar datos SOLO si hay un proyecto seleccionado Y no es vacío
+    if (proyectoSeleccionado && proyectoSeleccionado !== '') {
+      fetchEstadoPresupuesto();
+    } else {
+      // Limpiar datos si no hay selección
+      setMatriz({});
+      setItems([]);
+      setTotales({
+        presupuesto_total: 0,
+        real_total: 0,
+        diferencia_total: 0
+      });
+      setResumen({
+        presupuesto_inicial: { venta: 0, gasto: 0, saldo: 0 },
+        estado_actual: { produccion: 0, gasto: 0, saldo: 0 },
+        indicadores: { ejecucion_presupuesto: 0, avance_produccion: 0, variacion_saldo: 0, meses_analizados: 0 }
+      });
+    }
+  }, [proyectoSeleccionado, fetchEstadoPresupuesto]);
+
+  useEffect(() => {
+    if (mensaje) {
+      const timer = setTimeout(() => setMensaje(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [mensaje]);
 
   const fetchDetalle = async (proyectoId, itemId, mes) => {
     setLoadingDetalle(true);
@@ -324,8 +389,10 @@ function EstadoPresupuesto() {
         </div>
   </div>
 
-  {/* Gráficos comparativos: Presupuesto vs Actual y Saldos (debajo de los cuadros) */}
-  <ChartsPresupuesto proyectoId={proyectoSeleccionado} />
+  {/* Gráficos comparativos: SOLO si hay proyecto seleccionado */}
+  {proyectoSeleccionado && proyectoSeleccionado !== '' && (
+    <ChartsPresupuesto proyectoId={proyectoSeleccionado} />
+  )}
 
   {/* Stats Cards Inferiores */}
       <div className="stats-grid-bottom">
@@ -369,15 +436,21 @@ function EstadoPresupuesto() {
           </label>
           <select 
             value={proyectoSeleccionado} 
-            onChange={(e) => setProyectoSeleccionado(e.target.value)}
-            disabled={loading}
+            onChange={(e) => {
+              console.log('📋 Proyecto seleccionado:', e.target.value);
+              setProyectoSeleccionado(e.target.value);
+            }}
+            disabled={loadingProyectos}
           >
-            <option value="todos">Todos los proyectos</option>
+            <option value="">
+              {loadingProyectos ? 'Cargando proyectos...' : 'Seleccione un proyecto...'}
+            </option>
+            {console.log('🔍 Proyectos en estado para renderizar:', proyectos.length, proyectos)}
             {proyectos.map(p => (
               <option key={p.id} value={p.id}>{p.proyecto}</option>
             ))}
           </select>
-          {loading && <span className="loading-indicator">Cargando...</span>}
+          {loading && <span className="loading-indicator">Cargando datos...</span>}
         </div>
 
         <div className="vista-toggle">
@@ -420,6 +493,13 @@ function EstadoPresupuesto() {
             <div className="spinner"></div>
             <p>Cargando estado de presupuesto...</p>
           </div>
+        ) : !proyectoSeleccionado ? (
+          <div className="empty-state">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
+              <path d="M21 16V8C20.9996 7.64928 20.9071 7.30481 20.7315 7.00116C20.556 6.69751 20.3037 6.44536 20 6.27L13 2.27C12.696 2.09446 12.3511 2.00205 12 2.00205C11.6489 2.00205 11.304 2.09446 11 2.27L4 6.27C3.69626 6.44536 3.44398 6.69751 3.26846 7.00116C3.09294 7.30481 3.00036 7.64928 3 8V16C3.00036 16.3507 3.09294 16.6952 3.26846 16.9988C3.44398 17.3025 3.69626 17.5546 4 17.73L11 21.73C11.304 21.9055 11.6489 21.9979 12 21.9979C12.3511 21.9979 12.696 21.9055 13 21.73L20 17.73C20.3037 17.5546 20.556 17.3025 20.7315 16.9988C20.9071 16.6952 20.9996 16.3507 21 16Z" stroke="#94a3b8" strokeWidth="2"/>
+            </svg>
+            <p>Seleccione un proyecto para ver el estado del presupuesto</p>
+          </div>
         ) : proyectosFiltrados.length === 0 ? (
           <div className="empty-state">
             <svg width="64" height="64" viewBox="0 0 24 24" fill="none">
@@ -427,7 +507,7 @@ function EstadoPresupuesto() {
               <path d="M3 9H21" stroke="#cbd5e1" strokeWidth="2"/>
               <path d="M9 3V21" stroke="#cbd5e1" strokeWidth="2"/>
             </svg>
-            <p>No hay datos disponibles</p>
+            <p>No hay datos disponibles para este proyecto</p>
           </div>
         ) : (
           <div className="table-scroll-matriz">

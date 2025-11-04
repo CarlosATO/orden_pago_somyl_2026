@@ -1,11 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { setAuthToken } from '../utils/auth';
 import './Login.css';
 
 const Login = ({ onLoginSuccess }) => {
-  const [correo, setCorreo] = useState('');
+  // Recuperar el correo guardado si existe
+  const savedEmail = localStorage.getItem('rememberedEmail') || '';
+  const savedRememberMe = localStorage.getItem('rememberMe') === 'true';
+  
+  const [correo, setCorreo] = useState(savedEmail);
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(savedRememberMe);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const [infoMessage, setInfoMessage] = useState(null);
@@ -44,8 +48,14 @@ const Login = ({ onLoginSuccess }) => {
       }
       
       setAuthToken(data.token);
+      
+      // Guardar o limpiar el correo según "Remember Me"
       if (rememberMe) {
         localStorage.setItem('rememberMe', 'true');
+        localStorage.setItem('rememberedEmail', correo);
+      } else {
+        localStorage.removeItem('rememberMe');
+        localStorage.removeItem('rememberedEmail');
       }
       
       // Verificar que se guardó correctamente
@@ -70,18 +80,16 @@ const Login = ({ onLoginSuccess }) => {
         <h1>Bienvenido<br/>Gestion compras</h1>
         <p>Plataforma para la gestión y seguimiento en tiempo real de sus órdenes de compra. Manteniendo  el control de sus adquisiciones y generando  reportes detallados.</p>
         <div className="social-icons">
-          {/* Contact icon - links to the creator site. Update `contactUrl` if you want a different target. */}
-          {
-            /* default contact URL - change as needed */
-          }
+          {/* Enlace a portafolio del desarrollador */}
           <a
             className="contact-link"
             href="https://datix.cl"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Contacto del autor"
+            aria-label="Visitar portafolio del desarrollador"
+            title="Desarrollado por DATIX"
           >
-            <i className="fa-solid fa-address-card" aria-hidden="true"></i>
+            <i className="fa-solid fa-globe" aria-hidden="true"></i>
           </a>
         </div>
       </div>

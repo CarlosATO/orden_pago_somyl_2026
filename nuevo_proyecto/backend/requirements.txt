@@ -21,3 +21,7 @@ bcrypt==4.2.1
 
 # ---- Generación de PDFs ----
 reportlab==4.0.7
+pdfkit==1.0.0
+
+# ---- Excel / Sheets ----
+openpyxl==3.1.2

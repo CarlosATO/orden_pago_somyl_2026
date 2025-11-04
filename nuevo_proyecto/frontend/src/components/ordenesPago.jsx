@@ -9,21 +9,30 @@ function OrdenesPago() {
   const [proveedor, setProveedor] = useState(null);
   const [proveedorData, setProveedorData] = useState(null);
   const [documentos, setDocumentos] = useState([]);
+  const [documentoSeleccionado, setDocumentoSeleccionado] = useState(null);
   const [lineasSeleccionadas, setLineasSeleccionadas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState(null);
 
   // ========= Estados del formulario =========
   const [autoriza, setAutoriza] = useState(null);
+  const [correoAutoriza, setCorreoAutoriza] = useState('');
   const [fechaFactura, setFechaFactura] = useState('');
   const [vencimiento, setVencimiento] = useState('');
   const [estadoPago, setEstadoPago] = useState('');
   const [detalleCompra, setDetalleCompra] = useState('');
+  const [documentoAdjunto1, setDocumentoAdjunto1] = useState(null);
+  const [documentoAdjunto2, setDocumentoAdjunto2] = useState(null);
 
   // ========= Estados de modales =========
   const [mostrarHistorial, setMostrarHistorial] = useState(false);
   const [historial, setHistorial] = useState([]);
-  const [mostrarCopiar, setMostrarCopiar] = useState(false);
+  const [historialFilter, setHistorialFilter] = useState('');
+
+  // ========= Estado para generar PDF de orden copiada =========
+  const [numeroOrdenOriginal, setNumeroOrdenOriginal] = useState(null);
+  const [modoConsulta, setModoConsulta] = useState(false); // true = solo consulta, false = creación
+  const [pdfDownloaded, setPdfDownloaded] = useState(false); // true si se descargó el PDF para los datos actuales
 
   // ========= Cargar próximo número al montar =========
   useEffect(() => {
@@ -61,6 +70,9 @@ function OrdenesPago() {
     setProveedor(selectedOption);
     setDocumentos([]);
     setLineasSeleccionadas([]);
+    setDocumentoSeleccionado(null);
+    setNumeroOrdenOriginal(null); // Limpiar número de orden original al cambiar proveedor
+    setModoConsulta(false); // Desactivar modo consulta
 
     if (!selectedOption) {
       setProveedorData(null);
@@ -83,6 +95,7 @@ function OrdenesPago() {
           setProveedorData(data.data.proveedor_seleccionado);
           setDocumentos(data.data.documentos);
           setMensaje(null);
+          setPdfDownloaded(false);
         }
       } else if (response.status === 401) {
         setMensaje({ tipo: 'error', texto: 'Sesión expirada' });
@@ -100,6 +113,8 @@ function OrdenesPago() {
     if (!proveedor) return;
 
     setLoading(true);
+    setDocumentoSeleccionado({ documento, oc });
+
     try {
       const token = localStorage.getItem('authToken');
       const url = `/api/ordenes_pago/detalle?documento=${encodeURIComponent(documento)}&oc=${oc}&proveedor_id=${proveedor.value}`;
@@ -114,13 +129,8 @@ function OrdenesPago() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          // Agregar líneas que no estén ya seleccionadas
-          const nuevasLineas = data.data.filter(linea =>
-            !lineasSeleccionadas.some(ls => ls.ingreso_id === linea.ingreso_id)
-          );
-
-          setLineasSeleccionadas([...lineasSeleccionadas, ...nuevasLineas]);
-          setMensaje({ tipo: 'success', texto: `${nuevasLineas.length} línea(s) agregada(s)` });
+          setLineasSeleccionadas(data.data);
+          setMensaje({ tipo: 'success', texto: `${data.data.length} línea(s) cargadas` });
         }
       }
     } catch (error) {
@@ -139,7 +149,8 @@ function OrdenesPago() {
   // ========= Calcular totales =========
   const calcularTotales = () => {
     const neto = lineasSeleccionadas.reduce((sum, linea) => sum + linea.neto_total, 0);
-    const iva = neto * 0.19; // TODO: Verificar si hay líneas sin IVA
+    // ⚠️ TODO: Aquí deberíamos chequear el IVA por OC
+    const iva = neto * 0.19; 
     const total = neto + iva;
 
     return { neto, iva, total };
@@ -147,7 +158,6 @@ function OrdenesPago() {
 
   // ========= Guardar orden de pago =========
   const handleGuardar = async () => {
-    // Validaciones
     if (!proveedor) {
       setMensaje({ tipo: 'error', texto: 'Debe seleccionar un proveedor' });
       return;
@@ -203,14 +213,14 @@ function OrdenesPago() {
 
       if (response.ok && data.success) {
         setMensaje({ tipo: 'success', texto: data.message });
-
-        // Limpiar formulario
         setLineasSeleccionadas([]);
         setDetalleCompra('');
         setEstadoPago('');
+        setNumeroOrdenOriginal(null); // Limpiar número de orden original
+        setModoConsulta(false); // Desactivar modo consulta
+        setPdfDownloaded(false);
         await fetchProximoNumero();
 
-        // Recargar documentos del proveedor
         if (proveedor) {
           handleProveedorChange(proveedor);
         }
@@ -227,20 +237,81 @@ function OrdenesPago() {
 
   // ========= Generar PDF =========
   const handleGenerarPDF = async () => {
-    if (!numeroOP) {
-      setMensaje({ tipo: 'error', texto: 'Debe crear la orden primero' });
+    // Si hay una orden original copiada (modo consulta), usar la ruta por número.
+    // En modo creación, enviar los datos actuales al endpoint que genera PDF desde el form
+    if (modoConsulta && numeroOrdenOriginal) {
+      try {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch(`/api/ordenes_pago/pdf/${numeroOrdenOriginal}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `orden_pago_${numeroOrdenOriginal}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+          setMensaje({ tipo: 'success', texto: `PDF de orden ${numeroOrdenOriginal} generado correctamente` });
+          setPdfDownloaded(true);
+        } else {
+          const data = await response.json();
+          setMensaje({ tipo: 'error', texto: data.error || data.message || 'Error al generar PDF' });
+        }
+      } catch (error) {
+        console.error('Error al generar PDF:', error);
+        setMensaje({ tipo: 'error', texto: 'Error al generar PDF' });
+      }
+      return;
+    }
+
+    // Modo creación: generar PDF desde los datos del formulario (sin guardar en BD)
+    // Validaciones mínimas
+    if (!proveedor) {
+      setMensaje({ tipo: 'error', texto: 'Debe seleccionar un proveedor antes de generar PDF' });
+      return;
+    }
+
+    if (lineasSeleccionadas.length === 0) {
+      setMensaje({ tipo: 'error', texto: 'Debe seleccionar al menos una línea antes de generar PDF' });
       return;
     }
 
     try {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/ordenes_pago/pdf/${numeroOP}`, {
+
+      const payload = {
+        'orden_compra[]': lineasSeleccionadas.map(l => l.orden_compra || ''),
+        'guia_recepcion[]': lineasSeleccionadas.map(l => l.doc_recep || l.documento || ''),
+        'descripcion[]': lineasSeleccionadas.map(l => l.descripcion || ''),
+        next_num: numeroOP,
+        nombre_proveedor: proveedor?.label || '',
+        detalle_compra: detalleCompra,
+        vencimiento: vencimiento,
+        fecha_factura: fechaFactura,
+        autoriza_input: autoriza?.label || '',
+        autoriza_email: correoAutoriza || '',
+        total_neto: totales.neto,
+        total_iva: totales.iva,
+        total_pagar: totales.total
+      };
+
+      const response = await fetch('/api/ordenes_pago/generar-pdf', {
+        method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
       });
 
-      if (response.ok) {
+        if (response.ok) {
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -250,11 +321,11 @@ function OrdenesPago() {
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-
-        setMensaje({ tipo: 'success', texto: 'PDF generado correctamente' });
+        setMensaje({ tipo: 'success', texto: `PDF de orden ${numeroOP} generado correctamente` });
+        setPdfDownloaded(true);
       } else {
         const data = await response.json();
-        setMensaje({ tipo: 'error', texto: data.message || 'Error al generar PDF' });
+        setMensaje({ tipo: 'error', texto: data.error || data.message || 'Error al generar PDF' });
       }
     } catch (error) {
       console.error('Error al generar PDF:', error);
@@ -278,6 +349,7 @@ function OrdenesPago() {
         const data = await response.json();
         if (data.success) {
           setHistorial(data.data);
+          setHistorialFilter('');
           setMostrarHistorial(true);
         }
       }
@@ -305,7 +377,11 @@ function OrdenesPago() {
         if (data.success) {
           const copiaData = data.data;
 
-          // Cargar datos en el formulario
+          // Guardar el número de orden original para generar PDF
+          setNumeroOrdenOriginal(ordenNumero);
+          setModoConsulta(true); // Activar modo solo consulta
+          setPdfDownloaded(false);
+          
           setNumeroOP(copiaData.next_num);
           setProveedor({ value: copiaData.proveedor_id, label: copiaData.proveedor_nombre });
           setAutoriza({ value: copiaData.autoriza_id, label: copiaData.autoriza_nombre });
@@ -316,7 +392,7 @@ function OrdenesPago() {
           setLineasSeleccionadas(copiaData.lineas);
 
           setMostrarHistorial(false);
-          setMensaje({ tipo: 'success', texto: `Orden ${ordenNumero} copiada. Modifique y guarde.` });
+          setMensaje({ tipo: 'success', texto: `Orden ${ordenNumero} cargada en modo consulta. Puede generar PDF.` });
         }
       }
     } catch (error) {
@@ -383,275 +459,226 @@ function OrdenesPago() {
     }
   };
 
-  // ========= Estilos para react-select =========
+  // ========= Manejar cambio de autorizador y cargar correo =========
+  const handleAutorizaChange = async (selectedOption) => {
+    setAutoriza(selectedOption);
+    
+    if (selectedOption) {
+      // Buscar correo del trabajador
+      try {
+        const token = localStorage.getItem('authToken');
+        // ⚠️ Asumimos que este endpoint existe (no estaba en el .py)
+        // Si no existe, necesitamos crearlo o buscar el correo de otra forma
+        const response = await fetch(`/api/trabajadores/${selectedOption.value}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Soportar ambos formatos de respuesta: { correo: 'x' } o { success: true, data: { correo: 'x' } }
+          const correo = data?.correo || (data?.data && data.data.correo) || '';
+          setCorreoAutoriza(correo);
+        }
+      } catch (error) {
+        console.error('Error al cargar correo:', error);
+        setCorreoAutoriza('');
+      }
+    } else {
+      setCorreoAutoriza('');
+    }
+  };
+
+  // ========= Manejar archivos adjuntos =========
+  const handleArchivoChange = (fileNumber, event) => {
+    const file = event.target.files[0];
+    if (fileNumber === 1) {
+      setDocumentoAdjunto1(file);
+    } else {
+      setDocumentoAdjunto2(file);
+    }
+  };
+
   const customSelectStyles = {
     control: (base) => ({
       ...base,
       minHeight: '42px',
       borderColor: '#d1d5db',
-      '&:hover': { borderColor: '#667eea' },
-      boxShadow: 'none'
+      '&:hover': { borderColor: '#3b82f6' }
     }),
+    // Opciones y textos en azul oscuro para mejor contraste
     option: (base, state) => ({
       ...base,
-      backgroundColor: state.isFocused ? '#dbeafe' : 'white',
-      color: '#1f2937',
-      cursor: 'pointer'
+      color: '#1e3a8a', // azul oscuro
+      backgroundColor: state.isFocused ? '#eef2ff' : state.isSelected ? '#e0e7ff' : 'white'
+    }),
+    singleValue: (base) => ({
+      ...base,
+      color: '#1e3a8a'
+    }),
+    placeholder: (base) => ({
+      ...base,
+      color: '#1e3a8a',
+      opacity: 0.9
+    }),
+    menu: (base) => ({
+      ...base,
+      zIndex: 9999
+    }),
+    menuList: (base) => ({
+      ...base,
+      padding: 0,
+      color: '#1e3a8a'
     })
   };
 
   const totales = calcularTotales();
 
+  // Filtrar historial por término (número, proveedor, fecha, total)
+  const filteredHistorial = historial.filter((orden) => {
+    const q = historialFilter.trim().toLowerCase();
+    if (!q) return true;
+    const numero = String(orden.orden_numero || '').toLowerCase();
+    const proveedorText = String(orden.proveedor || '').toLowerCase();
+    const fecha = String(orden.fecha || '').toLowerCase();
+    const total = String(orden.total || '').toLowerCase();
+    return (
+      numero.includes(q) ||
+      proveedorText.includes(q) ||
+      fecha.includes(q) ||
+      total.includes(q)
+    );
+  });
+
   // ========= Renderizado =========
   return (
-    <div className="ordenes-pago-container">
-      {/* ========= Header ========= */}
-      <div className="ordenes-pago-header">
-        <div className="header-title-group">
-          <div className="icon-wrapper">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="3" y="6" width="18" height="14" rx="2" stroke="currentColor" strokeWidth="2"/>
-              <path d="M3 10H21" stroke="currentColor" strokeWidth="2"/>
-              <circle cx="7" cy="14" r="1" fill="currentColor"/>
-              <path d="M10 14H17" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-          </div>
-          <h1>Órdenes de Pago</h1>
+    <div className="ordenes-pago-page">
+      {/* Header */}
+      <div className="page-header">
+        <div className="header-left">
+          <h1 className="page-title">Órdenes de Pago - Apps. Admis</h1>
         </div>
-        <div className="header-actions">
-          <button className="btn-secondary" onClick={handleVerHistorial}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
-              <path d="M12 6V12L16 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+        <div className="header-right">
+          <button className="btn-reload" onClick={handleVerHistorial} style={{ marginRight: '10px', background: '#667eea' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2"/>
             </svg>
-            Historial
+            Ver Historial
           </button>
         </div>
       </div>
 
-      {/* ========= Mensajes ========= */}
+      {/* Mensajes */}
       {mensaje && (
-        <div className={`mensaje mensaje-${mensaje.tipo}`}>
+        <div className={`alert alert-${mensaje.tipo === 'success' ? 'success' : 'danger'}`}>
           {mensaje.texto}
-          <button className="btn-close-mensaje" onClick={() => setMensaje(null)}>×</button>
+          <button className="alert-close" onClick={() => setMensaje(null)}>×</button>
         </div>
       )}
 
-      {/* ========= Selección de Proveedor ========= */}
-      <div className="ordenes-section card-elevated">
-        <div className="section-header">
-          <svg className="section-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="currentColor" strokeWidth="2"/>
-            <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2"/>
-          </svg>
-          <h2>Seleccionar Proveedor</h2>
-        </div>
-        <div className="form-grid-single">
-          <div className="form-group">
-            <label>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2"/>
-                <path d="M21 21L16.65 16.65" stroke="currentColor" strokeWidth="2"/>
+      {/* Banner de Modo Consulta (minimal) */}
+      {modoConsulta && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          padding: '6px 10px',
+          borderRadius: '10px',
+          marginBottom: '12px',
+          background: '#f8fafc',
+          border: '1px solid #e6eef8'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '8px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#eef2ff',
+              color: '#1e3a8a'
+            }} aria-hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M7 7h10M7 11h10M7 15h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              Proveedor
-            </label>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: '13px', color: '#0f172a', fontWeight: 600 }}>Orden #{numeroOrdenOriginal}</span>
+              <small style={{ color: '#6b7280', fontSize: '12px' }}>Solo consulta — puede generar PDF</small>
+            </div>
+          </div>
+
+          {/* Se eliminó el botón 'Nueva' para mantener el banner minimalista */}
+        </div>
+      )}
+
+      <div className="content-wrapper">
+        {/* Selector de Proveedor */}
+        <div className="section-card">
+          <div className="card-header-icon">
+            <div className="icon-circle blue">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2"/>
+                <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+            </div>
+            <div>
+              <h2 className="card-title">Proveedor:</h2>
+            </div>
+          </div>
+
+          <div className="form-row-single">
             <AsyncSelect
               value={proveedor}
               onChange={handleProveedorChange}
               loadOptions={loadProveedores}
-              placeholder="Buscar proveedor..."
+              placeholder={modoConsulta ? (proveedor?.label || 'CBASAURE SPA') : 'Busque proveedor'}
               isClearable
               isSearchable
+              isDisabled={modoConsulta} // Deshabilitar en modo consulta
               styles={customSelectStyles}
               noOptionsMessage={() => "Escriba para buscar..."}
               defaultOptions
+              className="select-full-width"
             />
           </div>
         </div>
 
-        {proveedorData && (
-          <div className="proveedor-info">
-            <div className="info-row">
-              <span className="info-label">RUT:</span>
-              <span>{proveedorData.rut}</span>
-            </div>
-            <div className="info-row">
-              <span className="info-label">Banco:</span>
-              <span>{proveedorData.banco || 'N/A'}</span>
-            </div>
-            <div className="info-row">
-              <span className="info-label">Cuenta:</span>
-              <span>{proveedorData.cuenta || 'N/A'}</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ========= Documentos Pendientes ========= */}
-      {documentos.length > 0 && (
-        <div className="ordenes-section card-elevated">
-          <div className="section-header">
-            <svg className="section-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" strokeWidth="2"/>
-              <path d="M14 2V8H20" stroke="currentColor" strokeWidth="2"/>
-            </svg>
-            <h2>Documentos Pendientes</h2>
-            <span className="badge-count">{documentos.length}</span>
-          </div>
-
-          <div className="tabla-documentos">
-            <div className="tabla-header-docs">
-              <div>DOCUMENTO</div>
-              <div>ORDEN COMPRA</div>
-              <div>TOTAL NETO</div>
-              <div>ACCIONES</div>
-            </div>
-
-            {documentos.map((doc, idx) => (
-              <div key={idx} className="tabla-row-docs">
-                <div className="col-doc">
-                  {doc.documento === 'SIN_DOCUMENTO' ? (
-                    <span className="badge-sin-doc">Sin documento</span>
-                  ) : (
-                    <span className="badge-doc">{doc.documento}</span>
-                  )}
-                </div>
-                <div className="col-oc">
-                  <span className="badge-oc">{doc.orden_compra}</span>
-                </div>
-                <div className="col-total">
-                  ${doc.total_neto.toLocaleString('es-CL')}
-                </div>
-                <div className="col-acciones-docs">
-                  <button
-                    className="btn-seleccionar"
-                    onClick={() => handleSeleccionarDocumento(doc.documento, doc.orden_compra)}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                    </svg>
-                    Seleccionar
-                  </button>
-                </div>
+        {/* Datos de la Orden */}
+        {proveedor && (
+          <div className="section-card">
+            <div className="card-header-icon">
+              <div className="icon-circle blue">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2"/>
+                  <polyline points="14 2 14 8 20 8" stroke="currentColor" strokeWidth="2"/>
+                </svg>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ========= Líneas Seleccionadas ========= */}
-      {lineasSeleccionadas.length > 0 && (
-        <>
-          <div className="ordenes-section card-elevated">
-            <div className="section-header">
-              <svg className="section-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
-                <rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
-                <rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
-                <rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-              <h2>Detalle de Material Seleccionado</h2>
-            </div>
-
-            <div className="tabla-lineas">
-              <div className="tabla-header-lineas">
-                <div>DESCRIPCIÓN</div>
-                <div>CANTIDAD</div>
-                <div>NETO UNIT.</div>
-                <div>TOTAL</div>
-                <div>OC</div>
-                <div>DOC.</div>
-                <div>ACCIONES</div>
-              </div>
-
-              {lineasSeleccionadas.map((linea) => (
-                <div key={linea.ingreso_id} className="tabla-row-lineas">
-                  <div className="col-desc">{linea.descripcion}</div>
-                  <div className="col-cant">
-                    <span className="badge-numero">{linea.cantidad}</span>
-                  </div>
-                  <div className="col-precio">${linea.neto_unitario.toLocaleString('es-CL')}</div>
-                  <div className="col-precio">${linea.neto_total.toLocaleString('es-CL')}</div>
-                  <div className="col-oc">
-                    <span className="badge-oc">{linea.orden_compra}</span>
-                  </div>
-                  <div className="col-doc">
-                    {linea.documento === 'SIN_DOCUMENTO' ? (
-                      <span className="badge-sin-doc">Sin doc</span>
-                    ) : (
-                      <span className="badge-doc">{linea.documento}</span>
-                    )}
-                  </div>
-                  <div className="col-acciones-lineas">
-                    <button
-                      className="btn-eliminar"
-                      onClick={() => eliminarLinea(linea.ingreso_id)}
-                      title="Eliminar"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M3 6H5H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                        <path d="M19 6V20C19 21 18 22 17 22H7C6 22 5 21 5 20V6" stroke="currentColor" strokeWidth="2"/>
-                        <path d="M8 6V4C8 3 9 2 10 2H14C15 2 16 3 16 4V6" stroke="currentColor" strokeWidth="2"/>
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Totales */}
-            <div className="totales-container">
-              <div className="total-row">
-                <span className="total-label">Total Neto:</span>
-                <span className="total-value">${totales.neto.toLocaleString('es-CL')}</span>
-              </div>
-              <div className="total-row">
-                <span className="total-label">IVA (19%):</span>
-                <span className="total-value">${totales.iva.toLocaleString('es-CL')}</span>
-              </div>
-              <div className="total-row total-final">
-                <span className="total-label">Total a Pagar:</span>
-                <span className="total-value">${totales.total.toLocaleString('es-CL')}</span>
+              <div>
+                <h2 className="card-title">Datos de la Orden de Pago</h2>
+                <p className="card-subtitle">Información general de la orden</p>
               </div>
             </div>
-          </div>
 
-          {/* ========= Datos de la Orden ========= */}
-          <div className="ordenes-section card-elevated">
-            <div className="section-header">
-              <svg className="section-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15" stroke="currentColor" strokeWidth="2"/>
-                <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-              <h2>Datos de la Orden de Pago</h2>
-            </div>
-
-            <div className="form-grid-orden">
+            <div className="form-grid-three">
               <div className="form-group">
-                <label>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2"/>
-                  </svg>
-                  Nº Orden de Pago
-                </label>
-                <input type="text" value={numeroOP} readOnly className="input-readonly" />
-              </div>
-
-              <div className="form-group">
-                <label>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <label className="form-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="2"/>
-                    <path d="M4 20C4 16.6863 6.68629 14 10 14H14C17.3137 14 20 16.6863 20 20" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M4 20a8 8 0 0 1 16 0" stroke="currentColor" strokeWidth="2"/>
                   </svg>
-                  Autoriza
+                  Autoriza:
                 </label>
                 <AsyncSelect
                   value={autoriza}
-                  onChange={setAutoriza}
+                  onChange={handleAutorizaChange} // ✅ CAMBIO: Usar handler
                   loadOptions={loadTrabajadores}
-                  placeholder="Seleccionar quien autoriza..."
+                  placeholder="Selecciona quien autoriza"
                   isClearable
-                  isSearchable
+                  isDisabled={modoConsulta} // Deshabilitar en modo consulta
                   styles={customSelectStyles}
                   noOptionsMessage={() => "Escriba para buscar..."}
                   defaultOptions
@@ -659,150 +686,446 @@ function OrdenesPago() {
               </div>
 
               <div className="form-group">
-                <label>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <label className="form-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                     <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2"/>
-                    <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2"/>
-                    <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2"/>
-                    <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2"/>
                   </svg>
-                  Fecha Factura
-                </label>
-                <input
-                  type="date"
-                  value={fechaFactura}
-                  onChange={(e) => setFechaFactura(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2"/>
-                    <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2"/>
-                    <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2"/>
-                    <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2"/>
-                  </svg>
-                  Vencimiento
-                </label>
-                <input
-                  type="date"
-                  value={vencimiento}
-                  onChange={(e) => setVencimiento(e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="2"/>
-                    <line x1="2" y1="10" x2="22" y2="10" stroke="currentColor" strokeWidth="2"/>
-                  </svg>
-                  Estado de Pago
+                  Correo:
                 </label>
                 <input
                   type="text"
+                  className="form-control"
+                  value={correoAutoriza} // ✅ CAMBIO: Usar estado correoAutoriza
+                  placeholder="Se completa automáticamente"
+                  readOnly
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                  # Número de Orden:
+                </label>
+                <input
+                  type="text"
+                  className="form-control readonly-field"
+                  value={numeroOP}
+                  readOnly
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                  Fecha de factura:
+                </label>
+                <input
+                  type="date"
+                  className="form-control"
+                  value={fechaFactura}
+                  onChange={(e) => setFechaFactura(e.target.value)}
+                  disabled={modoConsulta}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                  Vencimiento factura:
+                </label>
+                <input
+                  type="date"
+                  className="form-control"
+                  value={vencimiento}
+                  onChange={(e) => setVencimiento(e.target.value)}
+                  disabled={modoConsulta}
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <rect x="2" y="5" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                  Estado de pago:
+                </label>
+                <input
+                  type="text"
+                  className="form-control"
                   value={estadoPago}
                   onChange={(e) => setEstadoPago(e.target.value)}
                   placeholder="Ej: Pendiente, Pagado..."
                 />
               </div>
+            </div>
 
-              <div className="form-group form-group-full">
-                <label>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" strokeWidth="2"/>
+            {/* ✅ CAMBIO: Detalle de compra más ancho */}
+            <div className="form-row-wide">
+              <div className="form-group-detalle">
+                <label className="form-label">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2"/>
                   </svg>
-                  Detalle de Compra (obligatorio)
+                  Detalle de Compra:
                 </label>
                 <textarea
+                  className="form-control textarea-detalle"
                   value={detalleCompra}
                   onChange={(e) => setDetalleCompra(e.target.value)}
-                  placeholder="Describa el detalle de la compra..."
-                  rows="3"
-                  required
+                  disabled={modoConsulta}
+                  placeholder="Escribe aquí el detalle de la compra..."
+                  rows="4"
                 />
               </div>
             </div>
-          </div>
 
-          {/* ========= Acciones ========= */}
-          <div className="acciones-footer">
-            <button
-              className="btn-secondary"
-              onClick={handleGenerarPDF}
-              disabled={!numeroOP}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M14 2H6C5.46957 2 4.96086 2.21071 4.58579 2.58579C4.21071 2.96086 4 3.46957 4 4V20C4 20.5304 4.21071 21.0391 4.58579 21.4142C4.96086 21.7893 5.46957 22 6 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V8L14 2Z" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-              Generar PDF
-            </button>
-            <button
-              className="btn-guardar"
-              onClick={handleGuardar}
-              disabled={loading}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M19 21H5C3.89543 21 3 20.1046 3 19V5C3 3.89543 3.89543 3 5 3H16L21 8V19C21 20.1046 20.1046 21 19 21Z" stroke="currentColor" strokeWidth="2"/>
-                <path d="M7 3V8H15" stroke="currentColor" strokeWidth="2"/>
-                <rect x="9" y="13" width="6" height="8" stroke="currentColor" strokeWidth="2"/>
-              </svg>
-              {loading ? 'Guardando...' : `Crear Orden de Pago #${numeroOP}`}
-            </button>
-          </div>
-        </>
-      )}
+            {/* ✅ AÑADIDO: Sección para adjuntar archivos */}
+            <div className="attachments-row">
+              <div className="attachment-group">
+                <label className="form-label">Adjuntar Documento 1 (Opcional):</label>
+                <div className="file-input-wrapper">
+                  <input 
+                    type="file" 
+                    id="doc1" 
+                    className="file-input" 
+                    onChange={(e) => handleArchivoChange(1, e)} 
+                  />
+                  <label htmlFor="doc1" className="file-label">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2"/>
+                      <polyline points="17 8 12 3 7 8" stroke="currentColor" strokeWidth="2"/>
+                      <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" strokeWidth="2"/>
+                    </svg>
+                    {documentoAdjunto1 ? documentoAdjunto1.name : "Seleccionar archivo..."}
+                  </label>
+                </div>
+              </div>
+              
+              <div className="attachment-group">
+                <label className="form-label">Adjuntar Documento 2 (Opcional):</label>
+                <div className="file-input-wrapper">
+                  <input 
+                    type="file" 
+                    id="doc2" 
+                    className="file-input" 
+                    onChange={(e) => handleArchivoChange(2, e)} 
+                  />
+                  <label htmlFor="doc2" className="file-label">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2"/>
+                      <polyline points="17 8 12 3 7 8" stroke="currentColor" strokeWidth="2"/>
+                      <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" strokeWidth="2"/>
+                    </svg>
+                    {documentoAdjunto2 ? documentoAdjunto2.name : "Seleccionar archivo..."}
+                  </label>
+                </div>
+              </div>
+            </div>
 
-      {/* ========= Modal Historial ========= */}
+            {/* ✅ CAMBIO: Botón de correo alineado y con estilo */}
+            <div className="button-row-right">
+              <button className="btn-enviar-correo" disabled>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" strokeWidth="2"/>
+                  <polyline points="22,6 12,13 2,6" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+                Enviar correo
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Documentos Pendientes */}
+        {documentos.length > 0 && (
+          <div className="section-card">
+            <div className="card-header-icon">
+              <div className="icon-circle blue">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+              </div>
+              <div>
+                <h2 className="card-title">Documentos Pendientes</h2>
+                <p className="card-subtitle">Selecciona los documentos para procesar</p>
+                <span className="badge-count">{documentos.length} documento(s)</span>
+              </div>
+            </div>
+
+            <div className="table-responsive">
+              <table className="table-docs">
+                <thead>
+                  <tr>
+                    <th>Acción</th>
+                    <th>Documento</th>
+                    <th>Orden de Compra</th>
+                    <th>$ Total Neto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documentos.map((doc, idx) => (
+                    <tr key={idx} className={documentoSeleccionado?.oc === doc.orden_compra ? 'selected-row' : ''}>
+                      <td>
+                        <button
+                          className={`btn-select ${documentoSeleccionado?.oc === doc.orden_compra ? 'selected' : ''}`}
+                          onClick={() => handleSeleccionarDocumento(doc.documento, doc.orden_compra)}
+                        >
+                          {documentoSeleccionado?.oc === doc.orden_compra ? (
+                            <>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2"/>
+                              </svg>
+                              Seleccionado
+                            </>
+                          ) : (
+                            'Seleccionar'
+                          )}
+                        </button>
+                      </td>
+                      <td>
+                        {doc.documento === 'SIN_DOCUMENTO' ? (
+                          <span className="badge badge-sin-doc">Sin documento</span>
+                        ) : (
+                          <span className="badge badge-doc">{doc.documento}</span>
+                        )}
+                      </td>
+                      <td>
+                        <span className="badge badge-info">{doc.orden_compra}</span>
+                      </td>
+                      <td className="text-money">${doc.total_neto.toLocaleString('es-CL')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Detalle de Material Seleccionado */}
+        {lineasSeleccionadas.length > 0 && (
+          <>
+            <div className="section-card">
+              <div className="card-header-icon">
+                <div className="icon-circle green">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M3 3h18v18H3z" stroke="currentColor" strokeWidth="2"/>
+                    <path d="M9 9h6v6H9z" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="card-title">Detalle de Material Seleccionado</h2>
+                  <p className="card-subtitle">Materiales incluidos en la orden de pago</p>
+                </div>
+              </div>
+
+              <div className="table-responsive">
+                <table className="table-lineas">
+                  <thead>
+                    <tr>
+                      <th>Descripción</th>
+                      <th className="text-center">Cant.</th>
+                      <th className="text-right">$ Precio Unit.</th>
+                      <th className="text-right">Total Neto</th>
+                      <th className="text-center">OC</th>
+                      <th className="text-center">Doc.</th>
+                      <th className="text-center">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {lineasSeleccionadas.map((linea) => (
+                      <tr key={linea.ingreso_id}>
+                        <td className="desc-col">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="icon-inline">
+                            <circle cx="12" cy="12" r="10" stroke="#3b82f6" strokeWidth="2"/>
+                          </svg>
+                          {linea.descripcion}
+                        </td>
+                        <td className="text-center">
+                          <span className="badge badge-number">{linea.cantidad}</span>
+                        </td>
+                        <td className="text-right text-money">${linea.neto_unitario.toLocaleString('es-CL')}</td>
+                        <td className="text-right text-money">${linea.neto_total.toLocaleString('es-CL')}</td>
+                        <td className="text-center">
+                          <span className="badge badge-info">{linea.orden_compra}</span>
+                        </td>
+                        <td className="text-center">
+                          {linea.documento === 'SIN_DOCUMENTO' ? (
+                            <span className="badge badge-sin-doc">Sin doc</span>
+                          ) : (
+                            <span className="badge badge-doc">{linea.documento}</span>
+                          )}
+                        </td>
+                        <td className="text-center">
+                          {!modoConsulta && (
+                            <button
+                              className="btn-icon btn-delete"
+                              onClick={() => eliminarLinea(linea.ingreso_id)}
+                              title="Eliminar"
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                <path d="M3 6h18M8 6V4h8v2m-4 4v8m-4-4v4m8-4v4" stroke="currentColor" strokeWidth="2"/>
+                              </svg>
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="info-notice">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
+                  <path d="M12 16v-4m0-4h.01" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+                Los totales incluyen IVA (19%). (Revisar casos exentos)
+              </div>
+
+              <div className="totales-box">
+                <div className="total-row">
+                  <span className="total-label">Total Neto:</span>
+                  <span className="total-value">${totales.neto.toLocaleString('es-CL')}</span>
+                </div>
+                <div className="total-row">
+                  <span className="total-label">IVA (19%):</span>
+                  <span className="total-value">${totales.iva.toLocaleString('es-CL')}</span>
+                </div>
+                <div className="total-row total-final-row">
+                  <span className="total-label-final">Total a Pagar:</span>
+                  <span className="total-value-final">${totales.total.toLocaleString('es-CL')}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Botones de Acción */}
+            <div className="actions-footer">
+              <button className="btn-action btn-pdf" onClick={handleGenerarPDF}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+                {modoConsulta ? `Generar PDF de Orden #${numeroOrdenOriginal}` : 'Generar PDF'}
+              </button>
+              
+              {modoConsulta ? (
+                <button 
+                  className="btn-action btn-secondary" 
+                  disabled
+                  style={{ 
+                    background: '#6c757d', 
+                    cursor: 'not-allowed',
+                    opacity: 0.6
+                  }}
+                  title="Esta orden ya existe. Solo puede consultar y generar PDF."
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 15v2m0 0v2m0-2h2m-2 0h-2m9-7a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                  Orden #{numeroOrdenOriginal} (Solo Consulta)
+                </button>
+              ) : (
+                <button className="btn-action btn-primary" onClick={handleGuardar} disabled={loading || !pdfDownloaded}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 5v14m7-7H5" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                  {loading ? 'Creando...' : `Crear Orden de Pago #${numeroOP}`}
+                </button>
+              )}
+```
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Modal de Historial */}
       {mostrarHistorial && (
         <div className="modal-overlay" onClick={() => setMostrarHistorial(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '900px' }}>
             <div className="modal-header">
-              <h3>Historial de Órdenes de Pago</h3>
-              <button className="btn-close-modal" onClick={() => setMostrarHistorial(false)}>×</button>
+              <h2>Historial de Órdenes de Pago</h2>
+              <button className="modal-close" onClick={() => setMostrarHistorial(false)}>×</button>
             </div>
             <div className="modal-body">
-              {historial.length === 0 ? (
-                <p className="text-center">No hay órdenes registradas</p>
+              <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Buscar por número, proveedor, fecha o total..."
+                  value={historialFilter}
+                  onChange={(e) => setHistorialFilter(e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  onClick={() => setHistorialFilter('')}
+                  title="Limpiar búsqueda"
+                  aria-label="Limpiar búsqueda"
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    padding: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '6px',
+                    border: '1px solid #e5e7eb',
+                    background: 'white',
+                    color: '#374151',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              </div>
+
+              {filteredHistorial.length === 0 ? (
+                <p>No hay órdenes que coincidan</p>
               ) : (
-                <div className="tabla-historial">
-                  <div className="tabla-header-historial">
-                    <div>Nº ORDEN</div>
-                    <div>PROVEEDOR</div>
-                    <div>FECHA</div>
-                    <div>TOTAL</div>
-                    <div>ESTADO</div>
-                    <div>ACCIONES</div>
-                  </div>
-                  {historial.map((orden) => (
-                    <div key={orden.orden_numero} className="tabla-row-historial">
-                      <div className="col-orden">#{orden.orden_numero}</div>
-                      <div className="col-prov">{orden.proveedor}</div>
-                      <div className="col-fecha">{new Date(orden.fecha).toLocaleDateString('es-CL')}</div>
-                      <div className="col-total">${orden.total.toLocaleString('es-CL')}</div>
-                      <div className="col-estado">
-                        <span className={`badge-estado ${orden.estado_documento}`}>
-                          {orden.estado_documento}
-                        </span>
-                      </div>
-                      <div className="col-acciones-historial">
-                        <button
-                          className="btn-copiar"
-                          onClick={() => handleCopiarOrden(orden.orden_numero)}
-                          title="Copiar orden"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <rect x="9" y="9" width="13" height="13" rx="2" stroke="currentColor" strokeWidth="2"/>
-                            <path d="M5 15H4C2.89543 15 2 14.1046 2 13V4C2 2.89543 2.89543 2 4 2H13C14.1046 2 15 2.89543 15 4V5" stroke="currentColor" strokeWidth="2"/>
-                          </svg>
-                          Copiar
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                <div className="table-responsive">
+                  <table className="table-docs">
+                    <thead>
+                      <tr>
+                        <th>Orden #</th>
+                        <th>Proveedor</th>
+                        <th>Fecha</th>
+                        <th>Estado Pago</th>
+                        <th>Total</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredHistorial.map((orden) => (
+                        <tr key={orden.orden_numero}>
+                          <td><strong>{orden.orden_numero}</strong></td>
+                          <td>{orden.proveedor}</td>
+                          <td>{orden.fecha}</td>
+                          <td>
+                            <span className={`badge ${orden.estado_pago === 'PAGADO' ? 'badge-success' : 'badge-warning'}`}>
+                              {orden.estado_pago || 'PENDIENTE'}
+                            </span>
+                          </td>
+                          <td className="text-money">${orden.total.toLocaleString('es-CL')}</td>
+                          <td>
+                            <button
+                              className="btn-action btn-primary"
+                              onClick={() => handleCopiarOrden(orden.orden_numero)}
+                              style={{ fontSize: '14px', padding: '6px 12px' }}
+                            >
+                              Cargar para ver PDF
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
@@ -810,7 +1133,7 @@ function OrdenesPago() {
         </div>
       )}
 
-      {/* ========= Loading Overlay ========= */}
+      {/* Loading Overlay */}
       {loading && (
         <div className="loading-overlay">
           <div className="spinner"></div>
