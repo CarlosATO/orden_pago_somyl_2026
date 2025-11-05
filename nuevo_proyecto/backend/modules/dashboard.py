@@ -63,20 +63,52 @@ def obtener_dashboard_completo():
     Obtiene todos los KPIs y datos del dashboard
     """
     try:
-        # KPIs principales
-        kpis = obtener_kpis_principales()
-        
+        # Prefetch tablas comunes EN UNA SOLA RONDA para reducir latencia
+        response_op = supabase.table('orden_de_pago').select('*').execute()
+        ordenes_pago_raw = response_op.data if response_op.data else []
+
+        response_fechas = supabase.table('fechas_de_pagos_op').select('*').execute()
+        fechas_pago = response_fechas.data if response_fechas.data else []
+
+        response_abonos = supabase.table('abonos_op').select('*').execute()
+        abonos_data = response_abonos.data if response_abonos.data else []
+
+        response_ppto = supabase.table('presupuesto').select('*').execute()
+        presupuestos = response_ppto.data if response_ppto.data else []
+
+        response_oc = supabase.table('orden_de_compra').select('*').execute()
+        ordenes = response_oc.data if response_oc.data else []
+
+        response_ingresos = supabase.table('ingresos').select('*').execute()
+        ingresos = response_ingresos.data if response_ingresos.data else []
+
+        response_proy = supabase.table('proyectos').select('*').execute()
+        proyectos = response_proy.data if response_proy.data else []
+
+        prefetch = {
+            'orden_de_pago': ordenes_pago_raw,
+            'fechas_de_pagos_op': fechas_pago,
+            'abonos_op': abonos_data,
+            'presupuesto': presupuestos,
+            'orden_de_compra': ordenes,
+            'ingresos': ingresos,
+            'proyectos': proyectos
+        }
+
+        # KPIs principales (usar datos prefeteched)
+        kpis = obtener_kpis_principales(prefetch=prefetch)
+
         # Rankings
-        top_proveedores = obtener_top_proveedores_deuda()
-        top_proyectos = obtener_top_proyectos_criticos()
-        
+        top_proveedores = obtener_top_proveedores_deuda(prefetch=prefetch)
+        top_proyectos = obtener_top_proyectos_criticos(prefetch=prefetch)
+
         # Órdenes sin recepcionar
-        oc_sin_recepcionar = obtener_oc_sin_recepcionar()
-        
+        oc_sin_recepcionar = obtener_oc_sin_recepcionar(prefetch=prefetch)
+
         # Gráficos
-        evolucion_deuda = obtener_evolucion_deuda()
-        distribucion_deuda = obtener_distribucion_deuda_proveedor()
-        ejecucion_presupuestaria = obtener_ejecucion_presupuestaria()
+        evolucion_deuda = obtener_evolucion_deuda(prefetch=prefetch)
+        distribucion_deuda = obtener_distribucion_deuda_proveedor(prefetch=prefetch)
+        ejecucion_presupuestaria = obtener_ejecucion_presupuestaria(prefetch=prefetch)
         
         return {
             "kpis": kpis,
@@ -92,7 +124,7 @@ def obtener_dashboard_completo():
         raise
 
 
-def obtener_kpis_principales():
+def obtener_kpis_principales(prefetch=None):
     """
     Calcula los KPIs principales del dashboard
     Usa la MISMA LÓGICA que el módulo de Informe de Pagos
@@ -100,8 +132,11 @@ def obtener_kpis_principales():
     try:
         # 1. DEUDA TOTAL (Órdenes de Pago pendientes)
         # Obtener TODAS las órdenes de pago (sin filtro de pagado)
-        response_op = supabase.table('orden_de_pago').select('*').execute()
-        ordenes_pago_raw = response_op.data if response_op.data else []
+        if prefetch and 'orden_de_pago' in prefetch:
+            ordenes_pago_raw = prefetch.get('orden_de_pago') or []
+        else:
+            response_op = supabase.table('orden_de_pago').select('*').execute()
+            ordenes_pago_raw = response_op.data if response_op.data else []
         
         # Agrupar por orden_numero y sumar montos
         pagos_dict = {}
@@ -121,8 +156,11 @@ def obtener_kpis_principales():
             pagos_dict[num]["total_pago"] += monto
         
         # Obtener fechas de pago
-        response_fechas = supabase.table('fechas_de_pagos_op').select('orden_numero, fecha_pago').execute()
-        fechas_pago = response_fechas.data if response_fechas.data else []
+        if prefetch and 'fechas_de_pagos_op' in prefetch:
+            fechas_pago = prefetch.get('fechas_de_pagos_op') or []
+        else:
+            response_fechas = supabase.table('fechas_de_pagos_op').select('orden_numero, fecha_pago').execute()
+            fechas_pago = response_fechas.data if response_fechas.data else []
         
         # IGUAL QUE PAGOS.PY: Doble clave (string e int) para evitar problemas de tipo
         fecha_map = {}
@@ -138,8 +176,11 @@ def obtener_kpis_principales():
                 pass
         
         # Obtener abonos
-        response_abonos = supabase.table('abonos_op').select('orden_numero, monto_abono').execute()
-        abonos_data = response_abonos.data if response_abonos.data else []
+        if prefetch and 'abonos_op' in prefetch:
+            abonos_data = prefetch.get('abonos_op') or []
+        else:
+            response_abonos = supabase.table('abonos_op').select('orden_numero, monto_abono').execute()
+            abonos_data = response_abonos.data if response_abonos.data else []
         
         # IGUAL QUE PAGOS.PY: Doble clave y int redondeado
         abonos_map = {}
@@ -189,8 +230,11 @@ def obtener_kpis_principales():
         total_general = monto_pendiente + saldo_abonos
         
         # 2. SALDO PRESUPUESTARIO TOTAL
-        response_ppto = supabase.table('presupuesto').select('*').execute()
-        presupuestos = response_ppto.data if response_ppto.data else []
+        if prefetch and 'presupuesto' in prefetch:
+            presupuestos = prefetch.get('presupuesto') or []
+        else:
+            response_ppto = supabase.table('presupuesto').select('*').execute()
+            presupuestos = response_ppto.data if response_ppto.data else []
         
         saldo_presupuestario_total = 0
         proyectos_en_riesgo = 0
@@ -218,8 +262,11 @@ def obtener_kpis_principales():
                     facturas_pendientes += 1
         
         # Órdenes sin recepcionar (>15 días)
-        response_oc = supabase.table('orden_de_compra').select('*').execute()
-        ordenes = response_oc.data if response_oc.data else []
+        if prefetch and 'orden_de_compra' in prefetch:
+            ordenes = prefetch.get('orden_de_compra') or []
+        else:
+            response_oc = supabase.table('orden_de_compra').select('*').execute()
+            ordenes = response_oc.data if response_oc.data else []
         
         oc_antiguas = 0
         fecha_limite = datetime.now() - timedelta(days=15)
@@ -281,8 +328,11 @@ def obtener_kpis_principales():
                     pass
         
         # Recepciones del mes (ingresos)
-        response_ingresos = supabase.table('ingresos').select('*').execute()
-        ingresos = response_ingresos.data if response_ingresos.data else []
+        if prefetch and 'ingresos' in prefetch:
+            ingresos = prefetch.get('ingresos') or []
+        else:
+            response_ingresos = supabase.table('ingresos').select('*').execute()
+            ingresos = response_ingresos.data if response_ingresos.data else []
         
         recepciones_mes = 0
         for ingreso in ingresos:
@@ -295,8 +345,11 @@ def obtener_kpis_principales():
                     pass
         
         # Pagos del mes
-        response_pagos = supabase.table('fechas_de_pagos_op').select('*').execute()
-        pagos = response_pagos.data if response_pagos.data else []
+        if prefetch and 'fechas_de_pagos_op' in prefetch:
+            pagos = prefetch.get('fechas_de_pagos_op') or []
+        else:
+            response_pagos = supabase.table('fechas_de_pagos_op').select('*').execute()
+            pagos = response_pagos.data if response_pagos.data else []
         
         pagos_mes = 0
         monto_pagos_mes = 0
@@ -338,13 +391,16 @@ def obtener_kpis_principales():
         raise
 
 
-def obtener_top_proveedores_deuda():
+def obtener_top_proveedores_deuda(prefetch=None):
     """
     Top 5 proveedores con mayor deuda
     """
     try:
-        response = supabase.table('orden_de_pago').select('*').execute()
-        ordenes_pago = response.data if response.data else []
+        if prefetch and 'orden_de_pago' in prefetch:
+            ordenes_pago = prefetch.get('orden_de_pago') or []
+        else:
+            response = supabase.table('orden_de_pago').select('*').execute()
+            ordenes_pago = response.data if response.data else []
         
         # Agrupar por proveedor
         deuda_por_proveedor = {}
@@ -381,18 +437,24 @@ def obtener_top_proveedores_deuda():
         return []
 
 
-def obtener_top_proyectos_criticos():
+def obtener_top_proyectos_criticos(prefetch=None):
     """
     Top 5 proyectos con mayor deuda y situación presupuestaria crítica
     """
     try:
         # Obtener órdenes de pago
-        response_op = supabase.table('orden_de_pago').select('*').execute()
-        ordenes_pago = response_op.data if response_op.data else []
-        
+        if prefetch and 'orden_de_pago' in prefetch:
+            ordenes_pago = prefetch.get('orden_de_pago') or []
+        else:
+            response_op = supabase.table('orden_de_pago').select('*').execute()
+            ordenes_pago = response_op.data if response_op.data else []
+
         # Obtener presupuestos
-        response_ppto = supabase.table('presupuesto').select('*').execute()
-        presupuestos = response_ppto.data if response_ppto.data else []
+        if prefetch and 'presupuesto' in prefetch:
+            presupuestos = prefetch.get('presupuesto') or []
+        else:
+            response_ppto = supabase.table('presupuesto').select('*').execute()
+            presupuestos = response_ppto.data if response_ppto.data else []
         
         # Crear mapa de presupuestos por proyecto
         ppto_por_proyecto = {}
@@ -478,13 +540,16 @@ def obtener_top_proyectos_criticos():
         return []
 
 
-def obtener_oc_sin_recepcionar():
+def obtener_oc_sin_recepcionar(prefetch=None):
     """
     Órdenes de compra sin recepcionar (>15 días)
     """
     try:
-        response = supabase.table('orden_de_compra').select('*').execute()
-        ordenes = response.data if response.data else []
+        if prefetch and 'orden_de_compra' in prefetch:
+            ordenes = prefetch.get('orden_de_compra') or []
+        else:
+            response = supabase.table('orden_de_compra').select('*').execute()
+            ordenes = response.data if response.data else []
         
         oc_pendientes = []
         fecha_limite = datetime.now() - timedelta(days=15)
@@ -517,13 +582,16 @@ def obtener_oc_sin_recepcionar():
         return []
 
 
-def obtener_evolucion_deuda():
+def obtener_evolucion_deuda(prefetch=None):
     """
     Evolución de la deuda en los últimos 6 meses
     """
     try:
-        response = supabase.table('orden_de_pago').select('*').execute()
-        ordenes_pago = response.data if response.data else []
+        if prefetch and 'orden_de_pago' in prefetch:
+            ordenes_pago = prefetch.get('orden_de_pago') or []
+        else:
+            response = supabase.table('orden_de_pago').select('*').execute()
+            ordenes_pago = response.data if response.data else []
         
         # Calcular deuda por mes (últimos 6 meses)
         evolucion = []
@@ -576,12 +644,12 @@ def obtener_evolucion_deuda():
         return []
 
 
-def obtener_distribucion_deuda_proveedor():
+def obtener_distribucion_deuda_proveedor(prefetch=None):
     """
     Distribución de deuda por proveedor (para gráfico pie)
     """
     try:
-        top_proveedores = obtener_top_proveedores_deuda()
+        top_proveedores = obtener_top_proveedores_deuda(prefetch=prefetch)
         
         if not top_proveedores:
             return []
@@ -604,17 +672,23 @@ def obtener_distribucion_deuda_proveedor():
         return []
 
 
-def obtener_ejecucion_presupuestaria():
+def obtener_ejecucion_presupuestaria(prefetch=None):
     """
     Ejecución presupuestaria por proyecto (para gráfico barras)
     """
     try:
-        response = supabase.table('presupuesto').select('*').execute()
-        presupuestos = response.data if response.data else []
-        
+        if prefetch and 'presupuesto' in prefetch:
+            presupuestos = prefetch.get('presupuesto') or []
+        else:
+            response = supabase.table('presupuesto').select('*').execute()
+            presupuestos = response.data if response.data else []
+
         # Obtener nombres de proyectos
-        response_proy = supabase.table('proyectos').select('id, nombre').execute()
-        proyectos = response_proy.data if response_proy.data else []
+        if prefetch and 'proyectos' in prefetch:
+            proyectos = prefetch.get('proyectos') or []
+        else:
+            response_proy = supabase.table('proyectos').select('id, nombre').execute()
+            proyectos = response_proy.data if response_proy.data else []
         proyecto_nombres = {p['id']: p['nombre'] for p in proyectos}
         
         # Agrupar por proyecto
