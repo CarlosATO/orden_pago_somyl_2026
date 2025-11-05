@@ -134,20 +134,30 @@
 }
 
 /* ========= Grid de Formulario ========= */
+/* Primera fila: N°OC, Proveedor, RUT (3 columnas) */
 .form-grid {
-  display: grid;
-  grid-template-columns: 200px 2fr 1fr; /* N°OC pequeño, Proveedor grande, RUT mediano */
-  gap: 1.5rem;
-  align-items: start;
+  display: grid !important;
+  grid-template-columns: 200px 2fr 1fr !important; /* N°OC, Proveedor (más ancho), RUT */
+  gap: 1.25rem !important;
+  align-items: start !important;
+  margin-bottom: 1.25rem !important;
 }
 
-/* Fila secundaria para los demás campos */
+/* Segunda fila: Tipo de entrega, Plazo Pago, Checkbox IVA (3 columnas) */
 .form-grid-secondary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1.5rem;
-  align-items: start;
-  margin-top: 1.5rem;
+  display: grid !important;
+  grid-template-columns: 1fr 1fr auto !important; /* Tipo Entrega, Plazo, Checkbox */
+  gap: 1rem !important;
+  align-items: center !important;
+  margin-bottom: 1.25rem !important;
+}
+
+/* Tercera fila: Proyecto, Solicitado Por (2 columnas) */
+.form-grid-third {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important; /* Proyecto, Solicitado Por */
+  gap: 1rem !important;
+  align-items: start !important;
 }
 
 .form-group {
@@ -160,15 +170,18 @@
   font-weight: 600;
   color: #374151;
   font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .form-group input[type="text"],
 .form-group input[type="number"] {
-  padding: 0.75rem;
+  padding: 0.7rem 0.9rem;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 0.95rem;
   transition: all 0.2s;
+  font-weight: 500;
 }
 
 .form-group input[type="text"]:focus,
@@ -184,9 +197,13 @@
   cursor: not-allowed;
 }
 
+/* Checkbox IVA - centrado verticalmente */
 .checkbox-group {
-  justify-content: center;
-  padding-top: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  /* Reducimos la dependencia de un min-width fijo para evitar huecos grandes */
+  padding-top: 1.6rem; /* Alinear con los inputs */
 }
 
 .checkbox-group label {
@@ -194,15 +211,58 @@
   align-items: center;
   gap: 0.5rem;
   cursor: pointer;
-  font-weight: 500;
+  font-weight: 600;
   color: #1f2937;
+  font-size: 0.9rem;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 .checkbox-group input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   cursor: pointer;
   accent-color: #3b82f6;
+}
+
+/* ========= Responsive ========= */
+@media (max-width: 1024px) {
+  .form-grid {
+    grid-template-columns: 180px 1.5fr 1fr;
+    gap: 1rem;
+  }
+  
+  .form-grid-secondary {
+    grid-template-columns: 1fr 1fr auto;
+    gap: 1rem;
+  }
+
+  .form-grid-third {
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .form-grid-secondary {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .form-grid-third {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .checkbox-group {
+    padding-top: 0;
+    margin-bottom: 1rem;
+  }
 }
 
 /* ========= Tabla de Productos ========= */
@@ -461,16 +521,8 @@
   transform: none;
 }
 
-/* ========= Responsive ========= */
+/* ========= Responsive (Tablas y Otros Elementos) ========= */
 @media (max-width: 1024px) {
-  .form-grid {
-    grid-template-columns: 180px 1.5fr 1fr;
-  }
-  
-  .form-grid-secondary {
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  }
-  
   .tabla-header,
   .tabla-row {
     grid-template-columns: 2fr 0.8fr 1fr 1fr 70px;
@@ -491,14 +543,6 @@
 
   .orden-section {
     padding: 1.5rem;
-  }
-
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .form-grid-secondary {
-    grid-template-columns: 1fr;
   }
 
   .tabla-header {

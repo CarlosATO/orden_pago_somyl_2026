@@ -178,20 +178,26 @@ function OrdenCompra() {
   const handleProveedorChange = async (selectedOption) => {
     setProveedor(selectedOption);
     if (selectedOption) {
-      // Buscar RUT del proveedor
-      try {
-        const token = getAuthToken(); // Usar 'authToken' en lugar de 'token'
-        const response = await fetch(`/api/proveedores/${selectedOption.value}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
+      // El RUT ahora viene directamente en el objeto selectedOption desde el backend
+      if (selectedOption.rut) {
+        setRutProveedor(selectedOption.rut);
+      } else {
+        // Fallback: buscar RUT del proveedor si no viene en el objeto
+        try {
+          const token = getAuthToken();
+          const response = await fetch(`/api/proveedores/${selectedOption.value}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setRutProveedor(data.rut || '');
           }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setRutProveedor(data.rut || '');
+        } catch (error) {
+          console.error('Error al obtener RUT:', error);
+          setRutProveedor('');
         }
-      } catch (error) {
-        console.error('Error al obtener RUT:', error);
       }
     } else {
       setRutProveedor('');
@@ -445,8 +451,13 @@ function OrdenCompra() {
 
   // ========= Estilos personalizados para react-select =========
   const customSelectStyles = {
+    container: (provided) => ({
+      ...provided,
+      width: '100%', // Asegurar que tome el 100% del contenedor padre (grid cell)
+    }),
     control: (provided) => ({
       ...provided,
+      width: '100%', // Control también al 100%
       minHeight: '42px',
       borderColor: '#ddd',
       boxShadow: 'none',
@@ -457,7 +468,8 @@ function OrdenCompra() {
     menu: (provided) => ({
       ...provided,
       zIndex: 9999,
-      maxHeight: '300px' // Altura máxima del menú
+      maxHeight: '300px', // Altura máxima del menú
+      width: '100%', // Menú también al 100%
     }),
     menuList: (provided) => ({
       ...provided,
@@ -496,6 +508,7 @@ function OrdenCompra() {
 
       {/* ========= SECCIÓN: Datos del Encabezado ========= */}
       <div className="orden-section">
+        {/* Primera fila: N°OC, Proveedor, RUT */}
         <div className="form-grid">
           <div className="form-group">
             <label>N° OC:</label>
@@ -534,7 +547,10 @@ function OrdenCompra() {
               className="input-readonly"
             />
           </div>
+        </div>
 
+        {/* Segunda fila: Tipo de entrega, Plazo Pago, Checkbox IVA */}
+        <div className="form-grid-secondary">
           <div className="form-group">
             <label>Tipo de entrega:</label>
             <Select
@@ -559,7 +575,7 @@ function OrdenCompra() {
             />
           </div>
 
-          <div className="form-group checkbox-group">
+          <div className="checkbox-group">
             <label>
               <input
                 type="checkbox"
@@ -569,7 +585,10 @@ function OrdenCompra() {
               ✓ Incluir IVA (19%)
             </label>
           </div>
+        </div>
 
+        {/* Tercera fila: Proyecto, Solicitado Por */}
+        <div className="form-grid-third">
           <div className="form-group">
             <label>Proyecto:</label>
             <AsyncSelect

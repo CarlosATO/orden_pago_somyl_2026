@@ -296,7 +296,13 @@ def get_autocomplete_data(current_user, resource):
     
     # Mapeo para configurar la búsqueda por recurso
     config = {
-        'proveedores': {'table': 'proveedores', 'search_field': 'nombre', 'value_field': 'id', 'label_field': 'nombre'},
+        'proveedores': {
+            'table': 'proveedores', 
+            'search_field': 'nombre', 
+            'value_field': 'id', 
+            'label_field': 'nombre',
+            'extra_fields': 'rut'  # Agregamos el RUT
+        },
         'proyectos': {'table': 'proyectos', 'search_field': 'proyecto', 'value_field': 'id', 'label_field': 'proyecto', 'filter_active': True},
         'trabajadores': {'table': 'trabajadores', 'search_field': 'nombre', 'value_field': 'id', 'label_field': 'nombre'},
         'materiales': {'table': 'materiales', 'search_field': 'material', 'value_field': 'cod', 'label_field': 'material'}
@@ -307,8 +313,12 @@ def get_autocomplete_data(current_user, resource):
 
     res_config = config[resource]
     try:
-        # Construir la query base
-        query = supabase.table(res_config['table']).select(f"{res_config['value_field']}, {res_config['label_field']}")
+        # Construir la query base - incluir campos extra si existen
+        select_fields = f"{res_config['value_field']}, {res_config['label_field']}"
+        if res_config.get('extra_fields'):
+            select_fields += f", {res_config['extra_fields']}"
+        
+        query = supabase.table(res_config['table']).select(select_fields)
         
         # Si hay término de búsqueda, aplicar filtro ilike
         if term and len(term) >= 2:
@@ -326,11 +336,21 @@ def get_autocomplete_data(current_user, resource):
         if not response.data:
             return jsonify({"results": []})
 
-        # Formatear para react-select: { value, label }
-        results = [{
-            "value": item[res_config['value_field']],
-            "label": item[res_config['label_field']]
-        } for item in response.data]
+        # Formatear para react-select: { value, label, ...extras }
+        results = []
+        for item in response.data:
+            result_item = {
+                "value": item[res_config['value_field']],
+                "label": item[res_config['label_field']]
+            }
+            
+            # Agregar campos extra si existen (ej: rut para proveedores)
+            if res_config.get('extra_fields'):
+                extra_field = res_config['extra_fields']
+                if extra_field in item:
+                    result_item[extra_field] = item[extra_field]
+            
+            results.append(result_item)
 
         return jsonify({"results": results})
 
