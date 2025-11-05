@@ -10,11 +10,9 @@ const ProtectedRoute = ({ children }) => {
   const hasValidToken = isTokenValid();
 
   if (!hasValidToken) {
-    // Guardar la ruta intentada para redirigir después del login
-    sessionStorage.setItem('redirectAfterLogin', location.pathname);
-    
-    // Redirigir al login
-    return <Navigate to="/login" replace />;
+    // Redirigir al login, pasando la ubicación actual en el state
+    // para poder redirigir de vuelta después del login
+    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
   return children;

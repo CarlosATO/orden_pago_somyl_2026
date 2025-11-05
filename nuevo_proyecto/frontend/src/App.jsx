@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -95,6 +95,7 @@ function App() {
       
       if (!valid) {
         removeAuthToken(); // Limpiar tokens inválidos
+        sessionStorage.clear(); // Limpiar sessionStorage
       }
     };
     
@@ -108,18 +109,14 @@ function App() {
 
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
-    
-    // Redirigir a la página que intentaba acceder antes del login
-    const redirectPath = sessionStorage.getItem('redirectAfterLogin');
-    if (redirectPath && redirectPath !== '/login') {
-      sessionStorage.removeItem('redirectAfterLogin');
-      window.location.href = redirectPath;
-    }
   };
 
   const handleLogout = () => {
     removeAuthToken();
+    sessionStorage.clear(); // Limpiar sessionStorage
     setIsAuthenticated(false);
+    // Forzar navegación a login
+    window.location.href = '/login';
   };
 
   const handleSidebarToggle = (collapsed) => {

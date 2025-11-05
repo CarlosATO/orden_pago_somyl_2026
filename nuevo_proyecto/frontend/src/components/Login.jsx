@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { setAuthToken } from '../utils/auth';
 import './Login.css';
 
 const Login = ({ onLoginSuccess }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  
   // Recuperar el correo guardado si existe
   const savedEmail = localStorage.getItem('rememberedEmail') || '';
   const savedRememberMe = localStorage.getItem('rememberMe') === 'true';
@@ -59,12 +63,16 @@ const Login = ({ onLoginSuccess }) => {
       }
       
       // Verificar que se guardó correctamente
-  const savedToken = localStorage.getItem('authToken');
+      const savedToken = localStorage.getItem('authToken');
       console.log('✅ Token guardado correctamente:', savedToken ? 'SÍ' : 'NO');
       console.log('✅ Login exitoso, redirigiendo...');
       
       // Llamamos a la función del componente padre para actualizar el estado
       onLoginSuccess();
+      
+      // Redirigir a la página que intentaba acceder o al dashboard
+      const from = location.state?.from || '/dashboard';
+      navigate(from, { replace: true });
 
     } catch (err) {
       console.error('Error en login:', err);
