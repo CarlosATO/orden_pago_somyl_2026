@@ -82,11 +82,13 @@ def create_app():
     @app.route('/<path:path>')
     def serve_frontend(path):
         # If frontend build exists, serve static files; otherwise 404 or API routes handle
-        if (Path(app.static_folder) / path).exists():
-            return send_from_directory(app.static_folder, path)
-        index = Path(app.static_folder) / 'index.html'
-        if index.exists():
-            return send_from_directory(app.static_folder, 'index.html')
+        if app.static_folder:
+            static_path = Path(app.static_folder)
+            if path and (static_path / path).exists():
+                return send_from_directory(app.static_folder, path)
+            index_file = static_path / 'index.html'
+            if index_file.exists():
+                return send_from_directory(app.static_folder, 'index.html')
         return jsonify({"message": "Recurso no encontrado"}), 404
 
     return app
