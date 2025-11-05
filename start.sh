@@ -21,12 +21,25 @@ printf "${BLUE}╚════════════════════�
 
 # Ejecutar el script Python (usar python3 cuando esté disponible)
 cd "$SCRIPT_DIR"
-if command -v python3 >/dev/null 2>&1; then
-	python3 nuevo_proyecto/run.py
-elif command -v python >/dev/null 2>&1; then
-	# Fallback a 'python' si el contenedor lo provee
-	python nuevo_proyecto/run.py
+if [ "${FLASK_ENV:-development}" = "production" ]; then
+	# En producción: arrancar Gunicorn para servir la app Flask
+	if command -v gunicorn >/dev/null 2>&1; then
+		printf "${GREEN}Iniciando Gunicorn...${NC}\n"
+		# Ejecutar la aplicación con 4 workers (ajustable)
+		exec gunicorn -w 4 -b 0.0.0.0:5001 "backend.app:create_app()"
+	else
+		printf "${RED}Error:${NC} gunicorn no está instalado en este contenedor. Instale dependencias de Python.\n"
+		exit 127
+	fi
 else
-	printf "${RED}Error:${NC} Python no está instalado en este contenedor. Instale python3 o use una imagen base con Python.\n"
-	exit 127
+	# Modo desarrollo (local): intentar usar python3 o python
+	if command -v python3 >/dev/null 2>&1; then
+		python3 nuevo_proyecto/run.py
+	elif command -v python >/dev/null 2>&1; then
+		# Fallback a 'python' si el contenedor lo provee
+		python nuevo_proyecto/run.py
+	else
+		printf "${RED}Error:${NC} Python no está instalado en este contenedor. Instale python3 o use una imagen base con Python.\n"
+		exit 127
+	fi
 fi
