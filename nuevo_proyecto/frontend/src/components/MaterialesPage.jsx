@@ -14,7 +14,7 @@ const MaterialesPage = () => {
   const [selectedMaterial, setSelectedMaterial] = useState(null);
   const [loading, setLoading] = useState(false);
   
-  const token = localStorage.getItem('authToken');
+  const token = getAuthToken();
 
   const fetchMateriales = async () => {
     setLoading(true);

@@ -65,7 +65,7 @@ function GastosDirectos() {
 
   const cargarProyectos = async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       const response = await axios.get(`${API_URL}/proyectos/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -81,7 +81,7 @@ function GastosDirectos() {
 
   const cargarItems = async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       const response = await axios.get(`${API_URL}/items/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -96,7 +96,7 @@ function GastosDirectos() {
   const cargarGastos = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       const response = await axios.get(
         `${API_URL}/gastos_directos/todos?proyecto_id=${proyectoSeleccionado}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -144,7 +144,7 @@ function GastosDirectos() {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       
       const payload = {
         proyecto_id: parseInt(proyectoSeleccionado),
@@ -178,7 +178,7 @@ function GastosDirectos() {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       const response = await axios.delete(
         `${API_URL}/gastos_directos/${gastoId}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -210,7 +210,7 @@ function GastosDirectos() {
   const descargarPlantilla = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       const response = await axios.get(
         `${API_URL}/gastos_directos/plantilla-excel`,
         {
@@ -255,7 +255,7 @@ function GastosDirectos() {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       const formData = new FormData();
       formData.append('file', archivoExcel);
 
@@ -296,7 +296,7 @@ function GastosDirectos() {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       
       const response = await axios.post(
         `${API_URL}/gastos_directos/importar-excel`,
@@ -326,7 +326,7 @@ function GastosDirectos() {
 
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       const response = await axios.get(
         `${API_URL}/gastos_directos/exportar-excel/${proyectoSeleccionado}`,
         {

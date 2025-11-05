@@ -48,7 +48,7 @@ function OrdenCompra() {
 
   const fetchProximoNumeroOC = async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       
       if (!token) {
         console.error('❌ No hay token de autenticación. Por favor inicia sesión nuevamente.');
@@ -93,7 +93,7 @@ function OrdenCompra() {
   // ========= Función para buscar con autocompletado =========
   const loadOptions = async (inputValue, resource) => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       
       if (!token) {
         console.error('❌ No hay token de autenticación');
@@ -179,7 +179,7 @@ function OrdenCompra() {
     if (selectedOption) {
       // Buscar RUT del proveedor
       try {
-        const token = localStorage.getItem('authToken'); // Usar 'authToken' en lugar de 'token'
+        const token = getAuthToken(); // Usar 'authToken' en lugar de 'token'
         const response = await fetch(`/api/proveedores/${selectedOption.value}`, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -200,7 +200,7 @@ function OrdenCompra() {
   // ========= Generar PDF =========
   const handleGenerarPDF = async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       
       if (!token) {
         setMensaje({ tipo: 'error', texto: 'No hay sesión activa' });
@@ -317,7 +317,7 @@ function OrdenCompra() {
   // ========= Obtener último precio de un material =========
   const fetchUltimoPrecio = async (codigo, lineaId) => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       console.log(`🔍 Obteniendo último precio para material código: ${codigo}`);
       
       const response = await fetch(`/api/ordenes/helpers/material/${codigo}/ultimo-precio`, {
@@ -394,7 +394,7 @@ function OrdenCompra() {
     setMensaje(null);
 
     try {
-      const token = localStorage.getItem('authToken'); // Usar 'authToken' en lugar de 'token'
+      const token = getAuthToken(); // Usar 'authToken' en lugar de 'token'
       
       const payload = {
         header: {

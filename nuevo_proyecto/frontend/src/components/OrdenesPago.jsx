@@ -41,7 +41,7 @@ function OrdenesPago() {
 
   const fetchProximoNumero = async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       if (!token) {
         setMensaje({ tipo: 'error', texto: 'Sesión expirada' });
         return;
@@ -81,7 +81,7 @@ function OrdenesPago() {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       const response = await fetch(`/api/ordenes_pago/?proveedor_id=${selectedOption.value}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -116,7 +116,7 @@ function OrdenesPago() {
     setDocumentoSeleccionado({ documento, oc });
 
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       const url = `/api/ordenes_pago/detalle?documento=${encodeURIComponent(documento)}&oc=${oc}&proveedor_id=${proveedor.value}`;
 
       const response = await fetch(url, {
@@ -185,7 +185,7 @@ function OrdenesPago() {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
 
       const payload = {
         orden_numero: numeroOP,
@@ -241,7 +241,7 @@ function OrdenesPago() {
     // En modo creación, enviar los datos actuales al endpoint que genera PDF desde el form
     if (modoConsulta && numeroOrdenOriginal) {
       try {
-        const token = localStorage.getItem('authToken');
+        const token = getAuthToken();
         const response = await fetch(`/api/ordenes_pago/pdf/${numeroOrdenOriginal}`, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -284,7 +284,7 @@ function OrdenesPago() {
     }
 
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
 
       const payload = {
         'orden_compra[]': lineasSeleccionadas.map(l => l.orden_compra || ''),
@@ -337,7 +337,7 @@ function OrdenesPago() {
   const handleVerHistorial = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       const response = await fetch('/api/ordenes_pago/historial', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -364,7 +364,7 @@ function OrdenesPago() {
   const handleCopiarOrden = async (ordenNumero) => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       const response = await fetch(`/api/ordenes_pago/copiar/${ordenNumero}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -406,7 +406,7 @@ function OrdenesPago() {
   // ========= Búsqueda de proveedores =========
   const loadProveedores = async (inputValue) => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       const searchTerm = inputValue ? inputValue.trim() : '';
 
       const query = searchTerm.length >= 2
@@ -434,7 +434,7 @@ function OrdenesPago() {
   // ========= Búsqueda de trabajadores =========
   const loadTrabajadores = async (inputValue) => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       const searchTerm = inputValue ? inputValue.trim() : '';
 
       const query = searchTerm.length >= 2
@@ -466,7 +466,7 @@ function OrdenesPago() {
     if (selectedOption) {
       // Buscar correo del trabajador
       try {
-        const token = localStorage.getItem('authToken');
+        const token = getAuthToken();
         // ⚠️ Asumimos que este endpoint existe (no estaba en el .py)
         // Si no existe, necesitamos crearlo o buscar el correo de otra forma
         const response = await fetch(`/api/trabajadores/${selectedOption.value}`, {

@@ -23,7 +23,7 @@ const MaterialForm = ({ material, items, onClose, onSaved }) => {
     }
   }, [material]);
 
-  const token = localStorage.getItem('authToken');
+  const token = getAuthToken();
 
   const handleChange = (e) => {
     const { name, value } = e.target;

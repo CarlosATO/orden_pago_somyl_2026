@@ -37,7 +37,7 @@ const ProveedorForm = ({ proveedor, onClose, onSaved }) => {
     }
   }, [proveedor]);
 
-  const token = localStorage.getItem('authToken');
+  const token = getAuthToken();
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;

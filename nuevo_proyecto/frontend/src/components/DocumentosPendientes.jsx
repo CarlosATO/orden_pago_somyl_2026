@@ -29,7 +29,7 @@ function DocumentosPendientes() {
   const fetchPendientes = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       if (!token) {
         setMensaje({ tipo: 'error', texto: 'Sesión expirada' });
         return;
@@ -73,7 +73,7 @@ function DocumentosPendientes() {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       const response = await fetch('/api/documentos-pendientes/update', {
         method: 'POST',
         headers: {

@@ -33,7 +33,7 @@ function Ingresos() {
   // ========= Funciones de API =========
   const fetchOCsDisponibles = async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       if (!token) {
         setMensaje({ tipo: 'error', texto: 'Sesión expirada' });
         return;
@@ -72,7 +72,7 @@ function Ingresos() {
   const fetchDatosOC = async (ocNumero) => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       if (!token) {
         setMensaje({ tipo: 'error', texto: 'Sesión expirada' });
         return;
@@ -154,7 +154,7 @@ function Ingresos() {
 
     setLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       if (!token) {
         setMensaje({ tipo: 'error', texto: 'Sesión expirada' });
         return;

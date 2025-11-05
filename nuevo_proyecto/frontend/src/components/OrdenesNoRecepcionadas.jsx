@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import API_BASE_URL from '../config/api';
+import { getAuthToken } from '../utils/auth';
 import './OrdenesNoRecepcionadas.css';
 
-const API_URL = 'http://localhost:5001/api';
+const API_URL = API_BASE_URL;
 
 function OrdenesNoRecepcionadas() {
   const [ordenesPendientes, setOrdenesPendientes] = useState([]);
@@ -35,7 +37,7 @@ function OrdenesNoRecepcionadas() {
   const cargarOrdenesPendientes = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       
       const response = await axios.get(`${API_URL}/ordenes-no-recepcionadas/lista`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -75,7 +77,7 @@ function OrdenesNoRecepcionadas() {
       setMostrarModal(true);
       setDetalleOC(null);
       
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       const response = await axios.get(
         `${API_URL}/ordenes-no-recepcionadas/detalle/${ocNumero}`,
         { headers: { Authorization: `Bearer ${token}` } }
@@ -99,7 +101,7 @@ function OrdenesNoRecepcionadas() {
     
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       
       const response = await axios.post(
         `${API_URL}/ordenes-no-recepcionadas/sacar-informe/${ocNumero}`,
@@ -126,7 +128,7 @@ function OrdenesNoRecepcionadas() {
     
     try {
       setLoading(true);
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       
       const response = await axios.delete(
         `${API_URL}/ordenes-no-recepcionadas/eliminar/${ocNumero}`,

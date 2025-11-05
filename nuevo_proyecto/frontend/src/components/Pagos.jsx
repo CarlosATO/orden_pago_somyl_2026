@@ -63,7 +63,7 @@ const Pagos = () => {
   
   const cargarFiltros = async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       const response = await fetch('/api/pagos/filters', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -83,7 +83,7 @@ const Pagos = () => {
   const cargarPagos = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       
       // Construir query params
       const params = new URLSearchParams({
@@ -119,7 +119,7 @@ const Pagos = () => {
   
   const cargarEstadisticas = async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       
       // Construir params solo si hay filtros
       const filtrosAplicados = Object.entries(filtros).filter(([_, v]) => v !== '');
@@ -174,7 +174,7 @@ const Pagos = () => {
     try {
       setMensaje({ tipo: 'info', texto: 'Generando Excel...' });
       
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       
       // Construir params con los filtros actuales
       const params = new URLSearchParams(
@@ -221,7 +221,7 @@ const Pagos = () => {
   
   const handleFechaPagoChange = async (orden_numero, fecha_pago) => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       
       const response = await fetch('/api/pagos/fecha', {
         method: 'PUT',
@@ -251,7 +251,7 @@ const Pagos = () => {
   
   const abrirModalAbonos = async (orden_numero) => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       
       const response = await fetch(`/api/pagos/abonos/${orden_numero}`, {
         headers: {
@@ -293,7 +293,7 @@ const Pagos = () => {
   
   const crearAbono = async () => {
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       
       const response = await fetch('/api/pagos/abono', {
         method: 'POST',
@@ -327,7 +327,7 @@ const Pagos = () => {
     if (!confirm('¿Estás seguro de eliminar este abono?')) return;
     
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       
       const response = await fetch(`/api/pagos/abono/${abono_id}`, {
         method: 'DELETE',

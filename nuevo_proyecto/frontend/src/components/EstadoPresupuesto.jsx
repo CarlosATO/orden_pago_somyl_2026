@@ -49,7 +49,7 @@ function EstadoPresupuesto() {
     console.log('🔄 Iniciando carga de proyectos...');
     setLoadingProyectos(true);
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       if (!token) {
         setMensaje({ tipo: 'error', texto: 'Sesión expirada' });
         return;
@@ -89,7 +89,7 @@ function EstadoPresupuesto() {
   const fetchEstadoPresupuesto = useCallback(async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       if (!token) {
         setMensaje({ tipo: 'error', texto: 'Sesión expirada' });
         return;
@@ -184,7 +184,7 @@ function EstadoPresupuesto() {
   const fetchDetalle = async (proyectoId, itemId, mes) => {
     setLoadingDetalle(true);
     try {
-      const token = localStorage.getItem('authToken');
+      const token = getAuthToken();
       const response = await fetch(
         `/api/estado-presupuesto/detalle?proyecto=${proyectoId}&item=${itemId}&mes=${mes}`,
         {

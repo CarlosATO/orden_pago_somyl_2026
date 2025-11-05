@@ -13,7 +13,7 @@ const ProyectosPage = () => {
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({ total: 0, conVenta: 0, sinVenta: 0 });
   
-  const token = localStorage.getItem('authToken');
+  const token = getAuthToken();
 
   const fetchProyectos = async () => {
     setLoading(true);

@@ -41,7 +41,7 @@ export default function ChartsPresupuesto({ proyectoId }) {
       setLoading(true);
       setError(null);
       try {
-        const token = localStorage.getItem('authToken');
+        const token = getAuthToken();
         let url = '/api/graficos-presupuesto';
         if (proyectoId && proyectoId !== 'todos') url += `?proyecto_id=${proyectoId}`;
 

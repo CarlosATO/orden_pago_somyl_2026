@@ -11,7 +11,7 @@ const ProveedoresPage = () => {
   const [selectedProveedor, setSelectedProveedor] = useState(null);
   const [loading, setLoading] = useState(false);
   
-  const token = localStorage.getItem('authToken');
+  const token = getAuthToken();
 
   const fetchProveedores = async () => {
     setLoading(true);

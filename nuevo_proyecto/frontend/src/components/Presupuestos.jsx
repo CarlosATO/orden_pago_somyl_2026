@@ -29,7 +29,7 @@ function Presupuestos() {
   }, []);
 
   const cargarDatosIniciales = async () => {
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     setLoading(true);
     
     try {
@@ -104,7 +104,7 @@ function Presupuestos() {
   // Cargar gastos del proyecto
   const cargarGastosProyecto = async (proyectoId) => {
     setLoading(true);
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     
     try {
       const response = await fetch(`${API_URL}/presupuestos/gastos/${proyectoId}`, {
@@ -160,7 +160,7 @@ function Presupuestos() {
       return;
     }
 
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     setLoading(true);
 
     try {
@@ -207,7 +207,7 @@ function Presupuestos() {
   const handleEliminarGasto = async (gastoId) => {
     if (!confirm('¿Está seguro de eliminar este registro?')) return;
 
-    const token = localStorage.getItem('authToken');
+    const token = getAuthToken();
     
     try {
       const response = await fetch(`${API_URL}/presupuestos/${gastoId}`, {
