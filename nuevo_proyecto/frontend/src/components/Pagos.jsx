@@ -402,7 +402,7 @@ const Pagos = () => {
       
       {/* Layout Superior: Estadísticas (Izq) + Proyectos Pendientes (Der) */}
       <div className="pagos-top-section">
-        {/* TABLA DE ESTADÍSTICAS 2x2 - IZQUIERDA */}
+        {/* TABLA DE ESTADÍSTICAS - IZQUIERDA */}
         <div className="stats-table-container">
           <h3>Resumen General</h3>
           <table className="stats-table">
@@ -423,8 +423,26 @@ const Pagos = () => {
                   <div className="stat-label-compact">Pendientes</div>
                 </td>
                 <td>
-                  <div className="stat-value-compact">{formatCurrency(stats.total_pendiente)}</div>
+                  <div className="stat-value-compact">{formatCurrency(stats.monto_pendiente || 0)}</div>
                   <div className="stat-label-compact">Monto Pendiente</div>
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <div className="stat-value-compact">{stats.con_abonos || 0}</div>
+                  <div className="stat-label-compact">Con Abonos</div>
+                </td>
+                <td>
+                  <div className="stat-value-compact">{formatCurrency(stats.saldo_abonos || 0)}</div>
+                  <div className="stat-label-compact">Saldo de Abonos</div>
+                </td>
+              </tr>
+              <tr>
+                <td colSpan="2" style={{background: 'rgba(0,0,0,0.1)'}}>
+                  <div className="stat-value-compact" style={{fontSize: '1.4em', fontWeight: 'bold'}}>
+                    {formatCurrency(stats.total_general || 0)}
+                  </div>
+                  <div className="stat-label-compact" style={{fontWeight: 'bold'}}>Total General</div>
                 </td>
               </tr>
             </tbody>
@@ -443,18 +461,36 @@ const Pagos = () => {
               <thead>
                 <tr>
                   <th>Proyecto</th>
+                  <th>Monto Total</th>
                   <th>Monto Pendiente</th>
                 </tr>
               </thead>
               <tbody>
                 {Object.entries(stats.saldo_por_proyecto)
-                  .sort((a, b) => b[1] - a[1]) // Ordenar por monto descendente
-                  .map(([proyecto, monto]) => (
+                  .sort((a, b) => b[1] - a[1]) // Ordenar por monto pendiente descendente
+                  .map(([proyecto, montoPendiente]) => (
                   <tr key={proyecto}>
                     <td title={proyecto}>{proyecto}</td>
-                    <td>{formatCurrency(monto)}</td>
+                    <td>{formatCurrency(stats.monto_total_por_proyecto?.[proyecto] || 0)}</td>
+                    <td>{formatCurrency(montoPendiente)}</td>
                   </tr>
                 ))}
+                <tr className="proyectos-totales">
+                  <td className="totales-label">TOTALES</td>
+                  <td className="totales-value">
+                    {formatCurrency(
+                      Object.keys(stats.saldo_por_proyecto || {}).reduce(
+                        (sum, proyecto) => sum + (stats.monto_total_por_proyecto?.[proyecto] || 0), 
+                        0
+                      )
+                    )}
+                  </td>
+                  <td className="totales-value">
+                    {formatCurrency(
+                      Object.values(stats.saldo_por_proyecto || {}).reduce((sum, monto) => sum + monto, 0)
+                    )}
+                  </td>
+                </tr>
               </tbody>
             </table>
           )}
@@ -559,20 +595,29 @@ const Pagos = () => {
                   </td>
                 </tr>
               ) : (
-                pagos.map(pago => (
-                  <tr key={pago.orden_numero} className={pago.estado === 'pagado' ? 'fila-pagada' : ''}>
-                    <td>{pago.orden_numero}</td>
-                    <td>{pago.fecha}</td>
-                    <td title={pago.proveedor_nombre}>{pago.proveedor_nombre}</td>
-                    <td>{pago.rut_proveedor}</td>
-                    <td title={pago.detalle_compra}>{pago.detalle_compra}</td>
-                    <td>{pago.factura}</td>
-                    <td className="text-right">
-                      <strong>{formatCurrency(pago.total_pago)}</strong>
-                    </td>
-                    <td title={pago.proyecto_nombre}>{pago.proyecto_nombre}</td>
-                    <td>{pago.item}</td>
-                    <td>{pago.orden_compra}</td>
+                pagos.map(pago => {
+                  // Determinar la clase según el estado
+                  let filaClase = '';
+                  if (pago.estado === 'pagado') {
+                    filaClase = 'fila-pagada';
+                  } else if (pago.estado === 'abono') {
+                    filaClase = 'fila-abono';
+                  }
+                  
+                  return (
+                    <tr key={pago.orden_numero} className={filaClase}>
+                      <td>{pago.orden_numero}</td>
+                      <td>{pago.fecha}</td>
+                      <td title={pago.proveedor_nombre}>{pago.proveedor_nombre}</td>
+                      <td>{pago.rut_proveedor}</td>
+                      <td title={pago.detalle_compra}>{pago.detalle_compra}</td>
+                      <td>{pago.factura}</td>
+                      <td className="text-right">
+                        <strong>{formatCurrency(pago.total_pago)}</strong>
+                      </td>
+                      <td title={pago.proyecto_nombre}>{pago.proyecto_nombre}</td>
+                      <td>{pago.item}</td>
+                      <td>{pago.orden_compra}</td>
                     <td>
                       <div className="fecha-input-wrapper">
                         <input
@@ -606,7 +651,8 @@ const Pagos = () => {
                       </button>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

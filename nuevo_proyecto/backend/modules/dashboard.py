@@ -151,38 +151,42 @@ def obtener_kpis_principales():
                 monto = 0
             if num is None:
                 continue
-            abonos_map[num] = abonos_map.get(num, 0) + monto
+            # Asegurar que usamos int como clave única (FIX: evitar duplicación)
             try:
-                abonos_map[int(num)] = abonos_map.get(int(num), 0) + monto
+                num_int = int(num)
+                abonos_map[num_int] = abonos_map.get(num_int, 0) + monto
             except:
-                pass
+                abonos_map[num] = abonos_map.get(num, 0) + monto
         
-        # Calcular deuda REAL usando la función calcular_estado_pago
-        deuda_total = 0
-        deuda_con_factura = 0
-        deuda_sin_factura = 0
-        cantidad_pendientes = 0  # Cuenta "pendiente" + "abono" (cualquiera que no sea "pagado")
+        # Calcular montos separados: pendientes y saldo de abonos
+        monto_pendiente = 0  # Órdenes sin fecha ni abonos
+        saldo_abonos = 0  # Saldo de órdenes con abonos pero sin fecha
+        cantidad_pendientes = 0  # Solo pendientes puros
+        cantidad_con_abonos = 0  # Órdenes con abonos
+        cantidad_pagadas = 0
         
         for num, pago in pagos_dict.items():
             total_pago = pago["total_pago"]
             total_abonado = abonos_map.get(num, 0)
             fecha_pago = fecha_map.get(num)
             
-            # Calcular saldo
-            saldo = max(0, total_pago - total_abonado) if not fecha_pago else 0
+            # Si tiene abonos Y NO tiene fecha, sumar al saldo de abonos
+            if total_abonado > 0 and not fecha_pago:
+                cantidad_con_abonos += 1
+                saldo = max(0, total_pago - total_abonado)
+                saldo_abonos += saldo
             
-            # Usar la MISMA función que Informe de Pagos
+            # Usar la función de estado para contadores
             estado = calcular_estado_pago(fecha_pago, total_abonado, total_pago)
             
-            # IGUAL QUE PAGOS.PY: Contar todo lo que NO sea "pagado"
-            if estado != "pagado":
+            if estado == "pagado":
+                cantidad_pagadas += 1
+            elif estado == "pendiente":
                 cantidad_pendientes += 1
-                deuda_total += saldo
-                
-                if pago.get("factura"):
-                    deuda_con_factura += saldo
-                else:
-                    deuda_sin_factura += saldo
+                monto_pendiente += total_pago
+        
+        # Total general = pendientes + saldo abonos
+        total_general = monto_pendiente + saldo_abonos
         
         # 2. SALDO PRESUPUESTARIO TOTAL
         response_ppto = supabase.table('presupuesto').select('*').execute()
@@ -307,10 +311,16 @@ def obtener_kpis_principales():
                     pass
         
         return {
-            "deuda_total": round(deuda_total, 2),
-            "deuda_con_factura": round(deuda_con_factura, 2),
-            "deuda_sin_factura": round(deuda_sin_factura, 2),
-            "cantidad_pendientes": cantidad_pendientes,
+            # Nuevos campos separados
+            "monto_pendiente": round(monto_pendiente, 2),
+            "saldo_abonos": round(saldo_abonos, 2),
+            "total_general": round(total_general, 2),
+            "pendientes": cantidad_pendientes,
+            "con_abonos": cantidad_con_abonos,
+            "pagadas": cantidad_pagadas,
+            # Campos legacy (por compatibilidad)
+            "deuda_total": round(total_general, 2),
+            "cantidad_pendientes": cantidad_pendientes + cantidad_con_abonos,
             "saldo_presupuestario_total": round(saldo_presupuestario_total, 2),
             "proyectos_en_riesgo": proyectos_en_riesgo,
             "documentos_pendientes": documentos_pendientes,
@@ -404,49 +414,61 @@ def obtener_top_proyectos_criticos():
                 ppto_por_proyecto[proyecto_id]['real'] += real
                 ppto_por_proyecto[proyecto_id]['saldo'] += saldo
         
-        # Agrupar deuda por proyecto
+        # Agrupar deuda y monto total por proyecto
         deuda_por_proyecto = {}
         
         for op in ordenes_pago:
-            if not op.get('pagado', False):  # Solo OP pendientes
-                proyecto_id = op.get('proyecto_id')
-                proyecto_nombre = op.get('proyecto_nombre', 'Sin Proyecto')
-                monto = float(op.get('monto_total', 0) or 0)
-                
-                if proyecto_id not in deuda_por_proyecto:
-                    deuda_por_proyecto[proyecto_id] = {
-                        'proyecto_id': proyecto_id,
-                        'proyecto': proyecto_nombre,
-                        'deuda': 0,
-                        'num_op': 0,
-                        'saldo_presupuesto': 0
-                    }
-                
+            proyecto_id = op.get('proyecto_id')
+            proyecto_nombre = op.get('proyecto_nombre', 'Sin Proyecto')
+            monto = float(op.get('monto_total', 0) or 0)
+            
+            # Inicializar proyecto si no existe
+            if proyecto_id not in deuda_por_proyecto:
+                deuda_por_proyecto[proyecto_id] = {
+                    'proyecto_id': proyecto_id,
+                    'proyecto': proyecto_nombre,
+                    'monto_total': 0,  # Nuevo campo: suma de todas las OP
+                    'deuda': 0,  # Solo OP pendientes
+                    'num_op': 0,
+                    'saldo_presupuesto': 0
+                }
+            
+            # Sumar monto total (todas las OP)
+            deuda_por_proyecto[proyecto_id]['monto_total'] += monto
+            
+            # Sumar deuda (solo OP pendientes)
+            if not op.get('pagado', False):
                 deuda_por_proyecto[proyecto_id]['deuda'] += monto
                 deuda_por_proyecto[proyecto_id]['num_op'] += 1
         
-        # Agregar información presupuestaria
+        # Agregar información presupuestaria y filtrar proyectos con deuda
+        proyectos_con_deuda = {}
         for proyecto_id, data in deuda_por_proyecto.items():
-            if proyecto_id in ppto_por_proyecto:
-                data['saldo_presupuesto'] = ppto_por_proyecto[proyecto_id]['saldo']
-            
-            # Determinar estado
-            if data['saldo_presupuesto'] < 0:
-                data['estado'] = 'riesgo'
-            elif data['saldo_presupuesto'] < data['deuda'] * 0.2:  # Menos del 20% de margen
-                data['estado'] = 'alerta'
-            else:
-                data['estado'] = 'ok'
+            # Solo incluir proyectos que tengan deuda pendiente
+            if data['deuda'] > 0:
+                if proyecto_id in ppto_por_proyecto:
+                    data['saldo_presupuesto'] = ppto_por_proyecto[proyecto_id]['saldo']
+                
+                # Determinar estado
+                if data['saldo_presupuesto'] < 0:
+                    data['estado'] = 'riesgo'
+                elif data['saldo_presupuesto'] < data['deuda'] * 0.2:  # Menos del 20% de margen
+                    data['estado'] = 'alerta'
+                else:
+                    data['estado'] = 'ok'
+                
+                proyectos_con_deuda[proyecto_id] = data
         
         # Ordenar por deuda y tomar top 5
         top_proyectos = sorted(
-            deuda_por_proyecto.values(),
+            proyectos_con_deuda.values(),
             key=lambda x: x['deuda'],
             reverse=True
         )[:5]
         
         # Redondear montos
         for proy in top_proyectos:
+            proy['monto_total'] = round(proy['monto_total'], 2)
             proy['deuda'] = round(proy['deuda'], 2)
             proy['saldo_presupuesto'] = round(proy['saldo_presupuesto'], 2)
         

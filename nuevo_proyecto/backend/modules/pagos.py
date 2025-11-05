@@ -7,9 +7,25 @@ import logging
 import io
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+import time
 
 bp = Blueprint("pagos_api", __name__)
 logger = logging.getLogger(__name__)
+
+# ================================================================
+# CACHÉ SIMPLE EN MEMORIA PARA DATOS PROCESADOS
+# ================================================================
+
+_pagos_cache = {
+    "data": None,
+    "timestamp": 0,
+    "ttl": 60  # 60 segundos de vida útil
+}
+
+def invalidar_cache_pagos():
+    """Invalida el caché de pagos (llamar cuando se modifiquen datos)"""
+    _pagos_cache["data"] = None
+    _pagos_cache["timestamp"] = 0
 
 # ================================================================
 # FUNCIONES AUXILIARES
@@ -37,23 +53,178 @@ def get_cached_proyectos():
 
 def calcular_estado_pago(fecha_pago, total_abonado, total_pago):
     """
-    Calcular estado del pago:
-    - pagado: tiene fecha_pago (preferible) O saldo = 0
-    - abono: tiene abonos parciales (saldo > 0)
-    - pendiente: sin fecha_pago y sin abonos (o con saldo > 0)
+    Calcular estado del pago de manera simple y clara:
+    1. Si tiene fecha_pago -> PAGADO (sin importar abonos)
+    2. Si tiene abonos pero no fecha -> ABONO
+    3. Si no tiene fecha ni abonos -> PENDIENTE
     """
-    saldo = max(0, total_pago - (total_abonado or 0))
-
-    # Caso 1: Si hay abonos parciales y queda saldo -> ABONO (priorizar abonos)
-    if (total_abonado or 0) > 0 and saldo > 0:
-        return "abono"
-
-    # Caso 2: Si hay fecha de pago o el saldo es cero -> PAGADO
-    if fecha_pago or saldo <= 0:
+    # Caso 1: Si tiene fecha de pago, está PAGADO
+    if fecha_pago:
         return "pagado"
-
-    # Caso 3: Sin fecha, sin abonos, con saldo > 0 -> PENDIENTE
+    
+    # Caso 2: Si no tiene fecha pero tiene abonos, está en ABONO
+    if (total_abonado or 0) > 0:
+        return "abono"
+    
+    # Caso 3: Sin fecha y sin abonos -> PENDIENTE
     return "pendiente"
+
+def obtener_todos_pagos_procesados(supabase, filtros_base=None):
+    """
+    Obtiene TODOS los pagos con estados calculados.
+    Esta función es intensiva, por eso usamos caché.
+    
+    filtros_base: dict con filtros que se pueden aplicar en BD (proveedor, proyecto, fechas, orden_numero)
+    """
+    # Construir query base
+    query = supabase.table("orden_de_pago").select(
+        "orden_numero, fecha, proveedor, proveedor_nombre, detalle_compra, "
+        "factura, costo_final_con_iva, proyecto, orden_compra, condicion_pago, "
+        "vencimiento, fecha_factura, ingreso_id"
+    )
+    
+    # Aplicar filtros de BD si existen
+    if filtros_base:
+        if filtros_base.get('proveedor'):
+            query = query.ilike("proveedor_nombre", f"%{filtros_base['proveedor']}%")
+        if filtros_base.get('proyecto'):
+            try:
+                query = query.eq("proyecto", int(filtros_base['proyecto']))
+            except ValueError:
+                pass
+        if filtros_base.get('fecha_desde'):
+            query = query.gte("fecha", filtros_base['fecha_desde'])
+        if filtros_base.get('fecha_hasta'):
+            query = query.lte("fecha", filtros_base['fecha_hasta'])
+        if filtros_base.get('orden_numero'):
+            try:
+                query = query.eq("orden_numero", int(filtros_base['orden_numero']))
+            except ValueError:
+                pass
+    
+    query = query.order("orden_numero", desc=True)
+    
+    # Obtener todos los registros en lotes
+    all_rows = []
+    batch_size = 1000
+    offset = 0
+    
+    while True:
+        batch_result = query.range(offset, offset + batch_size - 1).execute()
+        if not batch_result.data:
+            break
+        all_rows.extend(batch_result.data)
+        if len(batch_result.data) < batch_size:
+            break
+        offset += batch_size
+    
+    if not all_rows:
+        return []
+    
+    # Agrupar por orden_numero
+    pagos_dict = {}
+    orden_numeros = []
+    
+    for r in all_rows:
+        num = r["orden_numero"]
+        if num not in pagos_dict:
+            orden_numeros.append(num)
+            pagos_dict[num] = {
+                "orden_numero": num,
+                "fecha": r["fecha"],
+                "proveedor": r.get("proveedor"),
+                "proveedor_nombre": r["proveedor_nombre"],
+                "detalle_compra": r["detalle_compra"],
+                "factura": r["factura"],
+                "total_pago": 0,
+                "proyecto": r["proyecto"],
+                "orden_compra": r["orden_compra"],
+                "condicion_pago": r["condicion_pago"],
+                "vencimiento": r["vencimiento"],
+                "fecha_factura": r["fecha_factura"],
+                "ingreso_id": r.get("ingreso_id"),
+                "fecha_pago": None,
+                "total_abonado": 0.0,
+                "saldo_pendiente": 0.0,
+                "item": "-",
+                "rut_proveedor": "-",
+                "fac_pago": ""
+            }
+        try:
+            monto = int(round(float(r.get("costo_final_con_iva") or 0)))
+        except Exception:
+            monto = 0
+        pagos_dict[num]["total_pago"] += monto
+    
+    pagos_list = list(pagos_dict.values())
+    
+    # Obtener datos relacionados EN LOTES
+    if orden_numeros:
+        batch_size = 100
+        fecha_map = {}
+        abonos_map = {}
+        
+        for i in range(0, len(orden_numeros), batch_size):
+            batch = orden_numeros[i:i+batch_size]
+            
+            # Fechas de pago
+            try:
+                fechas_result = supabase.table("fechas_de_pagos_op").select(
+                    "orden_numero, fecha_pago"
+                ).in_("orden_numero", batch).execute()
+                for r in (fechas_result.data or []):
+                    fecha_map[r["orden_numero"]] = r["fecha_pago"]
+            except Exception as e:
+                logger.error(f"Error obteniendo fechas: {e}")
+            
+            # Abonos
+            try:
+                abonos_result = supabase.table("abonos_op").select(
+                    "orden_numero, monto_abono"
+                ).in_("orden_numero", batch).execute()
+                for ab in (abonos_result.data or []):
+                    num = ab["orden_numero"]
+                    try:
+                        monto_ab = int(round(float(ab.get("monto_abono") or 0)))
+                    except Exception:
+                        monto_ab = 0
+                    abonos_map[num] = abonos_map.get(num, 0) + monto_ab
+            except Exception as e:
+                logger.error(f"Error obteniendo abonos: {e}")
+        
+        # Proveedores y proyectos (cache simple)
+        proveedores = get_cached_proveedores()
+        proyectos = get_cached_proyectos()
+        rut_map = {p["id"]: p.get("rut", "-") for p in proveedores}
+        proyecto_map = {p["id"]: p["proyecto"] for p in proyectos}
+        
+        # Aplicar datos a cada pago
+        for pago in pagos_list:
+            num = pago["orden_numero"]
+            fecha_pago_bd = fecha_map.get(num)
+            total_abonado = int(abonos_map.get(num, 0))
+            total_pago = int(pago["total_pago"])
+            saldo = max(0, total_pago - total_abonado)
+            
+            # Calcular estado
+            estado = calcular_estado_pago(fecha_pago_bd, total_abonado, total_pago)
+            
+            # Determinar fecha a mostrar
+            if fecha_pago_bd and total_abonado == 0:
+                fecha_pago_mostrar = fecha_pago_bd
+            elif total_abonado > 0 and saldo <= 0:
+                fecha_pago_mostrar = fecha_pago_bd or date.today().isoformat()
+            else:
+                fecha_pago_mostrar = None
+            
+            pago["fecha_pago"] = fecha_pago_mostrar
+            pago["total_abonado"] = total_abonado
+            pago["saldo_pendiente"] = saldo
+            pago["rut_proveedor"] = rut_map.get(pago.get("proveedor"), "-")
+            pago["proyecto_nombre"] = proyecto_map.get(pago["proyecto"], f"Proyecto {pago['proyecto']}")
+            pago["estado"] = estado
+    
+    return pagos_list
 
 # ================================================================
 # ENDPOINT PRINCIPAL - LISTAR PAGOS CON PAGINACIÓN
@@ -63,51 +234,111 @@ def calcular_estado_pago(fecha_pago, total_abonado, total_pago):
 @token_required
 def list_pagos(current_user):
     """
-    Obtiene lista de pagos con paginación de Supabase.
+    Obtiene lista de pagos con paginación optimizada usando caché.
     """
     supabase = current_app.config['SUPABASE']
-    
-    # Función auxiliar para reintentos
-    def execute_with_retry(query_func, max_retries=3):
-        for attempt in range(max_retries):
-            try:
-                return query_func()
-            except Exception as e:
-                if attempt == max_retries - 1:
-                    raise
-                logger.warning(f"Intento {attempt + 1} falló: {e}. Reintentando...")
-                import time
-                time.sleep(0.5 * (attempt + 1))  # Espera incremental
-        return None
     
     try:
         # Parámetros de paginación
         page = max(1, request.args.get('page', 1, type=int))
-        per_page = min(request.args.get('per_page', 50, type=int), 100)  # Reducido a 100
+        per_page = min(request.args.get('per_page', 50, type=int), 100)
         
         # Filtros
         proveedor = request.args.get('proveedor', '').strip()
         proyecto_id = request.args.get('proyecto', '').strip()
-        estado_filtro = request.args.get('estado', '').strip()  # Renombrado para evitar conflicto
-        # Normalizar posibles etiquetas que envía el front (p. ej. "Con Abonos")
+        estado_filtro = request.args.get('estado', '').strip()
+        
+        # Normalizar estado
         if estado_filtro:
             ef = estado_filtro.lower().strip()
-            # Mapear etiquetas de UI a códigos internos
             if ef in ("con abonos", "con_abonos", "con-abonos", "conabonos", "con abono", "con_abono"):
                 estado_filtro = "abono"
             elif ef in ("con pagos", "pagadas", "pagado", "pagados", "pagado(s)"):
                 estado_filtro = "pagado"
             elif ef in ("pendiente", "pendientes"):
                 estado_filtro = "pendiente"
+        
         fecha_desde = request.args.get('fecha_desde', '').strip()
         fecha_hasta = request.args.get('fecha_hasta', '').strip()
         orden_numero = request.args.get('orden_numero', '').strip()
         
         # Calcular offset
         offset = (page - 1) * per_page
+        
+        # Crear key de caché basado en filtros de BD
+        filtros_bd = {
+            'proveedor': proveedor,
+            'proyecto': proyecto_id,
+            'fecha_desde': fecha_desde,
+            'fecha_hasta': fecha_hasta,
+            'orden_numero': orden_numero
+        }
+        filtros_bd = {k: v for k, v in filtros_bd.items() if v}  # Solo los que tienen valor
+        
+        cache_key = str(sorted(filtros_bd.items()))
+        current_time = time.time()
+        
+        # OPTIMIZACIÓN: Si hay filtro de estado, usar caché
+        if estado_filtro:
+            # Verificar si tenemos datos en caché y son recientes
+            if (_pagos_cache["data"] is not None and 
+                _pagos_cache.get("cache_key") == cache_key and
+                current_time - _pagos_cache["timestamp"] < _pagos_cache["ttl"]):
+                
+                logger.info(f"✅ Usando caché de pagos (edad: {int(current_time - _pagos_cache['timestamp'])}s)")
+                pagos_list = _pagos_cache["data"]
+            else:
+                # Obtener y procesar todos los pagos
+                logger.info(f"🔄 Recargando caché de pagos...")
+                start_time = time.time()
+                pagos_list = obtener_todos_pagos_procesados(supabase, filtros_bd)
+                elapsed = time.time() - start_time
+                logger.info(f"✅ Caché recargado en {elapsed:.2f}s - {len(pagos_list)} órdenes procesadas")
+                
+                # Guardar en caché
+                _pagos_cache["data"] = pagos_list
+                _pagos_cache["cache_key"] = cache_key
+                _pagos_cache["timestamp"] = current_time
+            
+            # Filtrar por estado
+            pagos_filtrados = [p for p in pagos_list if p["estado"] == estado_filtro]
+            total_filtrado = len(pagos_filtrados)
+            
+            # Aplicar paginación manual
+            pagos_pagina = pagos_filtrados[offset:offset + per_page]
+            total_pages = (total_filtrado + per_page - 1) // per_page
+            
+            return jsonify({
+                "success": True,
+                "data": {
+                    "pagos": pagos_pagina,
+                    "pagination": {
+                        "page": page,
+                        "per_page": per_page,
+                        "total": total_filtrado,
+                        "total_pages": total_pages
+                    }
+                }
+            })
+        
+        # SIN filtro de estado: usar paginación normal de Supabase (más rápida)
+        # Función auxiliar para reintentos
+        def execute_with_retry(query_func, max_retries=3):
+            for attempt in range(max_retries):
+                try:
+                    return query_func()
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        raise
+                    logger.warning(f"Intento {attempt + 1} falló: {e}. Reintentando...")
+                    time.sleep(0.5 * (attempt + 1))
+            return None
+        
+        # Calcular offset para paginación normal
+        offset = (page - 1) * per_page
         end_range = offset + per_page - 1
         
-        # Query base con conteo - CON RETRY
+        # Query base con paginación de Supabase
         def build_query():
             query = supabase.table("orden_de_pago").select(
                 "orden_numero, fecha, proveedor, proveedor_nombre, detalle_compra, "
@@ -116,29 +347,25 @@ def list_pagos(current_user):
                 count="exact"
             )
             
-            # Aplicar filtros
+            # Aplicar filtros de BD
             if proveedor:
                 query = query.ilike("proveedor_nombre", f"%{proveedor}%")
-            
             if proyecto_id:
                 try:
                     query = query.eq("proyecto", int(proyecto_id))
                 except ValueError:
                     pass
-            
             if fecha_desde:
                 query = query.gte("fecha", fecha_desde)
-            
             if fecha_hasta:
                 query = query.lte("fecha", fecha_hasta)
-            
             if orden_numero:
                 try:
                     query = query.eq("orden_numero", int(orden_numero))
                 except ValueError:
                     pass
             
-            # Ejecutar query con paginación
+            # Ordenar y paginar
             query = query.order("orden_numero", desc=True).range(offset, end_range)
             return query.execute()
         
@@ -150,10 +377,10 @@ def list_pagos(current_user):
                 "message": "Error de conexión con la base de datos"
             }), 503
         
+        # Procesar resultados (solo para queries sin filtro de estado)
         all_rows = result.data or []
         total_count = result.count or 0
         
-        # Si no hay datos, retornar vacío
         if not all_rows:
             return jsonify({
                 "success": True,
@@ -197,7 +424,6 @@ def list_pagos(current_user):
                     "rut_proveedor": "-",
                     "fac_pago": ""
                 }
-            # Usar enteros redondeados para evitar imprecisiones con floats (pesos/cop)
             try:
                 monto = int(round(float(r.get("costo_final_con_iva") or 0)))
             except Exception:
@@ -206,10 +432,9 @@ def list_pagos(current_user):
         
         pagos_list = list(pagos_dict.values())
         
-        # Obtener datos relacionados EN LOTES PEQUEÑOS
+        # Obtener datos relacionados en lotes
         if orden_numeros:
-            # Dividir en lotes de 20 para evitar sobrecarga
-            batch_size = 20
+            batch_size = 50
             fecha_map = {}
             abonos_map = {}
             
@@ -245,7 +470,7 @@ def list_pagos(current_user):
                 except Exception as e:
                     logger.error(f"Error obteniendo abonos: {e}")
             
-            # Proveedores y proyectos (cache simple)
+            # Proveedores y proyectos
             proveedores = get_cached_proveedores()
             proyectos = get_cached_proyectos()
             rut_map = {p["id"]: p.get("rut", "-") for p in proveedores}
@@ -254,29 +479,19 @@ def list_pagos(current_user):
             # Aplicar datos a cada pago
             for pago in pagos_list:
                 num = pago["orden_numero"]
-                fecha_pago_bd = fecha_map.get(num)  # Fecha original de BD
-                # Asegurarse de trabajar con enteros para total y abonos
+                fecha_pago_bd = fecha_map.get(num)
                 total_abonado = int(abonos_map.get(num, 0))
                 total_pago = int(pago["total_pago"])
-
-                # Calcular saldo (enteros)
                 saldo = max(0, total_pago - total_abonado)
                 
-                # Calcular ESTADO primero (usa fecha_pago_bd original)
                 estado = calcular_estado_pago(fecha_pago_bd, total_abonado, total_pago)
                 
-                # Determinar qué fecha_pago MOSTRAR al usuario:
-                # - Si tiene fecha Y NO tiene abonos: mostrar (pago directo completo)
-                # - Si tiene abonos Y saldo <= 0: mostrar (pagado con abonos completos)
-                # - Si tiene abonos Y saldo > 0: NO mostrar (pago parcial)
+                # Fecha a mostrar
                 if fecha_pago_bd and total_abonado == 0:
-                    # Pago directo sin abonos
                     fecha_pago_mostrar = fecha_pago_bd
                 elif total_abonado > 0 and saldo <= 0:
-                    # Pagado completamente con abonos
                     fecha_pago_mostrar = fecha_pago_bd or date.today().isoformat()
                 else:
-                    # Pendiente o con abonos parciales - NO mostrar fecha
                     fecha_pago_mostrar = None
                 
                 pago["fecha_pago"] = fecha_pago_mostrar
@@ -286,11 +501,7 @@ def list_pagos(current_user):
                 pago["proyecto_nombre"] = proyecto_map.get(pago["proyecto"], f"Proyecto {pago['proyecto']}")
                 pago["estado"] = estado
         
-        # Filtro de estado (post-procesamiento)
-        if estado_filtro:
-            pagos_list = [p for p in pagos_list if p["estado"] == estado_filtro]
-        
-        # Calcular total de páginas
+        # Paginación
         total_pages = (total_count + per_page - 1) // per_page
         
         return jsonify({
@@ -430,12 +641,13 @@ def get_stats(current_user):
                         monto = 0
                     if num is None:
                         continue
-                    # Acumular tanto con la clave original como con la clave int (si corresponde)
-                    abonos_map[num] = abonos_map.get(num, 0) + monto
+                    # Asegurar que usamos int como clave única
                     try:
-                        abonos_map[int(num)] = abonos_map.get(int(num), 0) + monto
+                        num_int = int(num)
+                        abonos_map[num_int] = abonos_map.get(num_int, 0) + monto
                     except Exception:
-                        pass
+                        # Si no se puede convertir a int, usar el valor original
+                        abonos_map[num] = abonos_map.get(num, 0) + monto
             except Exception as e:
                 logger.error(f"Error obteniendo abonos: {e}")
             
@@ -451,44 +663,77 @@ def get_stats(current_user):
             # Contadores
             pagadas = 0
             pendientes = 0
+            con_abonos = 0
 
             total_pendiente = 0.0
+            total_saldo_abonos = 0.0
             saldo_por_proyecto = {}
+            monto_total_por_proyecto = {}  # Nuevo: suma de todas las OP por proyecto
 
             # Proyectos
             proyectos = get_cached_proyectos()
             proyecto_map = {p["id"]: p["proyecto"] for p in proyectos}
 
-            # Recorremos las órdenes únicas y aplicamos la misma lógica que el sistema antiguo:
-            # - Si una orden tiene `fecha_pago` en la tabla `fechas_de_pagos_op` → saldo = 0
-            # - Si no tiene fecha, saldo = max(0, total_pago - total_abonado)
-            # - `total_pendiente` es la suma de esos saldos
+            # Recorremos las órdenes únicas y separamos los montos:
+            # - "Pendientes" = total_pago de órdenes SIN abonos ni fecha_pago
+            # - "Saldo Abonos" = SALDO (total - abonos) de órdenes con abonos SIN fecha_pago
+            
+            # Para debug: registrar todas las órdenes con abonos
+            ordenes_con_abonos_detalle = []
+            
             for num, pago in pagos_dict.items():
                 total_abonado = abonos_map.get(num, 0)
                 total_pago = pago["total_pago"]
                 fecha_pago = fecha_map.get(num)
+                proyecto_nombre = proyecto_map.get(pago.get("proyecto"), str(pago.get("proyecto")))
 
-                # Calcular saldo: si hay fecha de pago, consideramos saldo 0 (pago directo o completado)
-                saldo = 0 if fecha_pago else max(0, total_pago - total_abonado)
+                # Sumar SIEMPRE al monto total del proyecto (todas las OP)
+                monto_total_por_proyecto[proyecto_nombre] = monto_total_por_proyecto.get(proyecto_nombre, 0) + total_pago
 
-                # Mantener consistencia usando la función de estado
+                # PRIMERO: Si tiene abonos Y NO tiene fecha_pago, calcular saldo y sumar
+                if total_abonado > 0 and not fecha_pago:
+                    con_abonos += 1
+                    saldo = max(0, total_pago - total_abonado)
+                    total_saldo_abonos += saldo
+                    saldo_por_proyecto[proyecto_nombre] = saldo_por_proyecto.get(proyecto_nombre, 0) + saldo
+                    
+                    # Debug: guardar detalle
+                    ordenes_con_abonos_detalle.append({
+                        "orden": num,
+                        "total": total_pago,
+                        "abonado": total_abonado,
+                        "saldo": saldo,
+                        "fecha_pago": fecha_pago,
+                        "proyecto": proyecto_nombre
+                    })
+
+                # SEGUNDO: Calcular estado para contadores (pagado vs pendiente)
                 estado = calcular_estado_pago(fecha_pago, total_abonado, total_pago)
 
                 if estado == "pagado":
                     pagadas += 1
-                else:
+                elif estado == "pendiente":
+                    # Pendiente sin abonos - sumar el total completo a "Pendientes"
                     pendientes += 1
-                    total_pendiente += saldo
-                    proyecto_nombre = proyecto_map.get(pago.get("proyecto"), str(pago.get("proyecto")))
-                    saldo_por_proyecto[proyecto_nombre] = saldo_por_proyecto.get(proyecto_nombre, 0) + saldo
+                    total_pendiente += total_pago
+                    saldo_por_proyecto[proyecto_nombre] = saldo_por_proyecto.get(proyecto_nombre, 0) + total_pago
+
+            # Total general
+            total_general_pendiente = total_pendiente + total_saldo_abonos
 
             # Log de depuración para diagnosticar valores inesperados
             logger.debug(f"get_stats: filas_consultadas={len(all_rows)}, ordenes_unicas={len(pagos_dict)}, ordenes_con_fecha={len(ordenes_con_fecha)}")
 
             # Filtrar proyectos con saldo significativo (> 1 para evitar ruidos)
             saldo_por_proyecto = {k: v for k, v in saldo_por_proyecto.items() if v > 1}
+            
+            # Filtrar monto_total solo para proyectos que tienen saldo pendiente
+            monto_total_por_proyecto_filtrado = {
+                k: monto_total_por_proyecto.get(k, 0) 
+                for k in saldo_por_proyecto.keys()
+            }
 
-            logger.info(f"📊 Stats calculadas exitosamente: pendientes={pendientes}, total_pendiente={total_pendiente}")
+            logger.info(f"📊 Stats: pendientes={pendientes}, con_abonos={con_abonos}, monto_pendiente={total_pendiente}, saldo_abonos={total_saldo_abonos}")
 
             # Si se solicita debug, devolver datos adicionales para diagnóstico
             if request.args.get('debug') == '1':
@@ -501,8 +746,12 @@ def get_stats(current_user):
                         "total_ordenes": total_ordenes,
                         "pagadas": pagadas,
                         "pendientes": pendientes,
-                        "total_pendiente": total_pendiente,
+                        "con_abonos": con_abonos,
+                        "monto_pendiente": total_pendiente,
+                        "saldo_abonos": total_saldo_abonos,
+                        "total_general": total_general_pendiente,
                         "saldo_por_proyecto": saldo_por_proyecto,
+                        "monto_total_por_proyecto": monto_total_por_proyecto_filtrado,
                         "debug": {
                             "filas_consultadas": len(all_rows),
                             "ordenes_unicas_consideradas": len(pagos_dict),
@@ -510,7 +759,8 @@ def get_stats(current_user):
                             "ordenes_con_abonos_count": len(abonos_map),
                             "muestra_ordenes": muestra_ordenes,
                             "muestra_fechas": muestra_fechas,
-                            "muestra_abonos": muestra_abonos
+                            "muestra_abonos": muestra_abonos,
+                            "ordenes_con_abonos_detalle": ordenes_con_abonos_detalle
                         }
                     }
                 })
@@ -521,8 +771,12 @@ def get_stats(current_user):
                     "total_ordenes": total_ordenes,
                     "pagadas": pagadas,
                     "pendientes": pendientes,
-                    "total_pendiente": total_pendiente,
-                    "saldo_por_proyecto": saldo_por_proyecto
+                    "con_abonos": con_abonos,
+                    "monto_pendiente": total_pendiente,
+                    "saldo_abonos": total_saldo_abonos,
+                    "total_general": total_general_pendiente,
+                    "saldo_por_proyecto": saldo_por_proyecto,
+                    "monto_total_por_proyecto": monto_total_por_proyecto_filtrado
                 }
             })
             
@@ -586,6 +840,9 @@ def update_fecha_pago(current_user):
                 "fecha_pago": fecha_pago
             }, on_conflict=["orden_numero"]).execute()
             
+            # Invalidar caché
+            invalidar_cache_pagos()
+            
             return jsonify({
                 "success": True,
                 "message": "Fecha de pago actualizada"
@@ -606,6 +863,9 @@ def update_fecha_pago(current_user):
             supabase.table("fechas_de_pagos_op").delete().eq(
                 "orden_numero", orden_numero
             ).execute()
+            
+            # Invalidar caché
+            invalidar_cache_pagos()
             
             return jsonify({
                 "success": True,
@@ -725,6 +985,9 @@ def create_abono(current_user):
                 "fecha_pago": fecha_abono
             }, on_conflict=["orden_numero"]).execute()
         
+        # Invalidar caché
+        invalidar_cache_pagos()
+        
         return jsonify({
             "success": True,
             "message": "Abono registrado exitosamente",
@@ -814,6 +1077,9 @@ def update_abono(current_user, abono_id):
             # Si no completa, eliminar fecha automática (solo si fue puesta por abonos)
             pass
         
+        # Invalidar caché
+        invalidar_cache_pagos()
+        
         return jsonify({
             "success": True,
             "message": "Abono actualizado exitosamente"
@@ -877,6 +1143,9 @@ def delete_abono(current_user, abono_id):
                 supabase.table("fechas_de_pagos_op").delete().eq(
                     "orden_numero", orden_numero
                 ).execute()
+        
+        # Invalidar caché
+        invalidar_cache_pagos()
         
         return jsonify({
             "success": True,
@@ -942,7 +1211,7 @@ def exportar_pagos_excel(current_user):
         
         # Construir query con filtros
         query = supabase.table("orden_de_pago").select(
-            "orden_numero, fecha, proveedor_nombre, rut_proveedor, detalle_compra, "
+            "orden_numero, fecha, proveedor, proveedor_nombre, detalle_compra, "
             "factura, costo_final_con_iva, proyecto, item, orden_compra"
         ).order("orden_numero", desc=True)
         
@@ -966,7 +1235,7 @@ def exportar_pagos_excel(current_user):
         while True:
             # Supabase requiere re-construir el query con .range() en cada iteración
             batch_result = supabase.table("orden_de_pago").select(
-                "orden_numero, fecha, proveedor_nombre, rut_proveedor, detalle_compra, "
+                "orden_numero, fecha, proveedor, proveedor_nombre, detalle_compra, "
                 "factura, costo_final_con_iva, proyecto, item, orden_compra"
             ).order("orden_numero", desc=True)
             
@@ -1009,8 +1278,8 @@ def exportar_pagos_excel(current_user):
                 pagos_dict[num] = {
                     "orden_numero": num,
                     "fecha": r["fecha"],
+                    "proveedor": r.get("proveedor"),  # ID del proveedor
                     "proveedor_nombre": r["proveedor_nombre"],
-                    "rut_proveedor": r["rut_proveedor"],
                     "detalle_compra": r["detalle_compra"],
                     "factura": r["factura"],
                     "total_pago": 0,
@@ -1024,42 +1293,60 @@ def exportar_pagos_excel(current_user):
                 monto = 0
             pagos_dict[num]["total_pago"] += monto
         
-        # Obtener fechas de pago
-        fechas_data = supabase.table("fechas_de_pagos_op").select("orden_numero, fecha_pago").execute().data or []
-        fecha_map = {}
-        for row in fechas_data:
-            k = row.get("orden_numero")
-            v = row.get("fecha_pago")
-            if k is not None:
-                fecha_map[str(k)] = v
-                try:
-                    fecha_map[int(k)] = v
-                except Exception:
-                    pass
+        # Obtener lista de orden_numeros únicos para consultas relacionadas
+        orden_numeros = list(pagos_dict.keys())
         
-        # Obtener abonos
-        abonos_data = supabase.table("abonos_op").select("orden_numero, monto_abono").execute().data or []
+        # Obtener fechas de pago en lotes (igual que en el listado)
+        fecha_map = {}
+        if orden_numeros:
+            batch_size = 100
+            for i in range(0, len(orden_numeros), batch_size):
+                batch = orden_numeros[i:i+batch_size]
+                try:
+                    fechas_result = supabase.table("fechas_de_pagos_op").select(
+                        "orden_numero, fecha_pago"
+                    ).in_("orden_numero", batch).execute()
+                    for r in (fechas_result.data or []):
+                        fecha_map[r["orden_numero"]] = r["fecha_pago"]
+                except Exception as e:
+                    logger.error(f"Error obteniendo fechas: {e}")
+        
+        # Obtener abonos en lotes (igual que en el listado)
         abonos_map = {}
-        for ab in abonos_data:
-            num = ab.get("orden_numero")
-            try:
-                monto = int(round(float(ab.get("monto_abono") or 0)))
-            except Exception:
-                monto = 0
-            if num is None:
-                continue
-            abonos_map[num] = abonos_map.get(num, 0) + monto
-            try:
-                abonos_map[int(num)] = abonos_map.get(int(num), 0) + monto
-            except Exception:
-                pass
+        if orden_numeros:
+            batch_size = 100
+            for i in range(0, len(orden_numeros), batch_size):
+                batch = orden_numeros[i:i+batch_size]
+                try:
+                    abonos_result = supabase.table("abonos_op").select(
+                        "orden_numero, monto_abono"
+                    ).in_("orden_numero", batch).execute()
+                    for ab in (abonos_result.data or []):
+                        num = ab["orden_numero"]
+                        try:
+                            monto = int(round(float(ab.get("monto_abono") or 0)))
+                        except Exception:
+                            monto = 0
+                        abonos_map[num] = abonos_map.get(num, 0) + monto
+                except Exception as e:
+                    logger.error(f"Error obteniendo abonos: {e}")
         
         # Obtener proyectos
         proyectos = get_cached_proyectos()
         proyecto_map = {p["id"]: p["proyecto"] for p in proyectos}
         
+        # Obtener proveedores para obtener RUTs
+        proveedores = get_cached_proveedores()
+        rut_map = {p["id"]: p.get("rut", "-") for p in proveedores}
+        
+        logger.info(f"Procesando {len(pagos_dict)} órdenes únicas")
+        logger.info(f"Fechas de pago encontradas: {len(fecha_map)}")
+        logger.info(f"Órdenes con abonos: {len(abonos_map)}")
+        
         # Calcular estados y saldos
         pagos_list = []
+        estados_count = {"pagado": 0, "pendiente": 0, "abono": 0}
+        
         for num, pago in pagos_dict.items():
             total_abonado = abonos_map.get(num, 0)
             total_pago = pago["total_pago"]
@@ -1067,6 +1354,7 @@ def exportar_pagos_excel(current_user):
             
             # Calcular estado usando la misma función
             estado_calculado = calcular_estado_pago(fecha_pago, total_abonado, total_pago)
+            estados_count[estado_calculado] = estados_count.get(estado_calculado, 0) + 1
             
             # Filtrar por estado si se especificó
             if estado and estado_calculado != estado:
@@ -1075,11 +1363,14 @@ def exportar_pagos_excel(current_user):
             saldo = 0 if fecha_pago else max(0, total_pago - total_abonado)
             proyecto_nombre = proyecto_map.get(pago.get("proyecto"), str(pago.get("proyecto")))
             
+            # Obtener RUT desde el mapa de proveedores
+            rut_proveedor = rut_map.get(pago.get("proveedor"), "-")
+            
             pagos_list.append({
                 "orden_numero": num,
                 "fecha": pago["fecha"],
                 "proveedor_nombre": pago["proveedor_nombre"],
-                "rut_proveedor": pago["rut_proveedor"],
+                "rut_proveedor": rut_proveedor,
                 "detalle_compra": pago["detalle_compra"],
                 "factura": pago["factura"],
                 "total_pago": total_pago,
@@ -1091,6 +1382,9 @@ def exportar_pagos_excel(current_user):
                 "saldo_pendiente": saldo,
                 "estado": estado_calculado
             })
+        
+        logger.info(f"Estados calculados - Pagado: {estados_count.get('pagado', 0)}, Pendiente: {estados_count.get('pendiente', 0)}, Abono: {estados_count.get('abono', 0)}")
+        logger.info(f"Total de órdenes a exportar después de filtros: {len(pagos_list)}")
         
         # Crear workbook
         wb = openpyxl.Workbook()
@@ -1194,7 +1488,7 @@ def exportar_pagos_excel(current_user):
             output,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             as_attachment=True,
-            attachment_filename=filename
+            download_name=filename
         )
         
     except Exception as e:

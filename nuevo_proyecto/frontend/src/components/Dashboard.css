@@ -292,6 +292,12 @@
   color: #2c3e50;
 }
 
+.monto-total {
+  font-weight: 600;
+  color: #3498db;
+  text-align: right;
+}
+
 .deuda-amount {
   font-weight: bold;
   color: #e74c3c;
@@ -301,6 +307,31 @@
 .op-count {
   color: #7f8c8d;
   text-align: center;
+}
+
+.totales-row {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  font-weight: bold;
+  border-top: 2px solid #5a67d8;
+}
+
+.totales-row:hover {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+.totales-label {
+  color: white;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  text-align: center;
+  font-weight: 700;
+}
+
+.totales-value {
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: right;
 }
 
 .saldo-negativo {

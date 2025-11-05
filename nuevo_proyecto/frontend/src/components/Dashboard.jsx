@@ -101,18 +101,34 @@ function Dashboard() {
 
       {/* SECCIÓN 1: KPIs PRINCIPALES */}
       <div className="kpis-grid">
-        {/* Deuda Total */}
+        {/* Montos Pendientes de Pago */}
         <div className="kpi-card kpi-danger">
           <div className="kpi-icon">
             <i className="fas fa-hand-holding-usd"></i>
           </div>
           <div className="kpi-content">
-            <h3>Deuda Total por Pagar</h3>
-            <div className="kpi-value">{formatCurrency(kpis.deuda_total)}</div>
-            <div className="kpi-detail">
-              <span><i className="fas fa-hashtag"></i> Cantidad pendientes: {kpis.cantidad_pendientes || 0}</span>
-              <span><i className="fas fa-file-invoice"></i> Con factura: {formatCurrency(kpis.deuda_con_factura)}</span>
-              <span><i className="fas fa-file-alt"></i> Sin factura: {formatCurrency(kpis.deuda_sin_factura)}</span>
+            <h3>Montos Pendientes de Pago</h3>
+            <div className="kpi-detail" style={{marginTop: '10px', gap: '12px'}}>
+              <div style={{padding: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '6px'}}>
+                <span style={{fontSize: '0.85em', opacity: 0.9}}>💵 Pendientes</span>
+                <div style={{fontSize: '1.3em', fontWeight: 'bold', marginTop: '4px'}}>
+                  {formatCurrency(kpis.monto_pendiente || 0)}
+                </div>
+                <span style={{fontSize: '0.75em', opacity: 0.8}}>{kpis.pendientes || 0} órdenes</span>
+              </div>
+              <div style={{padding: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '6px'}}>
+                <span style={{fontSize: '0.85em', opacity: 0.9}}>💳 Saldo de Abonos</span>
+                <div style={{fontSize: '1.3em', fontWeight: 'bold', marginTop: '4px'}}>
+                  {formatCurrency(kpis.saldo_abonos || 0)}
+                </div>
+                <span style={{fontSize: '0.75em', opacity: 0.8}}>{kpis.con_abonos || 0} órdenes</span>
+              </div>
+              <div style={{padding: '10px', background: 'rgba(255,255,255,0.15)', borderRadius: '6px', borderTop: '2px solid rgba(255,255,255,0.3)'}}>
+                <span style={{fontSize: '0.9em', fontWeight: 'bold'}}>🎯 TOTAL GENERAL</span>
+                <div style={{fontSize: '1.6em', fontWeight: 'bold', marginTop: '4px'}}>
+                  {formatCurrency(kpis.total_general || 0)}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -220,6 +236,7 @@ function Dashboard() {
                   <tr>
                     <th>#</th>
                     <th>Proyecto</th>
+                    <th>Monto Total</th>
                     <th>Deuda</th>
                     <th>Saldo Ppto.</th>
                     <th>Estado</th>
@@ -232,6 +249,7 @@ function Dashboard() {
                       <tr key={index}>
                         <td className="rank-number">{index + 1}</td>
                         <td className="proyecto-name">{proy.proyecto}</td>
+                        <td className="monto-total">{formatCurrency(proy.monto_total)}</td>
                         <td className="deuda-amount">{formatCurrency(proy.deuda)}</td>
                         <td className={proy.saldo_presupuesto < 0 ? 'saldo-negativo' : 'saldo-positivo'}>
                           {formatCurrency(proy.saldo_presupuesto)}
@@ -244,6 +262,16 @@ function Dashboard() {
                       </tr>
                     );
                   })}
+                  <tr className="totales-row">
+                    <td colSpan="2" className="totales-label">TOTALES</td>
+                    <td className="totales-value">
+                      {formatCurrency(top_proyectos.reduce((sum, p) => sum + (p.monto_total || 0), 0))}
+                    </td>
+                    <td className="totales-value">
+                      {formatCurrency(top_proyectos.reduce((sum, p) => sum + (p.deuda || 0), 0))}
+                    </td>
+                    <td colSpan="2"></td>
+                  </tr>
                 </tbody>
               </table>
             ) : (
