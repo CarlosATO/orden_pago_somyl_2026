@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import API_BASE_URL from '../config/api';
 import './Dashboard.css';
 
 function Dashboard() {
@@ -19,7 +20,7 @@ function Dashboard() {
       setError(null);
       
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5001/api/dashboard/', {
+      const response = await axios.get(`${API_BASE_URL}/dashboard/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

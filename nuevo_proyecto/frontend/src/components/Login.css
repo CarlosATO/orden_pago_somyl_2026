@@ -156,21 +156,23 @@
   padding: 0.85rem 1rem;
   border: 1px solid rgba(255,255,255,0.2);
   border-radius: 6px;
-  background: rgba(255,255,255,0.95);
+  background: rgba(255,255,255,0.95) !important;
   font-size: 1rem;
-  color: #1e3a8a; /* Azul oscuro para contraste */
+  color: #1e3a8a !important; /* Azul oscuro para contraste */
   font-weight: 500;
-  caret-color: #1e3a8a;
+  caret-color: #1e3a8a !important;
   transition: all 0.3s ease;
   box-sizing: border-box;
+  -webkit-text-fill-color: #1e3a8a !important; /* Para navegadores webkit */
 }
 
 .input-group input:focus {
   outline: none;
   border-color: #ff6b35;
-  background: white;
+  background: white !important;
   box-shadow: 0 0 0 3px rgba(255,107,53,0.1);
-  color: #1e3a8a; /* Mantener azul oscuro al hacer foco */
+  color: #1e3a8a !important; /* Mantener azul oscuro al hacer foco */
+  -webkit-text-fill-color: #1e3a8a !important;
 }
 
 /* Asegurar que inputs de tipo password también muestren texto azul oscuro */
@@ -178,12 +180,23 @@
   color: #1e3a8a !important;
   font-weight: 500 !important;
   caret-color: #1e3a8a !important;
+  -webkit-text-fill-color: #1e3a8a !important;
+}
+
+/* Asegurar que inputs de tipo email también muestren texto azul oscuro */
+.input-group input[type="email"],
+.input-group input[type="text"] {
+  color: #1e3a8a !important;
+  font-weight: 500 !important;
+  caret-color: #1e3a8a !important;
+  -webkit-text-fill-color: #1e3a8a !important;
 }
 
 .input-group input::placeholder {
-  color: #94a3b8; /* gris más claro para el placeholder */
+  color: #94a3b8 !important; /* gris más claro para el placeholder */
   opacity: 1;
   font-weight: 400;
+  -webkit-text-fill-color: #94a3b8 !important;
 }
 
 .remember-me {
