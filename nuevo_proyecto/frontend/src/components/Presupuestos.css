@@ -30,6 +30,22 @@
   gap: 0.5rem;
 }
 
+/* Buscador en header */
+.input-buscador {
+  min-width: 220px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  font-size: 0.95rem;
+  color: #111827;
+}
+
+.input-buscador:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(139,92,246,0.06);
+  border-color: #8b5cf6;
+}
+
 .icon-presupuesto {
   color: #8b5cf6;
   font-size: 1.5rem;

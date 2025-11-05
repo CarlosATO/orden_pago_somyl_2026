@@ -10,8 +10,7 @@ function Presupuestos() {
   // Estados para navegación entre vistas
   const [vistaActual, setVistaActual] = useState('lista'); // 'lista' o 'editar'
   const [proyectoEditando, setProyectoEditando] = useState(null);
-  const [mostrarModalProyecto, setMostrarModalProyecto] = useState(false);
-  const [nuevoProyecto, setNuevoProyecto] = useState({ nombre: '', venta: '', observacion: '' });
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Estados para formulario multi-línea
   const [lineasPresupuesto, setLineasPresupuesto] = useState([
@@ -94,49 +93,8 @@ function Presupuestos() {
     cargarDatosIniciales();
   };
 
-  // Crear nuevo proyecto
-  const handleCrearProyecto = async (e) => {
-    e.preventDefault();
-    
-    if (!nuevoProyecto.nombre.trim()) {
-      alert('El nombre del proyecto es obligatorio');
-      return;
-    }
-
-    const token = localStorage.getItem('authToken');
-    setLoading(true);
-
-    try {
-      const response = await fetch(`${API_URL}/proyectos`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          proyecto: nuevoProyecto.nombre.toUpperCase(),
-          venta: nuevoProyecto.venta ? parseInt(nuevoProyecto.venta) : null,
-          observacion: nuevoProyecto.observacion || null
-        })
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        alert('✓ Proyecto creado exitosamente');
-        setMostrarModalProyecto(false);
-        setNuevoProyecto({ nombre: '', venta: '', observacion: '' });
-        await cargarDatosIniciales();
-      } else {
-        alert(data.message || 'Error al crear proyecto');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error al crear proyecto');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // NOTE: Creación de proyectos no es permitida desde este módulo.
+  // El módulo de Presupuestos solo edita gastos futuros en proyectos existentes.
 
   // Cargar gastos del proyecto
   const cargarGastosProyecto = async (proyectoId) => {
@@ -301,9 +259,17 @@ function Presupuestos() {
           Presupuestos
         </h1>
         {vistaActual === 'lista' ? (
-          <button className="btn-presupuesto btn-primary" onClick={() => setMostrarModalProyecto(true)}>
-            + Nuevo Proyecto
-          </button>
+          <div style={{display: 'flex', gap: '0.75rem', alignItems: 'center'}}>
+            <input
+              type="text"
+              className="input-buscador"
+              placeholder="Buscar proyecto..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Buscar proyecto"
+              style={{padding: '0.5rem 0.75rem', borderRadius: 8, border: '1px solid #e5e7eb'}}
+            />
+          </div>
         ) : (
           <button className="btn-presupuesto btn-secondary" onClick={handleVolverLista}>
             ← Volver a Lista
@@ -322,8 +288,8 @@ function Presupuestos() {
           ) : proyectos.length === 0 ? (
             <div className="empty-state">
               <div className="empty-state-icon">📋</div>
-              <div className="empty-state-text">
-                No hay proyectos disponibles. Crea proyectos en la sección de Configuración.
+                  <div className="empty-state-text">
+                No hay proyectos disponibles. Los proyectos se gestionan desde el módulo principal de Proyectos.
               </div>
             </div>
           ) : (
@@ -340,7 +306,9 @@ function Presupuestos() {
                     </tr>
                   </thead>
                   <tbody>
-                    {proyectos.map((proyecto) => (
+                    {proyectos
+                      .filter(p => p.proyecto.toLowerCase().includes(searchTerm.toLowerCase()))
+                      .map((proyecto) => (
                       <tr key={proyecto.id}>
                         <td className="proyecto-nombre">{proyecto.proyecto}</td>
                         <td className="monto">{formatMonto(proyecto.montoTotal)}</td>
@@ -529,76 +497,7 @@ function Presupuestos() {
         </>
       )}
 
-      {/* MODAL: NUEVO PROYECTO */}
-      {mostrarModalProyecto && (
-        <div className="modal-overlay" onClick={() => setMostrarModalProyecto(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Crear Nuevo Proyecto</h3>
-              <button className="modal-close" onClick={() => setMostrarModalProyecto(false)}>×</button>
-            </div>
-            
-            <form onSubmit={handleCrearProyecto}>
-              <div className="modal-body">
-                <div className="form-field">
-                  <label htmlFor="nombre-proyecto">Nombre del Proyecto *</label>
-                  <input
-                    type="text"
-                    id="nombre-proyecto"
-                    value={nuevoProyecto.nombre}
-                    onChange={(e) => setNuevoProyecto({...nuevoProyecto, nombre: e.target.value.toUpperCase()})}
-                    placeholder="Ej: EDIFICIO CENTRAL"
-                    maxLength="100"
-                    required
-                    autoFocus
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="venta-proyecto">Valor de Venta</label>
-                  <input
-                    type="number"
-                    id="venta-proyecto"
-                    value={nuevoProyecto.venta}
-                    onChange={(e) => setNuevoProyecto({...nuevoProyecto, venta: e.target.value})}
-                    placeholder="0"
-                    min="0"
-                  />
-                </div>
-
-                <div className="form-field">
-                  <label htmlFor="observacion-proyecto">Observación</label>
-                  <textarea
-                    id="observacion-proyecto"
-                    value={nuevoProyecto.observacion}
-                    onChange={(e) => setNuevoProyecto({...nuevoProyecto, observacion: e.target.value})}
-                    placeholder="Notas adicionales..."
-                    rows="3"
-                    maxLength="500"
-                  />
-                </div>
-              </div>
-
-              <div className="modal-footer">
-                <button 
-                  type="button" 
-                  className="btn-presupuesto btn-secondary"
-                  onClick={() => setMostrarModalProyecto(false)}
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit" 
-                  className="btn-presupuesto btn-primary"
-                  disabled={loading}
-                >
-                  {loading ? 'Creando...' : '✓ Crear Proyecto'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Note: creación de proyectos removida de este módulo */}
     </div>
   );
 }
