@@ -199,6 +199,29 @@
   -webkit-text-fill-color: #94a3b8 !important;
 }
 
+/* Estilos específicos para autofill del navegador */
+.input-group input:-webkit-autofill,
+.input-group input:-webkit-autofill:hover,
+.input-group input:-webkit-autofill:focus,
+.input-group input:-webkit-autofill:active {
+  -webkit-text-fill-color: #1e3a8a !important;
+  -webkit-box-shadow: 0 0 0 1000px rgba(255,255,255,0.95) inset !important;
+  box-shadow: 0 0 0 1000px rgba(255,255,255,0.95) inset !important;
+  background-color: rgba(255,255,255,0.95) !important;
+  background-clip: content-box !important;
+  transition: background-color 5000s ease-in-out 0s;
+  caret-color: #1e3a8a !important;
+  font-weight: 500 !important;
+}
+
+/* Para Firefox */
+.input-group input:-moz-autofill,
+.input-group input:-moz-autofill-preview {
+  color: #1e3a8a !important;
+  background-color: rgba(255,255,255,0.95) !important;
+  font-weight: 500 !important;
+} 
+
 .remember-me {
   display: flex;
   align-items: center;
