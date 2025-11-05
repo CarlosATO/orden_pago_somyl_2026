@@ -14,44 +14,159 @@ bp = Blueprint("presupuestos", __name__)
 @token_required
 def create_presupuesto(current_user):
     """
-    Crear nuevo presupuesto
-    Body: {proyecto_id, item, detalle, fecha, monto}
+    Crear uno o múltiples presupuestos
+    Body: {proyecto_id, lineas: [{item, detalle, fecha, monto}, ...]}
+    O Body: {proyecto_id, item, detalle, fecha, monto} (compatibilidad)
     """
     data = request.get_json()
     
-    if not data or not all(k in data for k in ['proyecto_id', 'item', 'fecha', 'monto']):
-        return jsonify({"success": False, "message": "Faltan datos requeridos"}), 400
+    if not data or 'proyecto_id' not in data:
+        return jsonify({"success": False, "message": "proyecto_id es requerido"}), 400
     
+    supabase = current_app.config['SUPABASE']
+    proyecto_id = int(data['proyecto_id'])
+    
+    try:
+        # Obtener nombre del proyecto UNA SOLA VEZ
+        proyecto_result = (
+            supabase.table("proyectos")
+            .select("proyecto")
+            .eq("id", proyecto_id)
+            .limit(1)
+            .execute()
+        )
+        
+        if not proyecto_result.data or len(proyecto_result.data) == 0:
+            return jsonify({"success": False, "message": "Proyecto no encontrado"}), 404
+        
+        proyecto_nombre = proyecto_result.data[0]['proyecto']
+        
+        # Detectar si es una línea única o múltiples líneas
+        if 'lineas' in data:
+            # Modo batch: múltiples líneas
+            lineas = data['lineas']
+        else:
+            # Modo compatible: una sola línea
+            if not all(k in data for k in ['item', 'fecha', 'monto']):
+                return jsonify({"success": False, "message": "Faltan datos requeridos"}), 400
+            lineas = [{
+                'item': data['item'],
+                'detalle': data.get('detalle', ''),
+                'fecha': data['fecha'],
+                'monto': data['monto']
+            }]
+        
+        # Preparar todas las líneas para inserción
+        registros_a_insertar = []
+        
+        for linea in lineas:
+            # Validar campos requeridos
+            if not all(k in linea for k in ['item', 'fecha', 'monto']):
+                continue
+            
+            # Parsear fecha para extraer mes y año
+            fecha_obj = datetime.strptime(linea['fecha'], '%Y-%m-%d')
+            mes_numero = fecha_obj.month
+            anio = fecha_obj.year
+            
+            # Nombres de meses en inglés
+            meses = ["January", "February", "March", "April", "May", "June",
+                     "July", "August", "September", "October", "November", "December"]
+            mes_nombre = meses[mes_numero - 1]
+            
+            monto = int(float(linea['monto']))
+            
+            # Validar monto positivo
+            if monto <= 0:
+                continue
+            
+            # Preparar registro completo
+            registro = {
+                "proyecto_id": proyecto_id,
+                "proyecto": proyecto_nombre,
+                "item": str(linea['item']).strip(),
+                "detalle": linea.get('detalle', '').strip() if linea.get('detalle') else '',
+                "fecha": linea['fecha'],
+                "monto": monto,
+                "mes_numero": mes_numero,
+                "mes_nombre": mes_nombre,
+                "anio": anio,
+                "creado_por": current_user.id if current_user and hasattr(current_user, 'id') else None
+            }
+            
+            registros_a_insertar.append(registro)
+        
+        if len(registros_a_insertar) == 0:
+            return jsonify({"success": False, "message": "No hay registros válidos para insertar"}), 400
+        
+        # Insertar TODOS los registros en Supabase de una vez
+        result = supabase.table("presupuesto").insert(registros_a_insertar).execute()
+        
+        if result.data:
+            current_app.logger.info(f"✓ {len(result.data)} presupuesto(s) creado(s) para {proyecto_nombre}")
+            return jsonify({
+                "success": True,
+                "message": f"{len(result.data)} presupuesto(s) registrado(s) exitosamente",
+                "presupuestos": result.data
+            }), 201
+        else:
+            return jsonify({"success": False, "message": "Error al registrar presupuestos"}), 500
+            
+    except ValueError as ve:
+        current_app.logger.error(f"Error de validación: {ve}")
+        return jsonify({"success": False, "message": f"Error de validación: {str(ve)}"}), 400
+    except Exception as e:
+        current_app.logger.error(f"Error al crear presupuesto: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+        return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
+
+
+@bp.route("/totales", methods=["GET"])
+@token_required
+def get_totales_proyectos(current_user):
+    """
+    Obtener totales agregados de presupuesto para TODOS los proyectos activos
+    Optimizado para carga inicial rápida
+    """
     supabase = current_app.config['SUPABASE']
     
     try:
-        # Preparar datos
-        nuevo_presupuesto = {
-            "proyecto_id": int(data['proyecto_id']),
-            "item": str(data['item']).strip(),
-            "detalle": data.get('detalle', '').strip() if data.get('detalle') else None,
-            "fecha": data['fecha'],
-            "monto": int(float(data['monto']))
-        }
+        # Obtener TODOS los registros de presupuesto de una vez
+        all_presupuestos = (
+            supabase.table("presupuesto")
+            .select("proyecto_id, monto")
+            .execute()
+            .data or []
+        )
         
-        # Validar monto positivo
-        if nuevo_presupuesto['monto'] <= 0:
-            return jsonify({"success": False, "message": "El monto debe ser mayor a cero"}), 400
-        
-        # Insertar en Supabase
-        result = supabase.table("presupuesto").insert(nuevo_presupuesto).execute()
-        
-        if result.data:
-            return jsonify({
-                "success": True,
-                "message": "Presupuesto registrado exitosamente",
-                "presupuesto": result.data[0]
-            }), 201
-        else:
-            return jsonify({"success": False, "message": "Error al registrar presupuesto"}), 500
+        # Agregar por proyecto_id en memoria (mucho más rápido)
+        totales_por_proyecto = {}
+        for registro in all_presupuestos:
+            proyecto_id = registro.get("proyecto_id")
+            monto = registro.get("monto", 0)
             
+            if proyecto_id not in totales_por_proyecto:
+                totales_por_proyecto[proyecto_id] = {
+                    "proyecto_id": proyecto_id,
+                    "montoTotal": 0,
+                    "cantidadRegistros": 0
+                }
+            
+            totales_por_proyecto[proyecto_id]["montoTotal"] += monto
+            totales_por_proyecto[proyecto_id]["cantidadRegistros"] += 1
+        
+        # Convertir a lista
+        totales = list(totales_por_proyecto.values())
+        
+        return jsonify({
+            "success": True,
+            "totales": totales
+        })
+        
     except Exception as e:
-        current_app.logger.error(f"Error al crear presupuesto: {e}")
+        current_app.logger.error(f"Error al obtener totales: {e}")
         return jsonify({"success": False, "message": f"Error: {str(e)}"}), 500
 
 

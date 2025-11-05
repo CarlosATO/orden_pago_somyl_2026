@@ -33,39 +33,44 @@ function Presupuestos() {
     setLoading(true);
     
     try {
-      // Cargar proyectos
-      const resProyectos = await fetch(`${API_URL}/proyectos/api/activos`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const dataProyectos = await resProyectos.json();
-      const proyectosBase = dataProyectos.data || [];
-
-      // Cargar totales de presupuesto para cada proyecto
-      const proyectosConTotales = await Promise.all(
-        proyectosBase.map(async (proyecto) => {
-          try {
-            const resGastos = await fetch(`${API_URL}/presupuestos/gastos/${proyecto.id}`, {
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const dataGastos = await resGastos.json();
-            return {
-              ...proyecto,
-              montoTotal: dataGastos.stats?.total_amount || 0,
-              cantidadRegistros: dataGastos.stats?.total_entries || 0
-            };
-          } catch {
-            return { ...proyecto, montoTotal: 0, cantidadRegistros: 0 };
-          }
+      // Cargar proyectos e items en paralelo
+      const [resProyectos, resItems, resTotales] = await Promise.all([
+        fetch(`${API_URL}/proyectos/api/activos`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/items/todos`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${API_URL}/presupuestos/totales`, {
+          headers: { 'Authorization': `Bearer ${token}` }
         })
-      );
+      ]);
+
+      const dataProyectos = await resProyectos.json();
+      const dataItems = await resItems.json();
+      const dataTotales = await resTotales.json();
+
+      const proyectosBase = dataProyectos.data || [];
+      
+      // Crear mapa de totales por proyecto_id para búsqueda rápida
+      const totalesMap = {};
+      if (dataTotales.success && dataTotales.totales) {
+        dataTotales.totales.forEach(t => {
+          totalesMap[t.proyecto_id] = {
+            montoTotal: t.montoTotal || 0,
+            cantidadRegistros: t.cantidadRegistros || 0
+          };
+        });
+      }
+
+      // Combinar proyectos con sus totales
+      const proyectosConTotales = proyectosBase.map(proyecto => ({
+        ...proyecto,
+        montoTotal: totalesMap[proyecto.id]?.montoTotal || 0,
+        cantidadRegistros: totalesMap[proyecto.id]?.cantidadRegistros || 0
+      }));
 
       setProyectos(proyectosConTotales);
-
-      // Cargar items
-      const resItems = await fetch(`${API_URL}/items/todos`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const dataItems = await resItems.json();
       setItems(dataItems.data || []);
     } catch (error) {
       console.error('Error al cargar datos:', error);
@@ -159,40 +164,28 @@ function Presupuestos() {
     setLoading(true);
 
     try {
-      // Guardar cada línea
-      let errores = 0;
-      let exitosos = 0;
+      // Enviar TODAS las líneas en una sola petición
+      const response = await fetch(`${API_URL}/presupuestos/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          proyecto_id: proyectoEditando.id,
+          lineas: lineasValidas.map(linea => ({
+            item: linea.item,
+            detalle: linea.detalle || '',
+            fecha: linea.fecha,
+            monto: parseFloat(linea.monto)
+          }))
+        })
+      });
 
-      for (const linea of lineasValidas) {
-        try {
-          const response = await fetch(`${API_URL}/presupuestos`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              proyecto_id: proyectoEditando.id,
-              item: linea.item,
-              detalle: linea.detalle || '',
-              fecha: linea.fecha,
-              monto: parseFloat(linea.monto)
-            })
-          });
-
-          const data = await response.json();
-          if (data.success) {
-            exitosos++;
-          } else {
-            errores++;
-          }
-        } catch {
-          errores++;
-        }
-      }
-
-      if (exitosos > 0) {
-        alert(`✓ Se guardaron ${exitosos} presupuesto(s) exitosamente${errores > 0 ? `. ${errores} fallaron.` : ''}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`✓ ${data.message}`);
         // Limpiar formulario
         setLineasPresupuesto([
           { item: '', detalle: '', fecha: new Date().toISOString().split('T')[0], monto: '' }
@@ -200,7 +193,7 @@ function Presupuestos() {
         // Recargar gastos
         await cargarGastosProyecto(proyectoEditando.id);
       } else {
-        alert('Error: No se pudo guardar ningún presupuesto');
+        alert(`Error: ${data.message}`);
       }
     } catch (error) {
       console.error('Error:', error);
