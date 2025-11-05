@@ -83,7 +83,9 @@ function GestionUsuarios() {
   return <Usuarios />;
 }
 
-function App() {
+// Componente interno que tiene acceso a useNavigate
+function AppContent() {
+  const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -95,7 +97,6 @@ function App() {
       
       if (!valid) {
         removeAuthToken(); // Limpiar tokens inválidos
-        // NO limpiar sessionStorage completo para no afectar otras cosas
       }
     };
     
@@ -113,11 +114,9 @@ function App() {
 
   const handleLogout = () => {
     removeAuthToken();
-    // NO limpiar localStorage para mantener "Remember Me"
-    // Solo limpiar sessionStorage si hay algo adicional
     setIsAuthenticated(false);
-    // Forzar navegación a login
-    window.location.href = '/login';
+    // Usar navigate en lugar de window.location.href
+    navigate('/login', { replace: true });
   };
 
   const handleSidebarToggle = (collapsed) => {
@@ -125,53 +124,59 @@ function App() {
   };
 
   return (
-    <Router>
-      <div className="App">
-        <Routes>
-          {/* Ruta de login pública */}
-          <Route 
-            path="/login" 
-            element={
-              isAuthenticated ? 
-                <Navigate to="/dashboard" replace /> : 
-                <Login onLoginSuccess={handleLoginSuccess} />
-            } 
-          />
-          
-          {/* Rutas protegidas */}
-          <Route path="/*" element={
-            <ProtectedRoute>
-              <div className="app-layout">
-                <Sidebar onLogout={handleLogout} onToggle={handleSidebarToggle} />
-                <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
-                  <Routes>
-                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/ordenes-compra" element={<OrdenesCompra />} />
-                    <Route path="/ingresos-recepciones" element={<IngresosRecepciones />} />
-                    <Route path="/ordenes-pago" element={<OrdenesPagoView />} />
-                    <Route path="/presupuestos" element={<Presupuestos />} />
-                    <Route path="/pagos" element={<Pagos />} />
-                    <Route path="/documentos-pendientes" element={<DocumentosPendientes />} />
-                    <Route path="/facturacion-pendiente" element={<FacturacionPendiente />} />
-                    <Route path="/informe-pagos" element={<InformePagos />} />
-                    <Route path="/planificacion-presupuestaria" element={<PlanificacionPresupuestaria />} />
-                    <Route path="/registro-gastos-directos" element={<RegistroGastosDirectos />} />
-                    <Route path="/estado-presupuesto" element={<EstadoPresupuesto />} />
-                    <Route path="/ordenes-no-recepcionadas" element={<OrdenesNoRecepcionadas />} />
-                    <Route path="/proyectos" element={<Proyectos />} />
-                    <Route path="/proveedores" element={<Proveedores />} />
-                    <Route path="/materiales" element={<Materiales />} />
-                    <Route path="/items-presupuestarios" element={<ItemsPresupuestarios />} />
-                    <Route path="/trabajadores-solicitantes" element={<TrabajadoresSolicitantes />} />
-                    <Route path="/gestion-usuarios" element={<GestionUsuarios />} />
-                  </Routes>
-                </div>
+    <div className="App">
+      <Routes>
+        {/* Ruta de login pública */}
+        <Route 
+          path="/login" 
+          element={
+            isAuthenticated ? 
+              <Navigate to="/dashboard" replace /> : 
+              <Login onLoginSuccess={handleLoginSuccess} />
+          } 
+        />
+        
+        {/* Rutas protegidas */}
+        <Route path="/*" element={
+          <ProtectedRoute>
+            <div className="app-layout">
+              <Sidebar onLogout={handleLogout} onToggle={handleSidebarToggle} />
+              <div className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+                <Routes>
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/ordenes-compra" element={<OrdenesCompra />} />
+                  <Route path="/ingresos-recepciones" element={<IngresosRecepciones />} />
+                  <Route path="/ordenes-pago" element={<OrdenesPagoView />} />
+                  <Route path="/presupuestos" element={<Presupuestos />} />
+                  <Route path="/pagos" element={<Pagos />} />
+                  <Route path="/documentos-pendientes" element={<DocumentosPendientes />} />
+                  <Route path="/facturacion-pendiente" element={<FacturacionPendiente />} />
+                  <Route path="/informe-pagos" element={<InformePagos />} />
+                  <Route path="/planificacion-presupuestaria" element={<PlanificacionPresupuestaria />} />
+                  <Route path="/registro-gastos-directos" element={<RegistroGastosDirectos />} />
+                  <Route path="/estado-presupuesto" element={<EstadoPresupuesto />} />
+                  <Route path="/ordenes-no-recepcionadas" element={<OrdenesNoRecepcionadas />} />
+                  <Route path="/proyectos" element={<Proyectos />} />
+                  <Route path="/proveedores" element={<Proveedores />} />
+                  <Route path="/materiales" element={<Materiales />} />
+                  <Route path="/items-presupuestarios" element={<ItemsPresupuestarios />} />
+                  <Route path="/trabajadores-solicitantes" element={<TrabajadoresSolicitantes />} />
+                  <Route path="/gestion-usuarios" element={<GestionUsuarios />} />
+                </Routes>
               </div>
-            </ProtectedRoute>
-          } />
-        </Routes>
-      </div>
+            </div>
+          </ProtectedRoute>
+        } />
+      </Routes>
+    </div>
+  );
+}
+
+function App() {
+  return (
+    <Router>
+      <AppContent />
     </Router>
   );
 }
