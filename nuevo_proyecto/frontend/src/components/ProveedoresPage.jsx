@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import ProveedorForm from './ProveedorForm';
 import ProveedoresTable from './ProveedoresTable';
 import './Proveedores.css';
+import { getAuthToken } from '../utils/auth';
 
 const ProveedoresPage = () => {
   const [proveedores, setProveedores] = useState([]);

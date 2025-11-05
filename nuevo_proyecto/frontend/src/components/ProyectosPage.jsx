@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import ProyectoForm from './ProyectoForm';
 import ProyectosTable from './ProyectosTable';
 import './Proyectos.css';
+import { getAuthToken } from '../utils/auth';
 
 const ProyectosPage = () => {
   const [proyectos, setProyectos] = useState([]);

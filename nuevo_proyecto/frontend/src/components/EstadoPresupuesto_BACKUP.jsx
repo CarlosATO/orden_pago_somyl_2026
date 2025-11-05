@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './EstadoPresupuesto.css';
+import { getAuthToken } from '../utils/auth';
 
 function EstadoPresupuesto() {
   const [matriz, setMatriz] = useState({});

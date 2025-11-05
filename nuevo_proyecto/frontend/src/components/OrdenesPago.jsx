@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
 import './OrdenesPago.css';
+import { getAuthToken } from '../utils/auth';
 
 function OrdenesPago() {
   // ========= Estados principales =========

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './Proyectos.css';
+import { getAuthToken } from '../utils/auth';
 
 const ProyectoForm = ({ proyecto, onClose, onSaved }) => {
   const [form, setForm] = useState({

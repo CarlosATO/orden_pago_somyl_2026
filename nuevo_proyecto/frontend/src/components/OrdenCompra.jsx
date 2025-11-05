@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import Select from 'react-select';
 import AsyncSelect from 'react-select/async';
 import './OrdenCompra.css';
+import { getAuthToken } from '../utils/auth';
 
 function OrdenCompra() {
   // ========= Estados del formulario =========

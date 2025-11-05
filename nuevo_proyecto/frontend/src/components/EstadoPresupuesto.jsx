@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, Fragment } from 'react';
 import './EstadoPresupuesto.css';
 import ChartsPresupuesto from './ChartsPresupuesto';
+import { getAuthToken } from '../utils/auth';
 
 function EstadoPresupuesto() {
   const [matriz, setMatriz] = useState({});

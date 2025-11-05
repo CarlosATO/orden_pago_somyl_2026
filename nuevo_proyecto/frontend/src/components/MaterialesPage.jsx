@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import MaterialForm from './MaterialForm';
 import MaterialesTable from './MaterialesTable';
 import './Materiales.css';
+import { getAuthToken } from '../utils/auth';
 
 const MaterialesPage = () => {
   const [materiales, setMateriales] = useState([]);

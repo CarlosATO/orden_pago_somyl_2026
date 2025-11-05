@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import './ChartsPresupuesto.css';
+import { getAuthToken } from '../utils/auth';
 
 function SimpleBar({ value, max, color, label }) {
   const height = max > 0 ? Math.round((Math.abs(value) / max) * 120) : 0;

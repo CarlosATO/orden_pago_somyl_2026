@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './Proveedores.css';
+import { getAuthToken } from '../utils/auth';
 
 const ProveedorForm = ({ proveedor, onClose, onSaved }) => {
   const [form, setForm] = useState({

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './Materiales.css';
+import { getAuthToken } from '../utils/auth';
 
 const MaterialForm = ({ material, items, onClose, onSaved }) => {
   const [form, setForm] = useState({

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import Select from 'react-select';
 import './Ingresos.css';
+import { getAuthToken } from '../utils/auth';
 
 function Ingresos() {
   // ========= Estados principales =========

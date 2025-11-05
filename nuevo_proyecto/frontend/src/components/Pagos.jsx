@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Pagos.css';
+import { getAuthToken } from '../utils/auth';
 
 const Pagos = () => {
   // ========= ESTADOS =========

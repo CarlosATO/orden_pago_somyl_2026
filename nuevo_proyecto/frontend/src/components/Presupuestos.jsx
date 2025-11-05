@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './Presupuestos.css';
+import { getAuthToken } from '../utils/auth';
 
 function Presupuestos() {
   // Estados para datos

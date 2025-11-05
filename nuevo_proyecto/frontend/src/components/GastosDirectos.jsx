@@ -6,6 +6,7 @@ import axios from 'axios';
 import API_BASE_URL from '../config/api';
 import * as XLSX from 'xlsx';
 import './GastosDirectos.css';
+import { getAuthToken } from '../utils/auth';
 
 const API_URL = API_BASE_URL;
 

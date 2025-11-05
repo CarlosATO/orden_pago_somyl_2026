@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import './DocumentosPendientes.css';
+import { getAuthToken } from '../utils/auth';
 
 function DocumentosPendientes() {
   const [filas, setFilas] = useState([]);
