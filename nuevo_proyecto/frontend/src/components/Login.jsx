@@ -62,8 +62,8 @@ const Login = ({ onLoginSuccess }) => {
         localStorage.removeItem('rememberedEmail');
       }
       
-      // Verificar que se guardó correctamente
-      const savedToken = localStorage.getItem('authToken');
+      // Verificar que se guardó correctamente (el token está en sessionStorage ahora)
+      const savedToken = sessionStorage.getItem('authToken');
       console.log('✅ Token guardado correctamente:', savedToken ? 'SÍ' : 'NO');
       console.log('✅ Login exitoso, redirigiendo...');
       

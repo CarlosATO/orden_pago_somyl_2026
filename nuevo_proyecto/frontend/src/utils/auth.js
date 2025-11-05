@@ -1,9 +1,10 @@
 // Helper pequeño para centralizar el manejo del token de autenticación
+// Usa sessionStorage para que se borre automáticamente al cerrar la pestaña/navegador
 const TOKEN_KEY = 'authToken';
 
 export function getAuthToken() {
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    return sessionStorage.getItem(TOKEN_KEY);
   } catch (e) {
     console.error('Error al leer authToken:', e);
     return null;
@@ -13,12 +14,12 @@ export function getAuthToken() {
 export function setAuthToken(token) {
   try {
     if (token) {
-      localStorage.setItem(TOKEN_KEY, token);
+      sessionStorage.setItem(TOKEN_KEY, token);
       // Guardar también la fecha de creación para validar expiración
-      localStorage.setItem('tokenCreatedAt', Date.now().toString());
+      sessionStorage.setItem('tokenCreatedAt', Date.now().toString());
     } else {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem('tokenCreatedAt');
+      sessionStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem('tokenCreatedAt');
     }
   } catch (e) {
     console.error('Error al guardar authToken:', e);
@@ -27,10 +28,11 @@ export function setAuthToken(token) {
 
 export function removeAuthToken() {
   try {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem('tokenCreatedAt');
-    localStorage.removeItem('rememberMe');
-    localStorage.removeItem('rememberedEmail');
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem('tokenCreatedAt');
+    // NO removemos rememberMe y rememberedEmail porque esos SÍ deben persistir
+    // localStorage.removeItem('rememberMe');
+    // localStorage.removeItem('rememberedEmail');
   } catch (e) {
     console.error('Error al remover authToken:', e);
   }
@@ -48,7 +50,7 @@ export function isTokenValid() {
   }
   
   // Verificar expiración (opcional: 24 horas)
-  const tokenCreatedAt = localStorage.getItem('tokenCreatedAt');
+  const tokenCreatedAt = sessionStorage.getItem('tokenCreatedAt');
   if (tokenCreatedAt) {
     const tokenAge = Date.now() - parseInt(tokenCreatedAt);
     const maxAge = 24 * 60 * 60 * 1000; // 24 horas en milisegundos

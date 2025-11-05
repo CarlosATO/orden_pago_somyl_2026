@@ -95,7 +95,7 @@ function App() {
       
       if (!valid) {
         removeAuthToken(); // Limpiar tokens inválidos
-        sessionStorage.clear(); // Limpiar sessionStorage
+        // NO limpiar sessionStorage completo para no afectar otras cosas
       }
     };
     
@@ -113,7 +113,8 @@ function App() {
 
   const handleLogout = () => {
     removeAuthToken();
-    sessionStorage.clear(); // Limpiar sessionStorage
+    // NO limpiar localStorage para mantener "Remember Me"
+    // Solo limpiar sessionStorage si hay algo adicional
     setIsAuthenticated(false);
     // Forzar navegación a login
     window.location.href = '/login';
