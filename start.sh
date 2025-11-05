@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/bin/sh
 
-# Script para iniciar la aplicación completa
+# Script para iniciar la aplicación completa (portable / POSIX)
 # Uso: ./start.sh
 
-# Colores
+# Colores (ANSI)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -11,14 +11,22 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Obtener el directorio del script
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Obtener el directorio del script (compatible POSIX)
+SCRIPT_DIR="$(cd "$(dirname "$0")" >/dev/null 2>&1 && pwd)"
 
-echo -e "\n${BLUE}╔════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║     🚀 Iniciando Aplicación Completa 🚀              ║${NC}"
-echo -e "${BLUE}║     Backend (Flask) + Frontend (React + Vite)        ║${NC}"
-echo -e "${BLUE}╚════════════════════════════════════════════════════════╝${NC}\n"
+printf "\n${BLUE}╔════════════════════════════════════════════════════════╗${NC}\n"
+printf "${BLUE}║     🚀 Iniciando Aplicación Completa 🚀              ║${NC}\n"
+printf "${BLUE}║     Backend (Flask) + Frontend (React + Vite)        ║${NC}\n"
+printf "${BLUE}╚════════════════════════════════════════════════════════╝${NC}\n\n"
 
-# Ejecutar el script Python
+# Ejecutar el script Python (usar python3 cuando esté disponible)
 cd "$SCRIPT_DIR"
-python nuevo_proyecto/run.py
+if command -v python3 >/dev/null 2>&1; then
+	python3 nuevo_proyecto/run.py
+elif command -v python >/dev/null 2>&1; then
+	# Fallback a 'python' si el contenedor lo provee
+	python nuevo_proyecto/run.py
+else
+	printf "${RED}Error:${NC} Python no está instalado en este contenedor. Instale python3 o use una imagen base con Python.\n"
+	exit 127
+fi
