@@ -77,18 +77,27 @@ def create_app():
     def health_check():
         return jsonify({"status": "ok", "message": "API funcionando!"})
 
-    # Serve frontend index for any other route (optional)
+    # Serve frontend - DEBE IR AL FINAL después de todos los blueprints
     @app.route('/', defaults={'path': ''})
     @app.route('/<path:path>')
     def serve_frontend(path):
-        # If frontend build exists, serve static files; otherwise 404 or API routes handle
+        # Si la ruta comienza con /api o /auth, no es una ruta del frontend
+        if path.startswith('api/') or path.startswith('auth/'):
+            return jsonify({"message": "Recurso no encontrado"}), 404
+        
+        # Si el frontend existe
         if app.static_folder:
             static_path = Path(app.static_folder)
-            if path and (static_path / path).exists():
+            
+            # Si es un archivo estático (assets, css, js, etc.)
+            if path and (static_path / path).exists() and not path.startswith('api') and not path.startswith('auth'):
                 return send_from_directory(app.static_folder, path)
+            
+            # Para cualquier otra ruta, servir index.html (SPA routing)
             index_file = static_path / 'index.html'
             if index_file.exists():
                 return send_from_directory(app.static_folder, 'index.html')
+        
         return jsonify({"message": "Recurso no encontrado"}), 404
 
     return app
