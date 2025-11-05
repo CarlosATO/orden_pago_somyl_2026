@@ -1,0 +1,67 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+.venv
+venv
+env
+
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Development files
+*.md
+!README.md
+.env.local
+.env.development
+
+# Tests
+tests
+test_*.py
+*_test.py
+
+# Documentation
+docs
+CORRECCIONES.md
+INDICE.md
+MODULO_*.md
+NOTAS_*.md
+OPTIMIZACION_*.md
+RESUMEN_*.md
+TAREAS_*.md
+
+# Scripts de desarrollo
+check_*.py
+diagnose*.py
+simple_check.py
+run.py
+setup_alias.sh
+fix_alias.sh
+alias_config.sh
+
+# Archivos temporales del proyecto
+pdfs_generados

@@ -6,7 +6,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Dashboard from './components/Dashboard';
 import OrdenCompra from './components/OrdenCompra';
 import Ingresos from './components/Ingresos';
-import OrdenesPago from './components/ordenesPago';
+import OrdenesPago from './components/OrdenesPago';
 import ProveedoresPage from './components/ProveedoresPage';
 import ProyectosPage from './components/ProyectosPage';
 import MaterialesPage from './components/MaterialesPage';
@@ -18,7 +18,7 @@ import Pagos from './components/Pagos';
 import DocumentosPendientes from './components/DocumentosPendientes';
 import EstadoPresupuesto from './components/EstadoPresupuesto';
 import GastosDirectos from './components/GastosDirectos';
-import OrdenesNoRecepcionadas from './components/Ordenesnorecepcionadas';
+import OrdenesNoRecepcionadas from './components/OrdenesNoRecepcionadas';
 import { isTokenValid, removeAuthToken } from './utils/auth';
 import './App.css';
 

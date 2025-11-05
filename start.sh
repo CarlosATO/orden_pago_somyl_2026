@@ -24,9 +24,10 @@ cd "$SCRIPT_DIR"
 if [ "${FLASK_ENV:-development}" = "production" ]; then
 	# En producción: arrancar Gunicorn para servir la app Flask
 	if command -v gunicorn >/dev/null 2>&1; then
-		printf "${GREEN}Iniciando Gunicorn...${NC}\n"
-		# Ejecutar la aplicación con 4 workers (ajustable)
-		exec gunicorn -w 4 -b 0.0.0.0:5001 "backend.app:create_app()"
+		printf "${GREEN}Iniciando Gunicorn en modo producción...${NC}\n"
+		# Cambiar al directorio backend y ejecutar la aplicación con 4 workers
+		cd backend
+		exec gunicorn -w 4 -b 0.0.0.0:${PORT:-5001} --timeout 120 --access-logfile - --error-logfile - "app:create_app()"
 	else
 		printf "${RED}Error:${NC} gunicorn no está instalado en este contenedor. Instale dependencias de Python.\n"
 		exit 127

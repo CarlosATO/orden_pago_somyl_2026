@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile: build frontend with Node, run backend with Python + Gunicorn
 
 # --- Builder: build the Vite React frontend ---
-FROM node:18-alpine AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 WORKDIR /app/frontend
 # Install dependencies and build
 COPY nuevo_proyecto/frontend/package.json ./
