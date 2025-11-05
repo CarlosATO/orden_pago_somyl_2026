@@ -2,7 +2,8 @@
 
 # backend/app.py
 import os
-from flask import Flask, jsonify
+from pathlib import Path
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from dotenv import load_dotenv
 from supabase import create_client
@@ -11,7 +12,12 @@ from supabase import create_client
 load_dotenv()
 
 def create_app():
-    app = Flask(__name__)
+    # Configurar carpeta estática del frontend si existe (build de Vite en frontend_dist)
+    static_dir = Path(__file__).parent / 'frontend_dist'
+    if static_dir.exists():
+        app = Flask(__name__, static_folder=str(static_dir), static_url_path='')
+    else:
+        app = Flask(__name__)
     
     # --- Configuración de CORS ---
     CORS(app, resources={r"/*": {"origins": "*"}})
@@ -70,6 +76,18 @@ def create_app():
     @app.route('/api/health')
     def health_check():
         return jsonify({"status": "ok", "message": "API funcionando!"})
+
+    # Serve frontend index for any other route (optional)
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def serve_frontend(path):
+        # If frontend build exists, serve static files; otherwise 404 or API routes handle
+        if (Path(app.static_folder) / path).exists():
+            return send_from_directory(app.static_folder, path)
+        index = Path(app.static_folder) / 'index.html'
+        if index.exists():
+            return send_from_directory(app.static_folder, 'index.html')
+        return jsonify({"message": "Recurso no encontrado"}), 404
 
     return app
 
