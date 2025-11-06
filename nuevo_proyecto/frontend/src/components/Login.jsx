@@ -51,7 +51,7 @@ const Login = ({ onLoginSuccess }) => {
         throw new Error('No se recibió token del servidor');
       }
       
-      setAuthToken(data.token);
+  setAuthToken(data.token);
       
       // Guardar o limpiar el correo según "Remember Me"
       if (rememberMe) {
@@ -69,10 +69,19 @@ const Login = ({ onLoginSuccess }) => {
       
       // Llamamos a la función del componente padre para actualizar el estado
       onLoginSuccess();
-      
-      // Redirigir a la página que intentaba acceder o al dashboard
-      const from = location.state?.from || '/dashboard';
-      navigate(from, { replace: true });
+
+      // Si el backend indica que la contraseña es temporal, forzar redirección
+      if (data.temp_password) {
+        console.log('Usuario con contraseña temporal, forzando cambio de contraseña en modal');
+        // Marcar en sessionStorage para que la app principal muestre el modal de cambio
+        try { sessionStorage.setItem('forceChangePassword', '1'); } catch (e) { /* ignore */ }
+        // Redirigir al dashboard (el modal aparece encima)
+        navigate('/dashboard', { replace: true });
+      } else {
+        // Redirigir a la página que intentaba acceder o al dashboard
+        const from = location.state?.from || '/dashboard';
+        navigate(from, { replace: true });
+      }
 
     } catch (err) {
       console.error('Error en login:', err);

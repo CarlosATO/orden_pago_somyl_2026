@@ -41,9 +41,17 @@ def login():
             'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24) # El token expira en 24 horas
         }, current_app.config['SECRET_KEY'], algorithm="HS256")
 
+        # Detectar si el usuario tiene contraseña temporal marcada en la BD
+        temp_flag = False
+        try:
+            temp_flag = True if user_row.get('motivo_bloqueo') == 'CONTRASEÑA_TEMPORAL' else False
+        except Exception:
+            temp_flag = False
+
         return jsonify({
             "success": True,
             "token": token,
+            "temp_password": temp_flag,
             "user": {
                 "id": user.id,
                 "nombre": user.nombre,

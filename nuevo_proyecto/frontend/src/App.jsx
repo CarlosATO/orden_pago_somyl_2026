@@ -13,6 +13,7 @@ import MaterialesPage from './components/MaterialesPage';
 import Items from './components/Items';
 import Trabajadores from './components/Trabajadores';
 import Usuarios from './components/Usuarios';
+import ChangePassword from './components/ChangePassword';
 import Presupuestos from './components/Presupuestos';
 import Pagos from './components/Pagos';
 import DocumentosPendientes from './components/DocumentosPendientes';
@@ -88,6 +89,8 @@ function AppContent() {
   const navigate = useNavigate();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [checkedTempPassword, setCheckedTempPassword] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
   // Verificar autenticación al montar el componente
   useEffect(() => {
@@ -107,6 +110,57 @@ function AppContent() {
     
     return () => clearInterval(interval);
   }, []);
+
+  // Si el usuario está autenticado, verificar si tiene contraseña temporal
+  useEffect(() => {
+    const checkTemp = async () => {
+      if (!isAuthenticated) return;
+      if (checkedTempPassword) return; // evitar repetir
+
+      try {
+        const token = sessionStorage.getItem('authToken');
+        console.log('Checking temp password with token present?', !!token);
+        const resp = await fetch('/api/usuarios/check-temp-password', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        console.log('check-temp-password response status:', resp.status);
+        if (resp.ok) {
+          const data = await resp.json();
+          console.log('check-temp-password response data:', data);
+          if (data && data.temp_password) {
+            console.log('Usuario con contraseña temporal - redirigiendo a cambiar contraseña');
+            // Forzar a cambiar contraseña
+            navigate('/cambiar-contrasena', { replace: true });
+          } else {
+            console.log('No es contraseña temporal');
+          }
+        } else {
+          console.warn('check-temp-password no respondió OK');
+        }
+      } catch (err) {
+        console.error('Error verificando contraseña temporal', err);
+      } finally {
+        setCheckedTempPassword(true);
+      }
+    };
+
+    checkTemp();
+  }, [isAuthenticated, checkedTempPassword, navigate]);
+
+  // Si el login indicó fuerza de cambio de contraseña (bandera en sessionStorage), abrir modal
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    try {
+      const forced = sessionStorage.getItem('forceChangePassword');
+      if (forced) {
+        console.log('Flag forceChangePassword detectada en sessionStorage -> abrir modal');
+        setShowChangePasswordModal(true);
+        sessionStorage.removeItem('forceChangePassword');
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [isAuthenticated]);
 
   const handleLoginSuccess = () => {
     setIsAuthenticated(true);
@@ -162,8 +216,17 @@ function AppContent() {
                   <Route path="/materiales" element={<Materiales />} />
                   <Route path="/items-presupuestarios" element={<ItemsPresupuestarios />} />
                   <Route path="/trabajadores-solicitantes" element={<TrabajadoresSolicitantes />} />
+                  <Route path="/cambiar-contrasena" element={<ChangePassword />} />
                   <Route path="/gestion-usuarios" element={<GestionUsuarios />} />
                 </Routes>
+                {/* Mostrar ChangePassword como modal si fue forzado tras el login */}
+                {showChangePasswordModal && (
+                  <div className="modal-overlay" onClick={() => setShowChangePasswordModal(false)}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                      <ChangePassword onClose={() => setShowChangePasswordModal(false)} />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </ProtectedRoute>
