@@ -10,10 +10,25 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
   const [error, setError] = useState(null);
+  const [showModalDocumentos, setShowModalDocumentos] = useState(false);
+  const [documentosDetalle, setDocumentosDetalle] = useState(null);
+  const [loadingDocumentos, setLoadingDocumentos] = useState(false);
+  
+  // Estados para modal de proveedor
+  const [showModalProveedor, setShowModalProveedor] = useState(false);
+  const [proveedorSeleccionado, setProveedorSeleccionado] = useState(null);
+  const [ordenesProveedor, setOrdenesProveedor] = useState([]);
+  const [loadingOrdenesProveedor, setLoadingOrdenesProveedor] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
+  
+  useEffect(() => {
+    if (showModalDocumentos && !documentosDetalle) {
+      fetchDocumentosDetalle();
+    }
+  }, [showModalDocumentos]);
 
   const fetchDashboardData = async () => {
     try {
@@ -35,6 +50,88 @@ function Dashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchDocumentosDetalle = async () => {
+    try {
+      setLoadingDocumentos(true);
+      const token = getAuthToken();
+      const response = await axios.get(`${API_BASE_URL}/dashboard/documentos-pendientes-detalle`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        setDocumentosDetalle(response.data.data);
+      }
+    } catch (err) {
+      console.error('Error al cargar detalle de documentos:', err);
+    } finally {
+      setLoadingDocumentos(false);
+    }
+  };
+  
+  const descargarPDFDocumentos = async () => {
+    try {
+      const token = getAuthToken();
+      const response = await axios.get(`${API_BASE_URL}/dashboard/documentos-pendientes-pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob'  // Importante para recibir archivo binario
+      });
+
+      // Crear URL temporal para el blob
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Generar nombre de archivo con fecha
+      const fecha = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      link.setAttribute('download', `documentos_pendientes_${fecha}.pdf`);
+      
+      // Descargar
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      // Limpiar URL temporal
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error al descargar PDF:', err);
+      alert('Error al generar el PDF. Por favor intenta nuevamente.');
+    }
+  };
+  
+  const verOrdenesProveedor = async (proveedor) => {
+    try {
+      setProveedorSeleccionado(proveedor);
+      setShowModalProveedor(true);
+      setLoadingOrdenesProveedor(true);
+      
+      const token = getAuthToken();
+      // Llamar al endpoint de pagos filtrando por proveedor
+      const response = await axios.get(`${API_BASE_URL}/pagos/list`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          proveedor: proveedor.proveedor,
+          estado: 'pendiente',
+          per_page: 1000
+        }
+      });
+
+      if (response.data.success) {
+        setOrdenesProveedor(response.data.data.pagos || []);
+      }
+    } catch (err) {
+      console.error('Error al cargar órdenes del proveedor:', err);
+      alert('Error al cargar las órdenes del proveedor');
+    } finally {
+      setLoadingOrdenesProveedor(false);
+    }
+  };
+  
+  const cerrarModalProveedor = () => {
+    setShowModalProveedor(false);
+    setProveedorSeleccionado(null);
+    setOrdenesProveedor([]);
   };
 
   const formatCurrency = (value) => {
@@ -96,14 +193,11 @@ function Dashboard() {
     <div className="content dashboard-container">
       <div className="dashboard-header">
         <h1><i className="fas fa-chart-line"></i> Dashboard - Gestión de Compras</h1>
-        <button onClick={fetchDashboardData} className="btn-refresh">
-          <i className="fas fa-sync-alt"></i> Actualizar
-        </button>
       </div>
 
       {/* SECCIÓN 1: KPIs PRINCIPALES */}
       <div className="kpis-grid">
-        {/* Montos Pendientes de Pago */}
+        {/* Montos Pendientes de Pago - IGUAL QUE INFORME DE PAGOS */}
         <div className="kpi-card kpi-danger">
           <div className="kpi-icon">
             <i className="fas fa-hand-holding-usd"></i>
@@ -135,22 +229,8 @@ function Dashboard() {
           </div>
         </div>
 
-        {/* Saldo Presupuestario */}
-        <div className={`kpi-card ${kpis.saldo_presupuestario_total < 0 ? 'kpi-danger' : 'kpi-success'}`}>
-          <div className="kpi-icon">
-            <i className="fas fa-balance-scale"></i>
-          </div>
-          <div className="kpi-content">
-            <h3>Saldo Presupuestario Total</h3>
-            <div className="kpi-value">{formatCurrency(kpis.saldo_presupuestario_total)}</div>
-            <div className="kpi-detail">
-              <span><i className="fas fa-exclamation-triangle"></i> Proyectos en riesgo: {kpis.proyectos_en_riesgo}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Documentos Pendientes */}
-        <div className="kpi-card kpi-warning">
+        {/* Documentos Pendientes - CON MODAL */}
+        <div className="kpi-card kpi-warning" onClick={() => setShowModalDocumentos(true)} style={{cursor: 'pointer'}}>
           <div className="kpi-icon">
             <i className="fas fa-bell"></i>
           </div>
@@ -158,35 +238,20 @@ function Dashboard() {
             <h3>Documentos Pendientes</h3>
             <div className="kpi-value">{kpis.documentos_pendientes}</div>
             <div className="kpi-detail">
-              <span><i className="fas fa-file-invoice-dollar"></i> Facturas: {kpis.facturas_pendientes}</span>
-              <span><i className="fas fa-truck-loading"></i> OC antiguas: {kpis.oc_antiguas}</span>
               <span><i className="fas fa-clock"></i> Pagos vencidos: {kpis.pagos_vencidos}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* OC Mes Actual */}
-        <div className="kpi-card kpi-info">
-          <div className="kpi-icon">
-            <i className="fas fa-shopping-cart"></i>
-          </div>
-          <div className="kpi-content">
-            <h3>Órdenes de Compra (Mes)</h3>
-            <div className="kpi-value">{kpis.oc_mes_actual}</div>
-            <div className="kpi-detail">
-              <span><i className="fas fa-dollar-sign"></i> Monto: {formatCurrency(kpis.monto_oc_mes)}</span>
-              <span><i className="fas fa-check-circle"></i> Recepciones: {kpis.recepciones_mes}</span>
+              <span style={{fontSize: '12px', opacity: 0.8, marginTop: '5px'}}>Click para ver detalle</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* SECCIÓN 2: TOP RANKINGS */}
+      {/* SECCIÓN 2: PROVEEDORES CON DEUDA */}
       <div className="rankings-grid">
-        {/* Top 5 Proveedores */}
+        {/* Todos los Proveedores con Deuda */}
         <div className="ranking-card">
           <div className="ranking-header">
-            <h2><i className="fas fa-trophy"></i> Top 5 Proveedores - Mayor Deuda</h2>
+            <h2><i className="fas fa-users"></i> Proveedores con Deuda Pendiente</h2>
+            <span className="badge-count">{top_proveedores ? top_proveedores.length : 0} proveedores</span>
           </div>
           <div className="ranking-table-container">
             {top_proveedores && top_proveedores.length > 0 ? (
@@ -197,7 +262,7 @@ function Dashboard() {
                     <th>Proveedor</th>
                     <th>Deuda</th>
                     <th>N° OP</th>
-                    <th>Acción</th>
+                    <th>Ver</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -210,10 +275,10 @@ function Dashboard() {
                       <td>
                         <button 
                           className="btn-ver-detalle"
-                          onClick={() => navigate('/ordenes-pago')}
-                          title="Ver detalle en Órdenes de Pago"
+                          onClick={() => verOrdenesProveedor(prov)}
+                          title="Ver órdenes de pago"
                         >
-                          <i className="fas fa-eye"></i>
+                          <i className="fas fa-eye"></i> Ver
                         </button>
                       </td>
                     </tr>
@@ -222,62 +287,6 @@ function Dashboard() {
               </table>
             ) : (
               <p className="no-data">No hay datos de proveedores</p>
-            )}
-          </div>
-        </div>
-
-        {/* Top 5 Proyectos Críticos */}
-        <div className="ranking-card">
-          <div className="ranking-header">
-            <h2><i className="fas fa-project-diagram"></i> Top 5 Proyectos - Situación Crítica</h2>
-          </div>
-          <div className="ranking-table-container">
-            {top_proyectos && top_proyectos.length > 0 ? (
-              <table className="ranking-table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Proyecto</th>
-                    <th>Monto Total</th>
-                    <th>Deuda</th>
-                    <th>Saldo Ppto.</th>
-                    <th>Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {top_proyectos.map((proy, index) => {
-                    const estadoBadge = getEstadoBadge(proy.estado);
-                    return (
-                      <tr key={index}>
-                        <td className="rank-number">{index + 1}</td>
-                        <td className="proyecto-name">{proy.proyecto}</td>
-                        <td className="monto-total">{formatCurrency(proy.monto_total)}</td>
-                        <td className="deuda-amount">{formatCurrency(proy.deuda)}</td>
-                        <td className={proy.saldo_presupuesto < 0 ? 'saldo-negativo' : 'saldo-positivo'}>
-                          {formatCurrency(proy.saldo_presupuesto)}
-                        </td>
-                        <td>
-                          <span className={`estado-badge ${estadoBadge.class}`}>
-                            {estadoBadge.icon} {estadoBadge.text}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  <tr className="totales-row">
-                    <td colSpan="2" className="totales-label">TOTALES</td>
-                    <td className="totales-value">
-                      {formatCurrency(top_proyectos.reduce((sum, p) => sum + (p.monto_total || 0), 0))}
-                    </td>
-                    <td className="totales-value">
-                      {formatCurrency(top_proyectos.reduce((sum, p) => sum + (p.deuda || 0), 0))}
-                    </td>
-                    <td colSpan="2"></td>
-                  </tr>
-                </tbody>
-              </table>
-            ) : (
-              <p className="no-data">No hay datos de proyectos</p>
             )}
           </div>
         </div>
@@ -318,36 +327,6 @@ function Dashboard() {
 
       {/* SECCIÓN 4: GRÁFICOS */}
       <div className="charts-section">
-        {/* Evolución Deuda */}
-        {evolucion_deuda && evolucion_deuda.length > 0 && (
-          <div className="chart-card chart-full">
-            <div className="chart-header">
-              <h2><i className="fas fa-chart-line"></i> Evolución de Deuda (Últimos 6 meses)</h2>
-            </div>
-            <div className="chart-body">
-              <div className="simple-line-chart">
-                {evolucion_deuda.map((item, index) => {
-                  const maxDeuda = Math.max(...evolucion_deuda.map(d => d.deuda));
-                  const height = (item.deuda / maxDeuda) * 100;
-                  
-                  return (
-                    <div key={index} className="chart-bar-container">
-                      <div 
-                        className="chart-bar"
-                        style={{ height: `${height}%` }}
-                        title={formatCurrency(item.deuda)}
-                      >
-                        <span className="bar-value">{formatCurrency(item.deuda)}</span>
-                      </div>
-                      <span className="bar-label">{item.mes}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Ejecución Presupuestaria */}
         {ejecucion_presupuestaria && ejecucion_presupuestaria.length > 0 && (
           <div className="chart-card chart-full">
@@ -383,37 +362,215 @@ function Dashboard() {
           </div>
         )}
       </div>
-
-      {/* SECCIÓN 5: ACCESOS RÁPIDOS */}
-      <div className="quick-actions-section">
-        <h2><i className="fas fa-bolt"></i> Accesos Rápidos</h2>
-        <div className="quick-actions-grid">
-          <button className="quick-action-btn btn-primary" onClick={() => navigate('/ordenes')}>
-            <i className="fas fa-shopping-cart"></i>
-            <span>Nueva Orden de Compra</span>
-          </button>
-          <button className="quick-action-btn btn-success" onClick={() => navigate('/ordenes-pago')}>
-            <i className="fas fa-dollar-sign"></i>
-            <span>Nueva Orden de Pago</span>
-          </button>
-          <button className="quick-action-btn btn-info" onClick={() => navigate('/ingresos')}>
-            <i className="fas fa-truck-loading"></i>
-            <span>Recepcionar Material</span>
-          </button>
-          <button className="quick-action-btn btn-warning" onClick={() => navigate('/estado-presupuesto')}>
-            <i className="fas fa-chart-pie"></i>
-            <span>Estado Presupuesto</span>
-          </button>
-          <button className="quick-action-btn btn-secondary" onClick={() => navigate('/documentos-pendientes')}>
-            <i className="fas fa-file-alt"></i>
-            <span>Documentos Pendientes</span>
-          </button>
-          <button className="quick-action-btn btn-dark" onClick={() => navigate('/ordenes')}>
-            <i className="fas fa-search"></i>
-            <span>Buscar Órdenes</span>
-          </button>
+      
+      {/* MODAL DE DOCUMENTOS PENDIENTES */}
+      {showModalDocumentos && (
+        <div className="modal-overlay" onClick={() => setShowModalDocumentos(false)}>
+          <div className="modal-content-large" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2><i className="fas fa-file-invoice"></i> Documentos Pendientes</h2>
+              <button className="modal-close" onClick={() => setShowModalDocumentos(false)}>
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              {loadingDocumentos ? (
+                <div className="loading-modal">
+                  <i className="fas fa-spinner fa-spin"></i> Cargando detalle...
+                </div>
+              ) : documentosDetalle && documentosDetalle.stats ? (
+                <>
+                  <div className="modal-actions">
+                    <button className="btn btn-primary" onClick={descargarPDFDocumentos}>
+                      <i className="fas fa-file-pdf"></i> Descargar PDF
+                    </button>
+                    <div className="modal-summary">
+                      <strong>Total documentos pendientes:</strong> {documentosDetalle.stats.total} 
+                      <span style={{marginLeft: '15px', fontSize: '13px'}}>
+                        ({documentosDetalle.stats.pendientes} pendientes + {documentosDetalle.stats.con_abonos} con abonos)
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Todos los Documentos Pendientes */}
+                  {documentosDetalle.documentos && documentosDetalle.documentos.length > 0 ? (
+                    <div className="documentos-section">
+                      <h3 style={{marginBottom: '15px'}}>
+                        <i className="fas fa-list"></i> Todos los Documentos Pendientes
+                        <span style={{marginLeft: '10px', fontSize: '14px', color: '#666'}}>
+                          ({documentosDetalle.stats.vencidos} vencidos)
+                        </span>
+                      </h3>
+                      <table className="modal-table">
+                        <thead>
+                          <tr>
+                            <th>OP #</th>
+                            <th>Fecha OP</th>
+                            <th>Fecha Vencimiento</th>
+                            <th>Proveedor</th>
+                            <th>Proyecto</th>
+                            <th>Factura</th>
+                            <th>Monto Total</th>
+                            <th>Abonado</th>
+                            <th>Saldo</th>
+                            <th>Días Atraso</th>
+                            <th>Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {documentosDetalle.documentos.map((doc, idx) => (
+                            <tr key={idx} className={
+                              doc.dias_atraso > 30 ? 'row-critical' : 
+                              doc.dias_atraso > 0 ? 'row-warning' : 
+                              ''
+                            }>
+                              <td><strong>{doc.orden_numero}</strong></td>
+                              <td style={{fontSize: '12px'}}>{doc.fecha_op || '---'}</td>
+                              <td style={{fontSize: '12px', fontWeight: '500'}}>{doc.fecha_vencimiento || '---'}</td>
+                              <td>{doc.proveedor}</td>
+                              <td>{doc.proyecto}</td>
+                              <td>{doc.factura}</td>
+                              <td>{formatCurrency(doc.monto_total)}</td>
+                              <td>{formatCurrency(doc.total_abonado)}</td>
+                              <td className="monto-destacado">{formatCurrency(doc.saldo)}</td>
+                              <td className="dias-vencido">
+                                {doc.dias_atraso > 0 ? (
+                                  <span className={doc.dias_atraso > 30 ? 'badge-critical' : 'badge-warning-strong'}>
+                                    {doc.dias_atraso} días
+                                  </span>
+                                ) : (
+                                  <span style={{color: '#28a745'}}>✓ Al día</span>
+                                )}
+                              </td>
+                              <td>
+                                <span className={
+                                  doc.estado === 'vencido' ? 'badge badge-danger' : 
+                                  doc.total_abonado > 0 ? 'badge badge-info' : 
+                                  'badge badge-warning'
+                                }>
+                                  {doc.total_abonado > 0 ? 'Con Abonos' : doc.tipo}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr className="totales-row">
+                            <td colSpan="6" className="totales-label"><strong>TOTAL</strong></td>
+                            <td className="totales-value">
+                              <strong>{formatCurrency(documentosDetalle.documentos.reduce((sum, p) => sum + p.monto_total, 0))}</strong>
+                            </td>
+                            <td className="totales-value">
+                              <strong>{formatCurrency(documentosDetalle.documentos.reduce((sum, p) => sum + p.total_abonado, 0))}</strong>
+                            </td>
+                            <td className="totales-value">
+                              <strong>{formatCurrency(documentosDetalle.documentos.reduce((sum, p) => sum + p.saldo, 0))}</strong>
+                            </td>
+                            <td colSpan="2"></td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="no-data">
+                      <i className="fas fa-check-circle"></i>
+                      <p>No hay pagos vencidos</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="no-data">No hay datos disponibles</div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+      
+      {/* MODAL DE ÓRDENES DEL PROVEEDOR */}
+      {showModalProveedor && (
+        <div className="modal-overlay" onClick={cerrarModalProveedor}>
+          <div className="modal-content-large" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>
+                <i className="fas fa-file-invoice-dollar"></i> Órdenes de Pago - {proveedorSeleccionado?.proveedor}
+              </h2>
+              <button className="modal-close" onClick={cerrarModalProveedor}>
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+            
+            <div className="modal-body">
+              {loadingOrdenesProveedor ? (
+                <div className="loading-modal">
+                  <i className="fas fa-spinner fa-spin"></i> Cargando órdenes...
+                </div>
+              ) : ordenesProveedor && ordenesProveedor.length > 0 ? (
+                <>
+                  <div className="modal-summary">
+                    <strong>Total de órdenes:</strong> {ordenesProveedor.length}
+                    <span style={{marginLeft: '20px'}}>
+                      <strong>Deuda total:</strong> {formatCurrency(ordenesProveedor.reduce((sum, op) => sum + op.saldo_pendiente, 0))}
+                    </span>
+                  </div>
+                  
+                  <div className="table-responsive" style={{maxHeight: '500px', overflowY: 'auto'}}>
+                    <table className="modal-table">
+                      <thead style={{position: 'sticky', top: 0, backgroundColor: '#fff', zIndex: 10}}>
+                        <tr>
+                          <th>OP</th>
+                          <th>OC</th>
+                          <th>Proyecto</th>
+                          <th>Detalle</th>
+                          <th>Factura</th>
+                          <th>Monto Total</th>
+                          <th>Abonado</th>
+                          <th>Saldo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ordenesProveedor.map((orden, index) => (
+                          <tr key={index}>
+                            <td>{orden.orden_numero}</td>
+                            <td>{orden.orden_compra || '---'}</td>
+                            <td>{orden.proyecto_nombre}</td>
+                            <td title={orden.detalle_compra} style={{maxWidth: '300px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                              {orden.detalle_compra}
+                            </td>
+                            <td>{orden.factura || '---'}</td>
+                            <td className="text-right"><strong>{formatCurrency(orden.total_pago)}</strong></td>
+                            <td className="text-right">{formatCurrency(orden.total_abonado)}</td>
+                            <td className="text-right"><strong>{formatCurrency(orden.saldo_pendiente)}</strong></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="totales-row" style={{position: 'sticky', bottom: 0, backgroundColor: '#f8f9fa'}}>
+                          <td colSpan="5" className="totales-label"><strong>TOTALES</strong></td>
+                          <td className="totales-value">
+                            <strong>{formatCurrency(ordenesProveedor.reduce((sum, p) => sum + p.total_pago, 0))}</strong>
+                          </td>
+                          <td className="totales-value">
+                            <strong>{formatCurrency(ordenesProveedor.reduce((sum, p) => sum + p.total_abonado, 0))}</strong>
+                          </td>
+                          <td className="totales-value">
+                            <strong>{formatCurrency(ordenesProveedor.reduce((sum, p) => sum + p.saldo_pendiente, 0))}</strong>
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <div className="no-data">
+                  <i className="fas fa-inbox"></i>
+                  <p>No hay órdenes de pago pendientes para este proveedor</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

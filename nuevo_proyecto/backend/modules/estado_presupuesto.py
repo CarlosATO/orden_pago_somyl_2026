@@ -3,13 +3,20 @@ API REST para Estado de Presupuesto
 Visualización comparativa: Presupuesto vs Gastos Reales
 VERSIÓN BASADA EN SISTEMA ANTIGUO QUE FUNCIONA
 """
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, send_file
 from backend.utils.decorators import token_required
 from datetime import datetime
 import logging
 import os
+import io
 from gql import gql, Client
 from gql.transport.requests import RequestsHTTPTransport
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
 
 bp = Blueprint("estado_presupuesto", __name__)
 logger = logging.getLogger(__name__)
@@ -596,7 +603,7 @@ def get_detalle_gasto(current_user):
         # Órdenes de pago - sin filtrar por mes ni fecha_factura inicialmente
         ordenes = (
             supabase.table("orden_de_pago")
-            .select("id, orden_numero, orden_compra, costo_final_con_iva, fecha_factura, detalle_compra, proyecto, item, mes")
+            .select("id, orden_numero, orden_compra, costo_final_con_iva, fecha_factura, detalle_compra, proyecto, item, mes, proveedor_nombre")  # ✅ FIX: Agregado proveedor_nombre
             .eq("proyecto", proyecto_id)
             .execute()
         )
@@ -645,7 +652,8 @@ def get_detalle_gasto(current_user):
                         'orden_compra': op.get('orden_compra'),
                         'monto': op.get('costo_final_con_iva', 0),
                         'fecha': op.get('fecha_factura'),
-                        'descripcion': op.get('detalle_compra', '')
+                        'descripcion': op.get('detalle_compra', ''),
+                        'proveedor': op.get('proveedor_nombre', '-')  # ✅ FIX: Agregado proveedor
                     })
             except (ValueError, TypeError):
                 # Es nombre de tipo
@@ -663,7 +671,8 @@ def get_detalle_gasto(current_user):
                         'orden_compra': op.get('orden_compra'),
                         'monto': op.get('costo_final_con_iva', 0),
                         'fecha': op.get('fecha_factura'),
-                        'descripcion': op.get('detalle_compra', '')
+                        'descripcion': op.get('detalle_compra', ''),
+                        'proveedor': op.get('proveedor_nombre', '-')  # ✅ FIX: Agregado proveedor
                     })
         
         # Gastos directos - sin filtrar por mes inicialmente
@@ -729,6 +738,305 @@ def get_detalle_gasto(current_user):
         
     except Exception as e:
         logger.error(f"Error: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "message": f"Error: {str(e)}"
+        }), 500
+
+
+# ================================================================
+# ENDPOINT - GENERAR PDF DE DETALLE DE GASTOS
+# ================================================================
+
+@bp.route("/detalle/pdf", methods=["GET"])
+@token_required
+def generar_pdf_detalle(current_user):
+    """
+    Genera PDF del detalle de gastos para un proyecto/item/mes específico
+    Query params: proyecto_id, item_id, mes
+    """
+    supabase = current_app.config['SUPABASE']
+    
+    try:
+        proyecto_id = request.args.get('proyecto_id', type=int)
+        item_id = request.args.get('item_id', type=int)
+        mes = request.args.get('mes', type=int)
+        
+        if not all([proyecto_id, item_id, mes]):
+            return jsonify({
+                "success": False,
+                "message": "Faltan parámetros: proyecto_id, item_id, mes"
+            }), 400
+        
+        # Obtener datos (reutilizar la misma lógica del endpoint GET)
+        # Obtener nombre del proyecto
+        proyecto = supabase.table("proyectos").select("proyecto").eq("id", proyecto_id).limit(1).execute()
+        nombre_proyecto = proyecto.data[0]['proyecto'] if proyecto.data else f"Proyecto {proyecto_id}"
+        
+        # Obtener nombre del item
+        item = supabase.table("item").select("tipo").eq("id", item_id).limit(1).execute()
+        nombre_item = item.data[0]['tipo'] if item.data else f"Item {item_id}"
+        
+        # Órdenes de pago
+        ordenes = (
+            supabase.table("orden_de_pago")
+            .select("id, orden_numero, orden_compra, costo_final_con_iva, fecha_factura, detalle_compra, proyecto, item, mes, proveedor_nombre")
+            .eq("proyecto", proyecto_id)
+            .execute()
+        )
+        ordenes_data = ordenes.data if ordenes and hasattr(ordenes, 'data') else []
+        
+        # Filtrar por item y mes
+        ordenes_filtradas = []
+        for op in ordenes_data:
+            item_val = op.get('item')
+            if item_val is None:
+                continue
+            
+            mes_orden = op.get('mes')
+            if not mes_orden:
+                fecha_factura = op.get('fecha_factura')
+                if fecha_factura:
+                    try:
+                        if 'T' in fecha_factura:
+                            dt = datetime.fromisoformat(fecha_factura.replace('Z', '+00:00'))
+                        else:
+                            dt = datetime.strptime(fecha_factura, '%Y-%m-%d')
+                        mes_orden = dt.month
+                    except:
+                        continue
+                else:
+                    continue
+            else:
+                try:
+                    mes_orden = int(mes_orden)
+                except:
+                    continue
+            
+            if mes_orden != mes:
+                continue
+            
+            try:
+                if int(item_val) == item_id:
+                    ordenes_filtradas.append({
+                        'orden_numero': op.get('orden_numero'),
+                        'orden_compra': op.get('orden_compra'),
+                        'proveedor': op.get('proveedor_nombre', '-'),
+                        'descripcion': op.get('detalle_compra', ''),
+                        'monto': op.get('costo_final_con_iva', 0)
+                    })
+            except (ValueError, TypeError):
+                tipo_op = str(item_val).upper().strip()
+                if tipo_op.endswith('S') and len(tipo_op) > 3:
+                    tipo_op = tipo_op[:-1]
+                tipo_item = nombre_item.upper().strip()
+                if tipo_item.endswith('S') and len(tipo_item) > 3:
+                    tipo_item = tipo_item[:-1]
+                
+                if tipo_op == tipo_item:
+                    ordenes_filtradas.append({
+                        'orden_numero': op.get('orden_numero'),
+                        'orden_compra': op.get('orden_compra'),
+                        'proveedor': op.get('proveedor_nombre', '-'),
+                        'descripcion': op.get('detalle_compra', ''),
+                        'monto': op.get('costo_final_con_iva', 0)
+                    })
+        
+        # Gastos directos
+        gastos = (
+            supabase.table("gastos_directos")
+            .select("id, descripcion, monto, fecha, mes")
+            .eq("proyecto_id", proyecto_id)
+            .eq("item_id", item_id)
+            .execute()
+        )
+        gastos_data = gastos.data if gastos and hasattr(gastos, 'data') else []
+        
+        meses_map = {
+            'enero': 1, 'febrero': 2, 'marzo': 3, 'abril': 4, 'mayo': 5, 'junio': 6,
+            'julio': 7, 'agosto': 8, 'septiembre': 9, 'octubre': 10, 'noviembre': 11, 'diciembre': 12
+        }
+        
+        gastos_filtrados = []
+        for g in gastos_data:
+            mes_gasto = g.get('mes')
+            if mes_gasto:
+                if isinstance(mes_gasto, str):
+                    mes_gasto = meses_map.get(mes_gasto.lower().strip())
+                else:
+                    try:
+                        mes_gasto = int(mes_gasto)
+                    except:
+                        continue
+                
+                if mes_gasto == mes:
+                    gastos_filtrados.append({
+                        'descripcion': g.get('descripcion', ''),
+                        'monto': g.get('monto', 0),
+                        'fecha': g.get('fecha', '')
+                    })
+        
+        total_ordenes = sum(o['monto'] for o in ordenes_filtradas)
+        total_gastos = sum(g['monto'] for g in gastos_filtrados)
+        total_general = total_ordenes + total_gastos
+        
+        # Generar PDF
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=18)
+        
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Título
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            textColor=colors.HexColor('#1e40af'),
+            spaceAfter=12,
+            alignment=TA_CENTER
+        )
+        
+        meses_nombres = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 
+                        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+        mes_nombre = meses_nombres[mes] if 1 <= mes <= 12 else str(mes)
+        
+        elements.append(Paragraph("Detalle de Gastos", title_style))
+        elements.append(Spacer(1, 0.2*inch))
+        
+        # Información del proyecto
+        info_style = ParagraphStyle('Info', parent=styles['Normal'], fontSize=10, spaceAfter=6)
+        elements.append(Paragraph(f"<b>Proyecto:</b> {nombre_proyecto}", info_style))
+        elements.append(Paragraph(f"<b>Item:</b> {nombre_item}", info_style))
+        elements.append(Paragraph(f"<b>Mes:</b> {mes_nombre}", info_style))
+        elements.append(Spacer(1, 0.3*inch))
+        
+        # Tabla de Órdenes de Pago
+        if ordenes_filtradas:
+            elements.append(Paragraph("<b>Órdenes de Pago</b>", styles['Heading2']))
+            elements.append(Spacer(1, 0.1*inch))
+            
+            # Estilo para texto en celdas
+            cell_style = ParagraphStyle('CellStyle', parent=styles['Normal'], fontSize=8, leading=10)
+            
+            data = [['Orden', 'O.Compra', 'Proveedor', 'Descripción', 'Monto']]
+            for op in ordenes_filtradas:
+                # Limitar longitud y usar Paragraph para wrap automático
+                proveedor = op['proveedor'][:30] + '...' if len(op['proveedor']) > 30 else op['proveedor']
+                descripcion = op['descripcion'][:60] + '...' if len(op['descripcion']) > 60 else op['descripcion']
+                
+                data.append([
+                    Paragraph(str(op['orden_numero']), cell_style),
+                    Paragraph(str(op['orden_compra']), cell_style),
+                    Paragraph(proveedor, cell_style),
+                    Paragraph(descripcion, cell_style),
+                    Paragraph(f"${op['monto']:,.0f}", cell_style)
+                ])
+            
+            # Fila de total
+            total_style = ParagraphStyle('TotalStyle', parent=styles['Normal'], fontSize=9, fontName='Helvetica-Bold')
+            data.append([
+                '', '', '', 
+                Paragraph('Total Órdenes:', total_style),
+                Paragraph(f"${total_ordenes:,.0f}", total_style)
+            ])
+            
+            # Ajustar anchos: Orden, O.Compra, Proveedor, Descripción, Monto
+            table = Table(data, colWidths=[0.6*inch, 0.8*inch, 1.8*inch, 2.8*inch, 1*inch])
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e40af')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('ALIGN', (-1, 0), (-1, -1), 'RIGHT'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),  # ✅ Alineación vertical
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('TOPPADDING', (0, 1), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+                ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+                ('BACKGROUND', (0, 1), (-1, -2), colors.beige),
+                ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e5e7eb')),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black)
+            ]))
+            elements.append(table)
+            elements.append(Spacer(1, 0.3*inch))
+        
+        # Tabla de Gastos Directos
+        if gastos_filtrados:
+            elements.append(Paragraph("<b>Gastos Directos</b>", styles['Heading2']))
+            elements.append(Spacer(1, 0.1*inch))
+            
+            cell_style = ParagraphStyle('CellStyle2', parent=styles['Normal'], fontSize=8, leading=10)
+            
+            data = [['Descripción', 'Fecha', 'Monto']]
+            for g in gastos_filtrados:
+                desc = g['descripcion'][:80] + '...' if len(g['descripcion']) > 80 else g['descripcion']
+                data.append([
+                    Paragraph(desc, cell_style),
+                    Paragraph(g['fecha'], cell_style),
+                    Paragraph(f"${g['monto']:,.0f}", cell_style)
+                ])
+            
+            # Fila de total
+            total_style = ParagraphStyle('TotalStyle2', parent=styles['Normal'], fontSize=9, fontName='Helvetica-Bold')
+            data.append([
+                Paragraph('Total Gastos Directos:', total_style),
+                '',
+                Paragraph(f"${total_gastos:,.0f}", total_style)
+            ])
+            
+            table = Table(data, colWidths=[4.2*inch, 1.5*inch, 1.3*inch])
+            table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#059669')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('ALIGN', (-1, 0), (-1, -1), 'RIGHT'),
+                ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 9),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('TOPPADDING', (0, 1), (-1, -1), 4),
+                ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+                ('LEFTPADDING', (0, 0), (-1, -1), 4),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+                ('BACKGROUND', (0, 1), (-1, -2), colors.lightgrey),
+                ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e5e7eb')),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.black)
+            ]))
+            elements.append(table)
+            elements.append(Spacer(1, 0.3*inch))
+        
+        # Total General
+        total_data = [['TOTAL GENERAL:', f"${total_general:,.0f}"]]
+        total_table = Table(total_data, colWidths=[5.5*inch, 1.3*inch])
+        total_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#1e40af')),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.whitesmoke),
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+            ('ALIGN', (-1, 0), (-1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 14),
+            ('PADDING', (0, 0), (-1, -1), 12)
+        ]))
+        elements.append(total_table)
+        
+        # Generar PDF
+        doc.build(elements)
+        buffer.seek(0)
+        
+        filename = f"detalle_gastos_{nombre_proyecto}_{nombre_item}_{mes_nombre}.pdf"
+        
+        return send_file(
+            buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=filename
+        )
+        
+    except Exception as e:
+        logger.error(f"Error generando PDF: {e}", exc_info=True)
         return jsonify({
             "success": False,
             "message": f"Error: {str(e)}"

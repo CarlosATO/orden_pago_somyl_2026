@@ -53,14 +53,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
   transition: all 0.2s ease;
-  font-weight: bold;
+  padding: 0;
 }
 
 .collapse-btn:hover {
   background: rgba(255,255,255,0.12);
   transform: scale(1.05);
+}
+
+.collapse-btn svg {
+  stroke: currentColor;
 }
 
 /* =========================================
@@ -358,8 +361,26 @@
   color: #fff;
 }
 
-.sidebar-logout-btn i {
-  font-size: 16px;
+.sidebar-logout-btn svg {
+  flex-shrink: 0;
+  stroke: currentColor;
+}
+
+/* Estilo especial cuando está contraído - MUY DISTINTIVO */
+.sidebar-logout-btn.collapsed {
+  background: rgba(239,68,68,0.25);
+  border: 2px solid #ef4444;
+  padding: 14px 8px;
+  gap: 0;
+  border-radius: 12px;
+}
+
+.sidebar-logout-btn.collapsed:hover {
+  background: #ef4444;
+  border-color: #dc2626;
+  color: #fff;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(239,68,68,0.4);
 }
 
 .sidebar.collapsed .sidebar-footer {
@@ -374,11 +395,6 @@
 
 .sidebar.collapsed .user-info {
   display: none;
-}
-
-.sidebar.collapsed .sidebar-logout-btn {
-  padding: 12px 8px;
-  gap: 0;
 }
 
 /* =========================================

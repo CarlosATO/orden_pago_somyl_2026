@@ -13,14 +13,14 @@ bp = Blueprint("proyectos", __name__)
 @token_required
 def get_proyectos(current_user):
     """
-    Devuelve una lista de todos los proyectos en formato JSON.
+    Devuelve una lista de proyectos activos en formato JSON.
     Endpoint principal para obtener proyectos
     """
     try:
         supabase = current_app.config['SUPABASE']
 
-        # Obtenemos todos los proyectos ordenados por nombre
-        response = supabase.table("proyectos").select("*").order("proyecto").execute()
+        # Obtenemos solo proyectos activos ordenados por nombre
+        response = supabase.table("proyectos").select("*").eq("activo", True).order("proyecto").execute()
 
         proyectos = response.data or []
 
@@ -38,13 +38,13 @@ def get_proyectos(current_user):
 @token_required
 def api_get_proyectos_activos(current_user):
     """
-    Devuelve una lista de todos los proyectos en formato JSON.
+    Devuelve una lista de proyectos activos en formato JSON.
     """
     try:
         supabase = current_app.config['SUPABASE']
 
-        # Obtenemos todos los proyectos ordenados por nombre
-        response = supabase.table("proyectos").select("*").order("proyecto").execute()
+        # Obtenemos solo proyectos activos ordenados por nombre
+        response = supabase.table("proyectos").select("*").eq("activo", True).order("proyecto").execute()
 
         proyectos = response.data or []
 

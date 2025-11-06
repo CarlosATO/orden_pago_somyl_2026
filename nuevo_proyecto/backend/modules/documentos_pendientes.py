@@ -69,19 +69,25 @@ def list_pendientes(current_user):
         oc_list = list(grouped.keys())
         fac_pendientes_map = {}
         if oc_list:
-            ingresos = (
-                supabase
-                .table("ingresos")
-                .select("orden_compra, fac_pendiente")
-                .in_("orden_compra", oc_list)
-                .eq("fac_pendiente", 1)
-                .execute()
-                .data or []
-            )
-            for ing in ingresos:
-                oc = ing.get('orden_compra')
-                if oc:
-                    fac_pendientes_map[str(oc)] = True
+            try:
+                ingresos = (
+                    supabase
+                    .table("ingresos")
+                    .select("orden_compra, fac_pendiente")
+                    .in_("orden_compra", oc_list)
+                    .execute()
+                    .data or []
+                )
+                # Filtrar los que tienen fac_pendiente = '1' o 1
+                for ing in ingresos:
+                    fac_pend = ing.get('fac_pendiente')
+                    if fac_pend in ('1', 1, True):
+                        oc = ing.get('orden_compra')
+                        if oc:
+                            fac_pendientes_map[str(oc)] = True
+            except Exception as ing_err:
+                current_app.logger.warning(f"Error al consultar fac_pendiente: {ing_err}")
+                # Continuar sin este dato
         
         for f in filas:
             f['fac_compra'] = fac_pendientes_map.get(str(f.get('orden_compra')), False)
@@ -124,6 +130,8 @@ def update_pendiente(current_user):
         id_unico = data.get("id")
         ids_multiple = data.get("ids", [])
         
+        current_app.logger.info(f"Actualizando documento: id={id_unico}, factura={factura}")
+        
         if id_unico:
             result = (
                 supabase
@@ -133,13 +141,15 @@ def update_pendiente(current_user):
                 .execute()
             )
             
+            current_app.logger.info(f"Resultado actualización: {len(result.data) if result.data else 0} registros")
+            
             if result.data:
                 return jsonify({
                     "success": True, 
                     "message": f"Documento actualizado con factura {factura}"
                 })
             else:
-                return jsonify({"success": False, "message": "No se pudo actualizar"}), 500
+                return jsonify({"success": False, "message": "No se encontró el documento para actualizar"}), 404
                 
         elif ids_multiple:
             for doc_id in ids_multiple:

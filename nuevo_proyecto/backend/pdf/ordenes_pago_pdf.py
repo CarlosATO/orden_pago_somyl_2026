@@ -72,13 +72,19 @@ def _getlist_from_form(form, key):
     if hasattr(form, "getlist"):
         return form.getlist(key)
     
-    # Manejar tanto 'orden_compra[]' como 'orden_compra'
-    if key.endswith("[]"):
-        k = key[:-2]
-    else:
-        k = key
+    # Primero intentar con el key exacto (puede venir como 'orden_compra[]')
+    val = form.get(key)
     
-    val = form.get(k)
+    # Si no existe, intentar sin los corchetes
+    if val is None and key.endswith("[]"):
+        k = key[:-2]
+        val = form.get(k)
+    
+    # Si aún no existe, intentar con corchetes si no los tenía
+    if val is None and not key.endswith("[]"):
+        k_with_brackets = key + "[]"
+        val = form.get(k_with_brackets)
+    
     if val is None:
         return []
     
@@ -105,10 +111,17 @@ def generar_pdf_from_form(form):
     """
     supabase = current_app.config.get("SUPABASE")
     
+    # DEBUG: Mostrar datos recibidos
+    current_app.logger.info(f"📋 Datos recibidos para PDF: {list(form.keys())}")
+    
     # Leer campos de lista
     ocs = _getlist_from_form(form, "orden_compra[]")
     guias = _getlist_from_form(form, "guia_recepcion[]")
     descripciones = _getlist_from_form(form, "descripcion[]")
+    
+    current_app.logger.info(f"✅ OCs extraídas: {ocs}")
+    current_app.logger.info(f"✅ Guías extraídas: {guias}")
+    current_app.logger.info(f"✅ Descripciones extraídas: {descripciones}")
     
     # Leer campos individuales
     numero = safe_int(form.get("next_num", "0"))
@@ -173,8 +186,27 @@ def generar_pdf_from_form(form):
                 .data or []
             )
             if oc_data:
-                if not proyecto or proyecto == "---":
-                    proyecto = str(oc_data[0].get("proyecto", "---"))
+                proyecto_id = oc_data[0].get("proyecto")
+                
+                # Obtener nombre del proyecto si tenemos ID
+                if proyecto_id:
+                    try:
+                        proy_data = (
+                            supabase.table("proyectos")
+                            .select("proyecto")
+                            .eq("id", proyecto_id)
+                            .limit(1)
+                            .execute()
+                            .data or []
+                        )
+                        if proy_data:
+                            proyecto = str(proy_data[0].get("proyecto", "---"))
+                        else:
+                            proyecto = str(proyecto_id)  # Fallback al ID si no se encuentra
+                    except Exception as e2:
+                        current_app.logger.warning(f"No se pudo obtener nombre del proyecto: {e2}")
+                        proyecto = str(proyecto_id)
+                
                 if not condicion_pago or condicion_pago == "---":
                     condicion_pago = str(oc_data[0].get("condicion_de_pago", "---"))
         except Exception as e:
@@ -352,7 +384,7 @@ def _generar_pdf_orden_pago(datos_orden):
     ))
     elements.append(Spacer(1, 8*mm))
     
-    # --- SECCIÓN DE 3 COLUMNAS (Páguese a | Detalles Factura | Detalle OP) ---
+    # --- SECCIÓN DE 2 COLUMNAS (Páguese a | Detalles de Compra) ---
     proveedor = datos_orden.get('proveedor', {})
     
     # Columna 1: Páguese a
@@ -363,19 +395,22 @@ def _generar_pdf_orden_pago(datos_orden):
         [Paragraph(f"<b>RUT:</b> {str(proveedor.get('rut', 'N/A'))}", styles['Small'])],
         [Paragraph(f"<b>Cuenta Corriente:</b> {str(proveedor.get('cuenta', '---'))}", styles['Small'])],
         [Paragraph(f"<b>Banco:</b> {str(proveedor.get('banco', '---'))}", styles['Small'])],
-        [Paragraph(f"<b>Correo:</b> {str(proveedor.get('correo', '---'))}", styles['Small'])]
+        [Paragraph(f"<b>Correo:</b> {str(proveedor.get('correo', '---'))}", styles['Small'])],
+        [Spacer(1, 2*mm)],
+        [Paragraph('<b>Detalle de O.P.:</b>', styles['SectionTitle'])],
+        [Paragraph(str(datos_orden.get('detalle_compra', '---')), styles['Small'])]
     ]
     
-    tabla_col1 = Table(datos_col1, colWidths=[doc.width*0.32])
+    tabla_col1 = Table(datos_col1, colWidths=[doc.width*0.48])
     tabla_col1.setStyle(TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'TOP'),
         ('TOPPADDING', (0,0), (-1,-1), 3),
         ('BOTTOMPADDING', (0,0), (-1,-1), 3)
     ]))
     
-    # Columna 2: Detalles de Factura/OC
+    # Columna 2: Detalles de Compra
     datos_col2 = [
-        [Paragraph('<b>Detalles de Factura / Orden de Compra</b>', styles['SectionTitle'])],
+        [Paragraph('<b>Detalles de Compra</b>', styles['SectionTitle'])],
         [Paragraph(f"<b>Número de Factura:</b> {str(datos_orden.get('numero_factura', '---'))}", styles['Small'])],
         [Paragraph(f"<b>OC:</b> {str(datos_orden.get('oc_principal', '---'))}", styles['Small'])],
         [Paragraph(f"<b>Condición de Pago:</b> {str(datos_orden.get('condicion_pago', '---'))}", styles['Small'])],
@@ -384,31 +419,17 @@ def _generar_pdf_orden_pago(datos_orden):
         [Paragraph(f"<b>Proyecto:</b> {str(datos_orden.get('proyecto', '---'))}", styles['Small'])]
     ]
     
-    tabla_col2 = Table(datos_col2, colWidths=[doc.width*0.32])
+    tabla_col2 = Table(datos_col2, colWidths=[doc.width*0.48])
     tabla_col2.setStyle(TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'TOP'),
         ('TOPPADDING', (0,0), (-1,-1), 3),
         ('BOTTOMPADDING', (0,0), (-1,-1), 3)
     ]))
     
-    # Columna 3: Detalle de O.P.
-    detalle_compra = str(datos_orden.get('detalle_compra', ''))
-    datos_col3 = [
-        [Paragraph('<b>Detalle de O.P.:</b>', styles['SectionTitle'])],
-        [Paragraph(detalle_compra if detalle_compra else '---', styles['Small'])]
-    ]
-    
-    tabla_col3 = Table(datos_col3, colWidths=[doc.width*0.32])
-    tabla_col3.setStyle(TableStyle([
-        ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ('TOPPADDING', (0,0), (-1,-1), 3),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 3)
-    ]))
-    
-    # Combinar las 3 columnas
+    # Combinar las 2 columnas
     tabla_superior = Table(
-        [[tabla_col1, tabla_col2, tabla_col3]], 
-        colWidths=[doc.width*0.33, doc.width*0.33, doc.width*0.34]
+        [[tabla_col1, tabla_col2]], 
+        colWidths=[doc.width*0.50, doc.width*0.50]
     )
     tabla_superior.setStyle(TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'TOP'),

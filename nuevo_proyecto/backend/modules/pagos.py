@@ -69,6 +69,27 @@ def calcular_estado_pago(fecha_pago, total_abonado, total_pago):
     # Caso 3: Sin fecha y sin abonos -> PENDIENTE
     return "pendiente"
 
+def formatear_fecha_chilena(fecha_valor, default="---"):
+    """
+    Formatea una fecha al formato chileno DD/MM/YYYY.
+    Maneja strings en formato ISO y objetos date/datetime.
+    Retorna default si la fecha es None o inválida.
+    """
+    if not fecha_valor:
+        return default
+    
+    try:
+        if isinstance(fecha_valor, str):
+            # Intentar parsear desde formato ISO YYYY-MM-DD
+            fecha_obj = datetime.strptime(fecha_valor, "%Y-%m-%d")
+            return fecha_obj.strftime("%d/%m/%Y")
+        elif isinstance(fecha_valor, (date, datetime)):
+            return fecha_valor.strftime("%d/%m/%Y")
+    except Exception:
+        pass
+    
+    return default
+
 def obtener_todos_pagos_procesados(supabase, filtros_base=None):
     """
     Obtiene TODOS los pagos con estados calculados.
@@ -80,7 +101,7 @@ def obtener_todos_pagos_procesados(supabase, filtros_base=None):
     query = supabase.table("orden_de_pago").select(
         "orden_numero, fecha, proveedor, proveedor_nombre, detalle_compra, "
         "factura, costo_final_con_iva, proyecto, orden_compra, condicion_pago, "
-        "vencimiento, fecha_factura, ingreso_id"
+        "vencimiento, fecha_factura, ingreso_id, item"
     )
     
     # Aplicar filtros de BD si existen
@@ -146,7 +167,7 @@ def obtener_todos_pagos_procesados(supabase, filtros_base=None):
                 "fecha_pago": None,
                 "total_abonado": 0.0,
                 "saldo_pendiente": 0.0,
-                "item": "-",
+                "item": r.get("item") or "-",  # ✅ FIX: Usar valor real de BD
                 "rut_proveedor": "-",
                 "fac_pago": ""
             }
@@ -223,6 +244,10 @@ def obtener_todos_pagos_procesados(supabase, filtros_base=None):
             pago["rut_proveedor"] = rut_map.get(pago.get("proveedor"), "-")
             pago["proyecto_nombre"] = proyecto_map.get(pago["proyecto"], f"Proyecto {pago['proyecto']}")
             pago["estado"] = estado
+            
+            # Formatear fechas a formato chileno usando función auxiliar
+            pago["fecha"] = formatear_fecha_chilena(pago.get("fecha"))
+            pago["vencimiento"] = formatear_fecha_chilena(pago.get("vencimiento"), "---")
     
     return pagos_list
 
@@ -343,7 +368,7 @@ def list_pagos(current_user):
             query = supabase.table("orden_de_pago").select(
                 "orden_numero, fecha, proveedor, proveedor_nombre, detalle_compra, "
                 "factura, costo_final_con_iva, proyecto, orden_compra, condicion_pago, "
-                "vencimiento, fecha_factura, ingreso_id",
+                "vencimiento, fecha_factura, ingreso_id, item",  # ✅ FIX: Agregado item
                 count="exact"
             )
             
@@ -420,7 +445,7 @@ def list_pagos(current_user):
                     "fecha_pago": None,
                     "total_abonado": 0.0,
                     "saldo_pendiente": 0.0,
-                    "item": "-",
+                    "item": r.get("item") or "-",  # ✅ FIX: Usar valor real de BD
                     "rut_proveedor": "-",
                     "fac_pago": ""
                 }
@@ -500,6 +525,10 @@ def list_pagos(current_user):
                 pago["rut_proveedor"] = rut_map.get(pago.get("proveedor"), "-")
                 pago["proyecto_nombre"] = proyecto_map.get(pago["proyecto"], f"Proyecto {pago['proyecto']}")
                 pago["estado"] = estado
+                
+                # Formatear fechas a formato chileno usando función auxiliar
+                pago["fecha"] = formatear_fecha_chilena(pago.get("fecha"))
+                pago["vencimiento"] = formatear_fecha_chilena(pago.get("vencimiento"), "---")
         
         # Paginación
         total_pages = (total_count + per_page - 1) // per_page
@@ -939,10 +968,10 @@ def create_abono(current_user):
                 "message": "El monto debe ser mayor a cero"
             }), 400
         
-        # Obtener total de la orden
+        # Obtener total de la orden (suma de todas las líneas)
         orden = supabase.table("orden_de_pago").select(
             "costo_final_con_iva"
-        ).eq("orden_numero", orden_numero).limit(1).execute()
+        ).eq("orden_numero", orden_numero).execute()  # ✅ FIX: Quitar limit(1) para obtener todas las líneas
         
         if not orden.data:
             return jsonify({
@@ -950,7 +979,11 @@ def create_abono(current_user):
                 "message": "Orden no encontrada"
             }), 404
         
-        total_pago = int(round(float(orden.data[0].get("costo_final_con_iva") or 0)))
+        # ✅ FIX: Sumar todas las líneas de la orden
+        total_pago = sum(
+            int(round(float(linea.get("costo_final_con_iva") or 0)))
+            for linea in orden.data
+        )
         
         # Obtener suma de abonos existentes
         abonos = supabase.table("abonos_op").select("monto_abono").eq(
@@ -1212,7 +1245,7 @@ def exportar_pagos_excel(current_user):
         # Construir query con filtros
         query = supabase.table("orden_de_pago").select(
             "orden_numero, fecha, proveedor, proveedor_nombre, detalle_compra, "
-            "factura, costo_final_con_iva, proyecto, item, orden_compra"
+            "factura, costo_final_con_iva, proyecto, item, orden_compra, vencimiento"
         ).order("orden_numero", desc=True)
         
         if proveedor:
@@ -1236,7 +1269,7 @@ def exportar_pagos_excel(current_user):
             # Supabase requiere re-construir el query con .range() en cada iteración
             batch_result = supabase.table("orden_de_pago").select(
                 "orden_numero, fecha, proveedor, proveedor_nombre, detalle_compra, "
-                "factura, costo_final_con_iva, proyecto, item, orden_compra"
+                "factura, costo_final_con_iva, proyecto, item, orden_compra, vencimiento"
             ).order("orden_numero", desc=True)
             
             # Reaplicar filtros
@@ -1285,7 +1318,8 @@ def exportar_pagos_excel(current_user):
                     "total_pago": 0,
                     "proyecto": r["proyecto"],
                     "item": r["item"],
-                    "orden_compra": r["orden_compra"]
+                    "orden_compra": r["orden_compra"],
+                    "vencimiento": r.get("vencimiento")
                 }
             try:
                 monto = int(round(float(r.get("costo_final_con_iva") or 0)))
@@ -1366,9 +1400,14 @@ def exportar_pagos_excel(current_user):
             # Obtener RUT desde el mapa de proveedores
             rut_proveedor = rut_map.get(pago.get("proveedor"), "-")
             
+            # Formatear fechas usando función auxiliar
+            fecha_formateada = formatear_fecha_chilena(pago["fecha"])
+            vencimiento_formateado = formatear_fecha_chilena(pago.get("vencimiento"), "---")
+            
             pagos_list.append({
                 "orden_numero": num,
-                "fecha": pago["fecha"],
+                "fecha": fecha_formateada,
+                "vencimiento": vencimiento_formateado,
                 "proveedor_nombre": pago["proveedor_nombre"],
                 "rut_proveedor": rut_proveedor,
                 "detalle_compra": pago["detalle_compra"],
@@ -1410,7 +1449,7 @@ def exportar_pagos_excel(current_user):
         title_cell.fill = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="solid")
         
         # Headers
-        headers = ["OP", "Fecha", "Proveedor", "RUT", "Detalle", "Factura", "Total", 
+        headers = ["OP", "Fecha", "Vencimiento", "Proveedor", "RUT", "Detalle", "Factura", "Total", 
                    "Proyecto", "Item", "OC", "Fecha Pago", "Abonos", "Saldo", "Estado"]
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=3, column=col, value=header)
@@ -1423,33 +1462,34 @@ def exportar_pagos_excel(current_user):
         for idx, pago in enumerate(pagos_list, 4):
             ws.cell(row=idx, column=1, value=pago["orden_numero"]).border = border
             ws.cell(row=idx, column=2, value=pago["fecha"]).border = border
-            ws.cell(row=idx, column=3, value=pago["proveedor_nombre"]).border = border
-            ws.cell(row=idx, column=4, value=pago["rut_proveedor"]).border = border
-            ws.cell(row=idx, column=5, value=pago["detalle_compra"]).border = border
-            ws.cell(row=idx, column=6, value=pago["factura"]).border = border
+            ws.cell(row=idx, column=3, value=pago.get("vencimiento") or "---").border = border
+            ws.cell(row=idx, column=4, value=pago["proveedor_nombre"]).border = border
+            ws.cell(row=idx, column=5, value=pago["rut_proveedor"]).border = border
+            ws.cell(row=idx, column=6, value=pago["detalle_compra"]).border = border
+            ws.cell(row=idx, column=7, value=pago["factura"]).border = border
             
             # Total (formato moneda)
-            cell_total = ws.cell(row=idx, column=7, value=pago["total_pago"])
+            cell_total = ws.cell(row=idx, column=8, value=pago["total_pago"])
             cell_total.number_format = '#,##0'
             cell_total.border = border
             
-            ws.cell(row=idx, column=8, value=pago["proyecto_nombre"]).border = border
-            ws.cell(row=idx, column=9, value=pago["item"]).border = border
-            ws.cell(row=idx, column=10, value=pago["orden_compra"]).border = border
-            ws.cell(row=idx, column=11, value=pago["fecha_pago"]).border = border
+            ws.cell(row=idx, column=9, value=pago["proyecto_nombre"]).border = border
+            ws.cell(row=idx, column=10, value=pago["item"]).border = border
+            ws.cell(row=idx, column=11, value=pago["orden_compra"]).border = border
+            ws.cell(row=idx, column=12, value=pago["fecha_pago"]).border = border
             
             # Abonos (formato moneda)
-            cell_abonos = ws.cell(row=idx, column=12, value=pago["total_abonado"])
+            cell_abonos = ws.cell(row=idx, column=13, value=pago["total_abonado"])
             cell_abonos.number_format = '#,##0'
             cell_abonos.border = border
             
             # Saldo (formato moneda)
-            cell_saldo = ws.cell(row=idx, column=13, value=pago["saldo_pendiente"])
+            cell_saldo = ws.cell(row=idx, column=14, value=pago["saldo_pendiente"])
             cell_saldo.number_format = '#,##0'
             cell_saldo.border = border
             
             # Estado con color
-            cell_estado = ws.cell(row=idx, column=14, value=pago["estado"].upper())
+            cell_estado = ws.cell(row=idx, column=15, value=pago["estado"].upper())
             cell_estado.border = border
             if pago["estado"] == "pagado":
                 cell_estado.fill = PatternFill(start_color="D1FAE5", end_color="D1FAE5", fill_type="solid")
@@ -1464,18 +1504,19 @@ def exportar_pagos_excel(current_user):
         # Ajustar anchos de columnas
         ws.column_dimensions['A'].width = 8   # OP
         ws.column_dimensions['B'].width = 12  # Fecha
-        ws.column_dimensions['C'].width = 30  # Proveedor
-        ws.column_dimensions['D'].width = 15  # RUT
-        ws.column_dimensions['E'].width = 40  # Detalle
-        ws.column_dimensions['F'].width = 15  # Factura
-        ws.column_dimensions['G'].width = 15  # Total
-        ws.column_dimensions['H'].width = 25  # Proyecto
-        ws.column_dimensions['I'].width = 10  # Item
-        ws.column_dimensions['J'].width = 10  # OC
-        ws.column_dimensions['K'].width = 12  # Fecha Pago
-        ws.column_dimensions['L'].width = 15  # Abonos
-        ws.column_dimensions['M'].width = 15  # Saldo
-        ws.column_dimensions['N'].width = 12  # Estado
+        ws.column_dimensions['C'].width = 12  # Vencimiento
+        ws.column_dimensions['D'].width = 30  # Proveedor
+        ws.column_dimensions['E'].width = 15  # RUT
+        ws.column_dimensions['F'].width = 40  # Detalle
+        ws.column_dimensions['G'].width = 15  # Factura
+        ws.column_dimensions['H'].width = 15  # Total
+        ws.column_dimensions['I'].width = 25  # Proyecto
+        ws.column_dimensions['J'].width = 10  # Item
+        ws.column_dimensions['K'].width = 10  # OC
+        ws.column_dimensions['L'].width = 12  # Fecha Pago
+        ws.column_dimensions['M'].width = 15  # Abonos
+        ws.column_dimensions['N'].width = 15  # Saldo
+        ws.column_dimensions['O'].width = 12  # Estado
         
         # Guardar en memoria
         output = io.BytesIO()

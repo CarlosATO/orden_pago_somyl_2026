@@ -58,20 +58,478 @@ def get_dashboard():
         }), 500
 
 
+@bp.route('/documentos-pendientes-detalle', methods=['GET'])
+def get_documentos_pendientes_detalle():
+    """
+    Obtiene TODOS los pagos pendientes (sin fecha_pago y con saldo > 0) para modal y PDF
+    GET /api/dashboard/documentos-pendientes-detalle
+    """
+    try:
+        from flask import current_app
+        
+        # Obtener datos CON PAGINACIÓN para obtener TODOS los registros
+        print("🔍 Obteniendo datos de documentos pendientes con paginación...")
+        
+        # orden_de_pago - PAGINADO
+        page_size = 1000
+        offset = 0
+        ordenes_pago_raw = []
+        while True:
+            batch = supabase.table('orden_de_pago').select('*').range(offset, offset + page_size - 1).execute().data or []
+            ordenes_pago_raw.extend(batch)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+        print(f"✅ orden_de_pago: {len(ordenes_pago_raw)} filas obtenidas")
+        
+        # fechas_de_pagos_op - PAGINADO
+        offset = 0
+        fechas_pago = []
+        while True:
+            batch = supabase.table('fechas_de_pagos_op').select('*').range(offset, offset + page_size - 1).execute().data or []
+            fechas_pago.extend(batch)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+        print(f"✅ fechas_de_pagos_op: {len(fechas_pago)} filas obtenidas")
+        
+        # abonos_op - PAGINADO
+        offset = 0
+        abonos_data = []
+        while True:
+            batch = supabase.table('abonos_op').select('*').range(offset, offset + page_size - 1).execute().data or []
+            abonos_data.extend(batch)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+        print(f"✅ abonos_op: {len(abonos_data)} filas obtenidas")
+        
+        # Obtener proyectos para mapear IDs a nombres
+        response_proy = supabase.table('proyectos').select('id, proyecto').execute()
+        proyectos = response_proy.data if response_proy.data else []
+        proyecto_map = {p["id"]: p["proyecto"] for p in proyectos}
+        print(f"✅ proyectos: {len(proyectos)} proyectos mapeados")
+        
+        # Crear maps
+        fecha_map = {}
+        for f in fechas_pago:
+            k = f.get("orden_numero")
+            v = f.get("fecha_pago")
+            if k is None:
+                continue
+            fecha_map[str(k)] = v
+            try:
+                fecha_map[int(k)] = v
+            except:
+                pass
+        
+        print(f"✅ Fechas de pago mapeadas: {len(fecha_map)} órdenes con fecha_pago")
+        
+        abonos_map = {}
+        for ab in abonos_data:
+            num = ab.get("orden_numero")
+            try:
+                monto = int(round(float(ab.get("monto_abono") or 0)))
+            except:
+                monto = 0
+            if num is None:
+                continue
+            try:
+                num_int = int(num)
+                abonos_map[num_int] = abonos_map.get(num_int, 0) + monto
+            except:
+                abonos_map[num] = abonos_map.get(num, 0) + monto
+        
+        print(f"✅ Abonos mapeados: {len(abonos_map)} órdenes con abonos")
+        
+        # Agrupar por orden_numero
+        pagos_dict = {}
+        for r in ordenes_pago_raw:
+            num = r.get("orden_numero")
+            if num not in pagos_dict:
+                proyecto_id = r.get("proyecto")
+                proyecto_nombre = proyecto_map.get(proyecto_id, f"Proyecto {proyecto_id}" if proyecto_id else "---")
+                
+                pagos_dict[num] = {
+                    "orden_numero": num,
+                    "proveedor": r.get("proveedor_nombre", "---"),
+                    "proyecto": proyecto_nombre,
+                    "proyecto_id": proyecto_id,
+                    "factura": r.get("factura"),
+                    "vencimiento": r.get("vencimiento"),
+                    "fecha_op": r.get("fecha"),  # Fecha de la orden de pago
+                    "total_pago": 0
+                }
+            try:
+                monto = int(round(float(r.get("costo_final_con_iva") or 0)))
+            except:
+                monto = 0
+            pagos_dict[num]["total_pago"] += monto
+        
+        # TODOS los pagos pendientes (sin fecha de pago y con saldo pendiente)
+        pagos_pendientes = []
+        pagos_con_abonos = []
+        fecha_hoy = datetime.now()
+        
+        print(f"\n🔍 Filtrando documentos pendientes...")
+        debug_ordenes = [3050, 3055, 2242]  # Órdenes de ejemplo para debug
+        
+        for num, pago in pagos_dict.items():
+            total_pago = pago["total_pago"]
+            total_abonado = abonos_map.get(num, 0)
+            fecha_pago = fecha_map.get(num)
+            vencimiento = pago.get("vencimiento")
+            
+            # Debug para órdenes específicas
+            if num in debug_ordenes:
+                print(f"\n📌 OP {num}:")
+                print(f"   Total: ${total_pago:,.0f}")
+                print(f"   Abonado: ${total_abonado:,.0f}")
+                print(f"   Fecha pago (pagado): {fecha_pago}")
+                print(f"   Fecha OP: {pago.get('fecha_op')}")
+                print(f"   Vencimiento (fecha límite): {vencimiento}")
+                if vencimiento:
+                    try:
+                        fv = datetime.fromisoformat(vencimiento.replace('Z', '+00:00'))
+                        dias = (fecha_hoy - fv).days
+                        print(f"   Días desde vencimiento: {dias}")
+                    except:
+                        print(f"   Error parseando vencimiento")
+            
+            # Si NO tiene fecha de pago y tiene saldo pendiente
+            if not fecha_pago:
+                saldo = max(0, total_pago - total_abonado)
+                if saldo > 0:
+                    # Calcular días de atraso usando VENCIMIENTO (fecha comprometida de pago)
+                    dias_atraso = 0
+                    tipo_pago = "Pendiente"
+                    estado = "pendiente"
+                    fecha_vencimiento_formatted = "---"
+                    
+                    if vencimiento:
+                        try:
+                            # Parsear fecha de vencimiento (fecha comprometida de pago)
+                            fecha_venc = datetime.fromisoformat(vencimiento.replace('Z', '+00:00'))
+                            # Formatear a formato chileno DD/MM/YYYY
+                            fecha_vencimiento_formatted = fecha_venc.strftime('%d/%m/%Y')
+                            
+                            # Comparar fecha de vencimiento con hoy
+                            if fecha_venc.date() < fecha_hoy.date():
+                                # Ya pasó la fecha comprometida = HAY ATRASO
+                                dias_atraso = (fecha_hoy.date() - fecha_venc.date()).days
+                                tipo_pago = f"Vencido ({dias_atraso} días)"
+                                estado = "vencido"
+                            else:
+                                # Aún no vence
+                                dias_para_vencer = (fecha_venc.date() - fecha_hoy.date()).days
+                                tipo_pago = f"Pendiente (vence en {dias_para_vencer} días)"
+                        except Exception as e:
+                            print(f"⚠️ Error parseando vencimiento para OP {num}: {e}")
+                    
+                    # Formatear fecha_op a formato chileno
+                    fecha_op_formatted = "---"
+                    if pago.get("fecha_op"):
+                        try:
+                            fecha_op_dt = datetime.fromisoformat(str(pago.get("fecha_op")).replace('Z', '+00:00'))
+                            fecha_op_formatted = fecha_op_dt.strftime('%d/%m/%Y')
+                        except:
+                            fecha_op_formatted = str(pago.get("fecha_op"))[:10]  # Fallback
+                    
+                    documento = {
+                        "orden_numero": num,
+                        "proveedor": pago["proveedor"],
+                        "proyecto": pago["proyecto"],
+                        "factura": pago.get("factura", "---"),
+                        "fecha_op": fecha_op_formatted,  # Formato DD/MM/YYYY
+                        "monto_total": round(total_pago, 2),
+                        "total_abonado": round(total_abonado, 2),
+                        "saldo": round(saldo, 2),
+                        "dias_atraso": dias_atraso,
+                        "fecha_vencimiento": fecha_vencimiento_formatted,  # Formato DD/MM/YYYY
+                        "tipo": tipo_pago,
+                        "estado": estado
+                    }
+                    
+                    # Clasificar: con abonos o pendiente
+                    if total_abonado > 0:
+                        pagos_con_abonos.append(documento)
+                    else:
+                        pagos_pendientes.append(documento)
+        
+        # Ordenar por días de atraso (más críticos primero)
+        pagos_pendientes.sort(key=lambda x: x['dias_atraso'], reverse=True)
+        pagos_con_abonos.sort(key=lambda x: x['dias_atraso'], reverse=True)
+        
+        # Combinar todos
+        todos_documentos = pagos_pendientes + pagos_con_abonos
+        
+        print(f"\n📊 RESULTADO DOCUMENTOS PENDIENTES:")
+        print(f"   • Total órdenes procesadas: {len(pagos_dict)}")
+        print(f"   • Total documentos pendientes: {len(todos_documentos)}")
+        print(f"   • Pendientes sin abonos: {len(pagos_pendientes)}")
+        print(f"   • Con abonos parciales: {len(pagos_con_abonos)}")
+        print(f"   • Vencidos: {sum(1 for d in todos_documentos if d['estado'] == 'vencido')}")
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "documentos": todos_documentos,
+                "pendientes": pagos_pendientes,
+                "con_abonos": pagos_con_abonos,
+                "stats": {
+                    "total": len(todos_documentos),
+                    "pendientes": len(pagos_pendientes),
+                    "con_abonos": len(pagos_con_abonos),
+                    "vencidos": sum(1 for d in todos_documentos if d['estado'] == 'vencido')
+                }
+            }
+        }), 200
+    except Exception as e:
+        current_app.logger.error(f"Error en get_documentos_pendientes_detalle: {str(e)}")
+        return jsonify({
+            "success": False,
+            "message": f"Error al obtener detalle de documentos pendientes: {str(e)}"
+        }), 500
+
+
+@bp.route('/documentos-pendientes-pdf', methods=['GET'])
+def generar_pdf_documentos_pendientes():
+    """
+    Genera y descarga un PDF con todos los documentos pendientes
+    GET /api/dashboard/documentos-pendientes-pdf
+    """
+    try:
+        from flask import current_app, send_file
+        from backend.pdf.documentos_pendientes_pdf import generar_pdf_documentos_pendientes
+        import tempfile
+        
+        print("🔍 Generando PDF de documentos pendientes...")
+        
+        # Obtener datos CON PAGINACIÓN (igual que documentos-pendientes-detalle)
+        page_size = 1000
+        offset = 0
+        ordenes_pago_raw = []
+        while True:
+            batch = supabase.table('orden_de_pago').select('*').range(offset, offset + page_size - 1).execute().data or []
+            ordenes_pago_raw.extend(batch)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+        
+        offset = 0
+        fechas_pago = []
+        while True:
+            batch = supabase.table('fechas_de_pagos_op').select('*').range(offset, offset + page_size - 1).execute().data or []
+            fechas_pago.extend(batch)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+        
+        offset = 0
+        abonos_data = []
+        while True:
+            batch = supabase.table('abonos_op').select('*').range(offset, offset + page_size - 1).execute().data or []
+            abonos_data.extend(batch)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+        
+        # Obtener proyectos
+        response_proy = supabase.table('proyectos').select('id, proyecto').execute()
+        proyectos = response_proy.data if response_proy.data else []
+        proyecto_map = {p["id"]: p["proyecto"] for p in proyectos}
+        
+        # Crear maps (igual que en documentos-pendientes-detalle)
+        fecha_map = {}
+        for f in fechas_pago:
+            k = f.get("orden_numero")
+            v = f.get("fecha_pago")
+            if k is None:
+                continue
+            fecha_map[str(k)] = v
+            try:
+                fecha_map[int(k)] = v
+            except:
+                pass
+        
+        abonos_map = {}
+        for ab in abonos_data:
+            num = ab.get("orden_numero")
+            try:
+                monto = int(round(float(ab.get("monto_abono") or 0)))
+            except:
+                monto = 0
+            if num is None:
+                continue
+            try:
+                num_int = int(num)
+                abonos_map[num_int] = abonos_map.get(num_int, 0) + monto
+            except:
+                abonos_map[num] = abonos_map.get(num, 0) + monto
+        
+        # Agrupar por orden_numero
+        pagos_dict = {}
+        for r in ordenes_pago_raw:
+            num = r.get("orden_numero")
+            if num not in pagos_dict:
+                proyecto_id = r.get("proyecto")
+                proyecto_nombre = proyecto_map.get(proyecto_id, f"Proyecto {proyecto_id}" if proyecto_id else "---")
+                
+                pagos_dict[num] = {
+                    "orden_numero": num,
+                    "proveedor": r.get("proveedor_nombre", "---"),
+                    "proyecto": proyecto_nombre,
+                    "factura": r.get("factura"),
+                    "vencimiento": r.get("vencimiento"),
+                    "fecha_op": r.get("fecha"),
+                    "total_pago": 0
+                }
+            try:
+                monto = int(round(float(r.get("costo_final_con_iva") or 0)))
+            except:
+                monto = 0
+            pagos_dict[num]["total_pago"] += monto
+        
+        # Filtrar documentos pendientes
+        pagos_pendientes = []
+        pagos_con_abonos = []
+        fecha_hoy = datetime.now()
+        
+        for num, pago in pagos_dict.items():
+            total_pago = pago["total_pago"]
+            total_abonado = abonos_map.get(num, 0)
+            fecha_pago = fecha_map.get(num)
+            vencimiento = pago.get("vencimiento")
+            
+            if not fecha_pago:
+                saldo = max(0, total_pago - total_abonado)
+                if saldo > 0:
+                    dias_atraso = 0
+                    tipo_pago = "Pendiente"
+                    estado = "pendiente"
+                    fecha_vencimiento_formatted = "---"
+                    
+                    if vencimiento:
+                        try:
+                            fecha_venc = datetime.fromisoformat(vencimiento.replace('Z', '+00:00'))
+                            fecha_vencimiento_formatted = fecha_venc.strftime('%d/%m/%Y')
+                            
+                            if fecha_venc.date() < fecha_hoy.date():
+                                dias_atraso = (fecha_hoy.date() - fecha_venc.date()).days
+                                tipo_pago = f"Vencido ({dias_atraso} días)"
+                                estado = "vencido"
+                            else:
+                                dias_para_vencer = (fecha_venc.date() - fecha_hoy.date()).days
+                                tipo_pago = f"Pendiente (vence en {dias_para_vencer} días)"
+                        except:
+                            pass
+                    
+                    fecha_op_formatted = "---"
+                    if pago.get("fecha_op"):
+                        try:
+                            fecha_op_dt = datetime.fromisoformat(str(pago.get("fecha_op")).replace('Z', '+00:00'))
+                            fecha_op_formatted = fecha_op_dt.strftime('%d/%m/%Y')
+                        except:
+                            fecha_op_formatted = str(pago.get("fecha_op"))[:10]
+                    
+                    documento = {
+                        "orden_numero": num,
+                        "proveedor": pago["proveedor"],
+                        "proyecto": pago["proyecto"],
+                        "factura": pago.get("factura", "---"),
+                        "fecha_op": fecha_op_formatted,
+                        "monto_total": round(total_pago, 2),
+                        "total_abonado": round(total_abonado, 2),
+                        "saldo": round(saldo, 2),
+                        "dias_atraso": dias_atraso,
+                        "fecha_vencimiento": fecha_vencimiento_formatted,
+                        "tipo": tipo_pago,
+                        "estado": estado
+                    }
+                    
+                    if total_abonado > 0:
+                        pagos_con_abonos.append(documento)
+                    else:
+                        pagos_pendientes.append(documento)
+        
+        pagos_pendientes.sort(key=lambda x: x['dias_atraso'], reverse=True)
+        pagos_con_abonos.sort(key=lambda x: x['dias_atraso'], reverse=True)
+        todos_documentos = pagos_pendientes + pagos_con_abonos
+        
+        stats = {
+            "total": len(todos_documentos),
+            "pendientes": len(pagos_pendientes),
+            "con_abonos": len(pagos_con_abonos),
+            "vencidos": sum(1 for d in todos_documentos if d['estado'] == 'vencido')
+        }
+        
+        print(f"✅ {len(todos_documentos)} documentos pendientes para PDF")
+        
+        # Generar PDF
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp:
+            pdf_path = tmp.name
+        
+        generar_pdf_documentos_pendientes(todos_documentos, stats, pdf_path)
+        
+        # Nombre del archivo para descarga
+        fecha_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"documentos_pendientes_{fecha_str}.pdf"
+        
+        print(f"✅ PDF generado: {filename}")
+        
+        return send_file(
+            pdf_path,
+            as_attachment=True,
+            download_name=filename,
+            mimetype='application/pdf'
+        )
+        
+    except Exception as e:
+        import traceback
+        current_app.logger.error(f"Error generando PDF: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({
+            "success": False,
+            "message": f"Error al generar PDF: {str(e)}"
+        }), 500
+
+
 def obtener_dashboard_completo():
     """
     Obtiene todos los KPIs y datos del dashboard
     """
     try:
-        # Prefetch tablas comunes EN UNA SOLA RONDA para reducir latencia
-        response_op = supabase.table('orden_de_pago').select('*').execute()
-        ordenes_pago_raw = response_op.data if response_op.data else []
+        # Prefetch tablas comunes CON PAGINACIÓN para obtener TODOS los registros
+        # orden_de_pago - PAGINADO
+        page_size = 1000
+        offset = 0
+        ordenes_pago_raw = []
+        while True:
+            batch = supabase.table('orden_de_pago').select('*').range(offset, offset + page_size - 1).execute().data or []
+            ordenes_pago_raw.extend(batch)
+            if len(batch) < page_size:
+                break
+            offset += page_size
+        print(f"✅ PREFETCH orden_de_pago: {len(ordenes_pago_raw)} filas obtenidas")
 
-        response_fechas = supabase.table('fechas_de_pagos_op').select('*').execute()
-        fechas_pago = response_fechas.data if response_fechas.data else []
+        # fechas_de_pagos_op - PAGINADO
+        offset = 0
+        fechas_pago = []
+        while True:
+            batch = supabase.table('fechas_de_pagos_op').select('*').range(offset, offset + page_size - 1).execute().data or []
+            fechas_pago.extend(batch)
+            if len(batch) < page_size:
+                break
+            offset += page_size
 
-        response_abonos = supabase.table('abonos_op').select('*').execute()
-        abonos_data = response_abonos.data if response_abonos.data else []
+        # abonos_op - PAGINADO
+        offset = 0
+        abonos_data = []
+        while True:
+            batch = supabase.table('abonos_op').select('*').range(offset, offset + page_size - 1).execute().data or []
+            abonos_data.extend(batch)
+            if len(batch) < page_size:
+                break
+            offset += page_size
 
         response_ppto = supabase.table('presupuesto').select('*').execute()
         presupuestos = response_ppto.data if response_ppto.data else []
@@ -127,46 +585,71 @@ def obtener_dashboard_completo():
 def obtener_kpis_principales(prefetch=None):
     """
     Calcula los KPIs principales del dashboard
-    Usa la MISMA LÓGICA que el módulo de Informe de Pagos
+    Usa la MISMA LÓGICA EXACTA que el módulo de Informe de Pagos (sin filtros)
     """
+    print("=" * 80)
+    print("🚨 FUNCIÓN obtener_kpis_principales INICIADA - VERSIÓN NUEVA")
+    print("=" * 80)
+    
     try:
-        # 1. DEUDA TOTAL (Órdenes de Pago pendientes)
-        # Obtener TODAS las órdenes de pago (sin filtro de pagado)
+        # Obtener TODAS las filas de orden_de_pago
         if prefetch and 'orden_de_pago' in prefetch:
-            ordenes_pago_raw = prefetch.get('orden_de_pago') or []
+            all_rows = prefetch.get('orden_de_pago') or []
+            print(f"📦 Usando PREFETCH: {len(all_rows)} filas")
         else:
-            response_op = supabase.table('orden_de_pago').select('*').execute()
-            ordenes_pago_raw = response_op.data if response_op.data else []
+            page_size = 1000
+            offset = 0
+            all_rows = []
+            while True:
+                res = supabase.table("orden_de_pago").select(
+                    "orden_numero, costo_final_con_iva, proyecto"
+                ).order("orden_numero", desc=True).range(offset, offset + page_size - 1).execute()
+                batch = res.data or []
+                all_rows.extend(batch)
+                if len(batch) < page_size:
+                    break
+                offset += page_size
+            print(f"📦 Query paginado: {len(all_rows)} filas")
         
-        # Agrupar por orden_numero y sumar montos
+        print(f"✅ Total de filas obtenidas: {len(all_rows)}")
+        
+        # Agrupar por orden_numero (IGUAL QUE PAGOS.PY)
         pagos_dict = {}
-        for r in ordenes_pago_raw:
+        for r in all_rows:
             num = r.get("orden_numero")
             if num not in pagos_dict:
                 pagos_dict[num] = {
                     "orden_numero": num,
                     "total_pago": 0,
-                    "factura": r.get("factura")
+                    "proyecto": r.get("proyecto")
                 }
             try:
-                # IGUAL QUE PAGOS.PY: int redondeado
                 monto = int(round(float(r.get("costo_final_con_iva") or 0)))
             except:
                 monto = 0
             pagos_dict[num]["total_pago"] += monto
         
+        print(f"✅ Órdenes únicas después de agrupar: {len(pagos_dict)}")
+        
         # Obtener fechas de pago
         if prefetch and 'fechas_de_pagos_op' in prefetch:
-            fechas_pago = prefetch.get('fechas_de_pagos_op') or []
+            fechas_data = prefetch.get('fechas_de_pagos_op') or []
         else:
-            response_fechas = supabase.table('fechas_de_pagos_op').select('orden_numero, fecha_pago').execute()
-            fechas_pago = response_fechas.data if response_fechas.data else []
+            page_size = 1000
+            off = 0
+            fechas_data = []
+            while True:
+                batch = supabase.table("fechas_de_pagos_op").select("orden_numero, fecha_pago").range(off, off + page_size - 1).execute().data or []
+                if not batch:
+                    break
+                fechas_data.extend(batch)
+                off += page_size
         
-        # IGUAL QUE PAGOS.PY: Doble clave (string e int) para evitar problemas de tipo
+        # Construir mapa con claves string e int (IGUAL QUE PAGOS.PY)
         fecha_map = {}
-        for f in fechas_pago:
-            k = f.get("orden_numero")
-            v = f.get("fecha_pago")
+        for row in fechas_data:
+            k = row.get("orden_numero")
+            v = row.get("fecha_pago")
             if k is None:
                 continue
             fecha_map[str(k)] = v
@@ -179,10 +662,9 @@ def obtener_kpis_principales(prefetch=None):
         if prefetch and 'abonos_op' in prefetch:
             abonos_data = prefetch.get('abonos_op') or []
         else:
-            response_abonos = supabase.table('abonos_op').select('orden_numero, monto_abono').execute()
-            abonos_data = response_abonos.data if response_abonos.data else []
+            abonos_data = supabase.table("abonos_op").select("orden_numero, monto_abono").execute().data or []
         
-        # IGUAL QUE PAGOS.PY: Doble clave y int redondeado
+        # Construir mapa de abonos (IGUAL QUE PAGOS.PY)
         abonos_map = {}
         for ab in abonos_data:
             num = ab.get("orden_numero")
@@ -192,65 +674,65 @@ def obtener_kpis_principales(prefetch=None):
                 monto = 0
             if num is None:
                 continue
-            # Asegurar que usamos int como clave única (FIX: evitar duplicación)
             try:
                 num_int = int(num)
                 abonos_map[num_int] = abonos_map.get(num_int, 0) + monto
             except:
                 abonos_map[num] = abonos_map.get(num, 0) + monto
         
-        # Calcular montos separados: pendientes y saldo de abonos
-        monto_pendiente = 0  # Órdenes sin fecha ni abonos
-        saldo_abonos = 0  # Saldo de órdenes con abonos pero sin fecha
-        cantidad_pendientes = 0  # Solo pendientes puros
-        cantidad_con_abonos = 0  # Órdenes con abonos
-        cantidad_pagadas = 0
+        # Contadores (IGUAL QUE PAGOS.PY)
+        total_ordenes = len(pagos_dict)
+        pagadas = 0
+        pendientes = 0
+        con_abonos = 0
+        total_pendiente = 0.0
+        total_saldo_abonos = 0.0
         
+        # Recorrer órdenes y calcular (EXACTAMENTE IGUAL QUE PAGOS.PY)
         for num, pago in pagos_dict.items():
-            total_pago = pago["total_pago"]
             total_abonado = abonos_map.get(num, 0)
+            total_pago = pago["total_pago"]
             fecha_pago = fecha_map.get(num)
             
-            # Si tiene abonos Y NO tiene fecha, sumar al saldo de abonos
+            # PRIMERO: Si tiene abonos Y NO tiene fecha_pago, calcular saldo y sumar
             if total_abonado > 0 and not fecha_pago:
-                cantidad_con_abonos += 1
+                con_abonos += 1
                 saldo = max(0, total_pago - total_abonado)
-                saldo_abonos += saldo
+                total_saldo_abonos += saldo
             
-            # Usar la función de estado para contadores
+            # SEGUNDO: Calcular estado para contadores (pagado vs pendiente)
             estado = calcular_estado_pago(fecha_pago, total_abonado, total_pago)
             
             if estado == "pagado":
-                cantidad_pagadas += 1
+                pagadas += 1
             elif estado == "pendiente":
-                cantidad_pendientes += 1
-                monto_pendiente += total_pago
+                # Pendiente sin abonos - sumar el total completo a "Pendientes"
+                pendientes += 1
+                total_pendiente += total_pago
         
-        # Total general = pendientes + saldo abonos
-        total_general = monto_pendiente + saldo_abonos
+        # Total general (IGUAL QUE PAGOS.PY)
+        total_general = total_pendiente + total_saldo_abonos
         
-        # 2. SALDO PRESUPUESTARIO TOTAL
-        if prefetch and 'presupuesto' in prefetch:
-            presupuestos = prefetch.get('presupuesto') or []
-        else:
-            response_ppto = supabase.table('presupuesto').select('*').execute()
-            presupuestos = response_ppto.data if response_ppto.data else []
-        
-        saldo_presupuestario_total = 0
-        proyectos_en_riesgo = 0
-        
-        for ppto in presupuestos:
-            presupuesto = float(ppto.get('presupuesto', 0) or 0)
-            real = float(ppto.get('real', 0) or 0)
-            saldo = presupuesto - real
-            saldo_presupuestario_total += saldo
-            
-            if saldo < 0:
-                proyectos_en_riesgo += 1
+        # DEBUG: Log para verificar cálculos
+        print(f"🔍 DEBUG Dashboard KPIs:")
+        print(f"   Total órdenes únicas: {total_ordenes}")
+        print(f"   Pagadas: {pagadas}")
+        print(f"   Pendientes (sin abonos): {pendientes} → ${total_pendiente:,.0f}")
+        print(f"   Con abonos: {con_abonos} → Saldo: ${total_saldo_abonos:,.0f}")
+        print(f"   TOTAL GENERAL: ${total_general:,.0f}")
         
         # 3. DOCUMENTOS PENDIENTES
         # Facturas sin registrar (OP sin factura con saldo pendiente)
         facturas_pendientes = 0
+        
+        # Crear mapa de facturas desde ordenes_pago_raw
+        factura_map = {}
+        for r in all_rows:
+            num = r.get("orden_numero")
+            fac = r.get("factura")
+            if num and fac and num not in factura_map:
+                factura_map[num] = fac
+        
         for num, pago in pagos_dict.items():
             total_pago = pago["total_pago"]
             total_abonado = abonos_map.get(num, 0)
@@ -258,7 +740,7 @@ def obtener_kpis_principales(prefetch=None):
             
             if not fecha_pago:  # No está pagado
                 saldo = max(0, total_pago - total_abonado)
-                if saldo > 0 and not pago.get("factura"):
+                if saldo > 0 and not factura_map.get(num):
                     facturas_pendientes += 1
         
         # Órdenes sin recepcionar (>15 días)
@@ -280,14 +762,15 @@ def obtener_kpis_principales(prefetch=None):
                 except:
                     pass
         
-        # Pagos vencidos (necesitamos obtener vencimiento de orden_de_pago)
-        # Contar órdenes con vencimiento pasado y saldo pendiente
+        # Documentos pendientes: TODOS los pagos sin fecha_pago y con saldo > 0
+        documentos_pendientes = 0
+        documentos_con_abonos = 0
         pagos_vencidos = 0
         fecha_hoy = datetime.now()
         
         # Crear map de vencimientos desde ordenes_pago_raw
         vencimiento_map = {}
-        for r in ordenes_pago_raw:
+        for r in all_rows:
             num = r.get("orden_numero")
             venc = r.get("vencimiento")
             if num and venc and num not in vencimiento_map:
@@ -299,17 +782,29 @@ def obtener_kpis_principales(prefetch=None):
             fecha_pago = fecha_map.get(num)
             vencimiento = vencimiento_map.get(num)
             
-            if not fecha_pago and vencimiento:  # No pagado y tiene vencimiento
+            # Si NO tiene fecha de pago y tiene saldo pendiente
+            if not fecha_pago:
                 saldo = max(0, total_pago - total_abonado)
                 if saldo > 0:
-                    try:
-                        fecha_venc = datetime.fromisoformat(vencimiento.replace('Z', '+00:00'))
-                        if fecha_venc < fecha_hoy:
-                            pagos_vencidos += 1
-                    except:
-                        pass
+                    documentos_pendientes += 1
+                    
+                    # Clasificar si tiene abonos
+                    if total_abonado > 0:
+                        documentos_con_abonos += 1
+                    
+                    # Verificar si está vencido
+                    if vencimiento:
+                        try:
+                            fecha_venc = datetime.fromisoformat(vencimiento.replace('Z', '+00:00'))
+                            if fecha_venc < fecha_hoy:
+                                pagos_vencidos += 1
+                        except:
+                            pass
         
-        documentos_pendientes = facturas_pendientes + oc_antiguas + pagos_vencidos
+        print(f"📊 DOCUMENTOS PENDIENTES:")
+        print(f"  • Total documentos pendientes: {documentos_pendientes}")
+        print(f"  • Documentos con abonos: {documentos_con_abonos}")
+        print(f"  • Pagos vencidos: {pagos_vencidos}")
         
         # 4. MÉTRICAS OPERACIONALES DEL MES ACTUAL
         fecha_inicio_mes = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -318,14 +813,31 @@ def obtener_kpis_principales(prefetch=None):
         oc_mes_actual = 0
         monto_oc_mes = 0
         for oc in ordenes:
-            if oc.get('fecha_emision'):
+            fecha_str = oc.get('fecha_emision') or oc.get('fecha')
+            if fecha_str:
                 try:
-                    fecha = datetime.fromisoformat(oc['fecha_emision'].replace('Z', '+00:00'))
-                    if fecha >= fecha_inicio_mes:
+                    # Intentar varios formatos de fecha
+                    if 'T' in fecha_str:  # ISO format
+                        fecha = datetime.fromisoformat(fecha_str.replace('Z', '+00:00'))
+                    else:  # formato DD/MM/YYYY o similar
+                        from dateutil import parser
+                        fecha = parser.parse(fecha_str)
+                    
+                    # Comparar sin timezone para evitar problemas
+                    if fecha.replace(tzinfo=None) >= fecha_inicio_mes:
                         oc_mes_actual += 1
                         monto_oc_mes += float(oc.get('monto_total', 0) or 0)
-                except:
-                    pass
+                except Exception as e:
+                    # Si falla el parsing, intentar formato simple
+                    try:
+                        from datetime import datetime as dt
+                        # Intenta DD-MM-YYYY
+                        fecha = dt.strptime(fecha_str[:10], '%d-%m-%Y')
+                        if fecha >= fecha_inicio_mes:
+                            oc_mes_actual += 1
+                            monto_oc_mes += float(oc.get('monto_total', 0) or 0)
+                    except:
+                        pass
         
         # Recepciones del mes (ingresos)
         if prefetch and 'ingresos' in prefetch:
@@ -336,10 +848,16 @@ def obtener_kpis_principales(prefetch=None):
         
         recepciones_mes = 0
         for ingreso in ingresos:
-            if ingreso.get('fecha_recepcion'):
+            fecha_str = ingreso.get('fecha_recepcion')
+            if fecha_str:
                 try:
-                    fecha = datetime.fromisoformat(ingreso['fecha_recepcion'].replace('Z', '+00:00'))
-                    if fecha >= fecha_inicio_mes:
+                    if 'T' in fecha_str:
+                        fecha = datetime.fromisoformat(fecha_str.replace('Z', '+00:00'))
+                    else:
+                        from dateutil import parser
+                        fecha = parser.parse(fecha_str)
+                    
+                    if fecha.replace(tzinfo=None) >= fecha_inicio_mes:
                         recepciones_mes += 1
                 except:
                     pass
@@ -364,21 +882,21 @@ def obtener_kpis_principales(prefetch=None):
                     pass
         
         return {
-            # Nuevos campos separados
-            "monto_pendiente": round(monto_pendiente, 2),
-            "saldo_abonos": round(saldo_abonos, 2),
+            # Nuevos campos separados (IGUAL QUE PAGOS.PY)
+            "monto_pendiente": round(total_pendiente, 2),
+            "saldo_abonos": round(total_saldo_abonos, 2),
             "total_general": round(total_general, 2),
-            "pendientes": cantidad_pendientes,
-            "con_abonos": cantidad_con_abonos,
-            "pagadas": cantidad_pagadas,
+            "pendientes": pendientes,
+            "con_abonos": con_abonos,
+            "pagadas": pagadas,
+            "total_ordenes": total_ordenes,
             # Campos legacy (por compatibilidad)
             "deuda_total": round(total_general, 2),
-            "cantidad_pendientes": cantidad_pendientes + cantidad_con_abonos,
-            "saldo_presupuestario_total": round(saldo_presupuestario_total, 2),
-            "proyectos_en_riesgo": proyectos_en_riesgo,
+            "cantidad_pendientes": pendientes + con_abonos,
             "documentos_pendientes": documentos_pendientes,
-            "facturas_pendientes": facturas_pendientes,
-            "oc_antiguas": oc_antiguas,
+            "documentos_con_abonos": documentos_con_abonos,
+            "facturas_pendientes": 0,  # No se muestra
+            "oc_antiguas": 0,  # No se muestra
             "pagos_vencidos": pagos_vencidos,
             "oc_mes_actual": oc_mes_actual,
             "monto_oc_mes": round(monto_oc_mes, 2),
@@ -394,38 +912,105 @@ def obtener_kpis_principales(prefetch=None):
 def obtener_top_proveedores_deuda(prefetch=None):
     """
     Top 5 proveedores con mayor deuda
+    Usa la MISMA LÓGICA que pagos.py para calcular saldo real
     """
     try:
+        # Obtener órdenes de pago
         if prefetch and 'orden_de_pago' in prefetch:
-            ordenes_pago = prefetch.get('orden_de_pago') or []
+            ordenes_pago_raw = prefetch.get('orden_de_pago') or []
         else:
             response = supabase.table('orden_de_pago').select('*').execute()
-            ordenes_pago = response.data if response.data else []
+            ordenes_pago_raw = response.data if response.data else []
         
-        # Agrupar por proveedor
+        # Obtener fechas de pago
+        if prefetch and 'fechas_de_pagos_op' in prefetch:
+            fechas_pago = prefetch.get('fechas_de_pagos_op') or []
+        else:
+            response_fechas = supabase.table('fechas_de_pagos_op').select('*').execute()
+            fechas_pago = response_fechas.data if response_fechas.data else []
+        
+        # Obtener abonos
+        if prefetch and 'abonos_op' in prefetch:
+            abonos_data = prefetch.get('abonos_op') or []
+        else:
+            response_abonos = supabase.table('abonos_op').select('*').execute()
+            abonos_data = response_abonos.data if response_abonos.data else []
+        
+        # Crear maps de fechas y abonos (IGUAL QUE PAGOS.PY)
+        fecha_map = {}
+        for f in fechas_pago:
+            k = f.get("orden_numero")
+            v = f.get("fecha_pago")
+            if k is None:
+                continue
+            fecha_map[str(k)] = v
+            try:
+                fecha_map[int(k)] = v
+            except:
+                pass
+        
+        abonos_map = {}
+        for ab in abonos_data:
+            num = ab.get("orden_numero")
+            try:
+                monto = int(round(float(ab.get("monto_abono") or 0)))
+            except:
+                monto = 0
+            if num is None:
+                continue
+            try:
+                num_int = int(num)
+                abonos_map[num_int] = abonos_map.get(num_int, 0) + monto
+            except:
+                abonos_map[num] = abonos_map.get(num, 0) + monto
+        
+        # Agrupar por orden_numero primero
+        pagos_dict = {}
+        for r in ordenes_pago_raw:
+            num = r.get("orden_numero")
+            prov = r.get("proveedor_nombre", "Sin Proveedor")
+            if num not in pagos_dict:
+                pagos_dict[num] = {
+                    "orden_numero": num,
+                    "proveedor": prov,
+                    "total_pago": 0
+                }
+            try:
+                monto = int(round(float(r.get("costo_final_con_iva") or 0)))
+            except:
+                monto = 0
+            pagos_dict[num]["total_pago"] += monto
+        
+        # Agrupar por proveedor y calcular deuda real
         deuda_por_proveedor = {}
         
-        for op in ordenes_pago:
-            if not op.get('pagado', False):  # Solo OP pendientes
-                proveedor = op.get('proveedor_nombre', 'Sin Proveedor')
-                monto = float(op.get('monto_total', 0) or 0)
+        for num, pago in pagos_dict.items():
+            proveedor = pago["proveedor"]
+            total_pago = pago["total_pago"]
+            total_abonado = abonos_map.get(num, 0)
+            fecha_pago = fecha_map.get(num)
+            
+            # Calcular saldo REAL (solo si no está pagado)
+            if not fecha_pago:
+                saldo = max(0, total_pago - total_abonado)
                 
-                if proveedor not in deuda_por_proveedor:
-                    deuda_por_proveedor[proveedor] = {
-                        'proveedor': proveedor,
-                        'deuda': 0,
-                        'num_op': 0
-                    }
-                
-                deuda_por_proveedor[proveedor]['deuda'] += monto
-                deuda_por_proveedor[proveedor]['num_op'] += 1
+                if saldo > 0:  # Solo contar si tiene saldo pendiente
+                    if proveedor not in deuda_por_proveedor:
+                        deuda_por_proveedor[proveedor] = {
+                            'proveedor': proveedor,
+                            'deuda': 0,
+                            'num_op': 0
+                        }
+                    
+                    deuda_por_proveedor[proveedor]['deuda'] += saldo
+                    deuda_por_proveedor[proveedor]['num_op'] += 1
         
-        # Ordenar y tomar top 5
+        # Ordenar todos los proveedores por deuda (no limitar a top 5)
         top_proveedores = sorted(
             deuda_por_proveedor.values(),
             key=lambda x: x['deuda'],
             reverse=True
-        )[:5]
+        )
         
         # Redondear montos
         for prov in top_proveedores:
@@ -585,13 +1170,72 @@ def obtener_oc_sin_recepcionar(prefetch=None):
 def obtener_evolucion_deuda(prefetch=None):
     """
     Evolución de la deuda en los últimos 6 meses
+    Calcula el saldo pendiente REAL al final de cada mes
     """
     try:
+        # Obtener datos necesarios
         if prefetch and 'orden_de_pago' in prefetch:
-            ordenes_pago = prefetch.get('orden_de_pago') or []
+            ordenes_pago_raw = prefetch.get('orden_de_pago') or []
         else:
             response = supabase.table('orden_de_pago').select('*').execute()
-            ordenes_pago = response.data if response.data else []
+            ordenes_pago_raw = response.data if response.data else []
+        
+        if prefetch and 'fechas_de_pagos_op' in prefetch:
+            fechas_pago = prefetch.get('fechas_de_pagos_op') or []
+        else:
+            response_fechas = supabase.table('fechas_de_pagos_op').select('*').execute()
+            fechas_pago = response_fechas.data if response_fechas.data else []
+        
+        if prefetch and 'abonos_op' in prefetch:
+            abonos_data = prefetch.get('abonos_op') or []
+        else:
+            response_abonos = supabase.table('abonos_op').select('*').execute()
+            abonos_data = response_abonos.data if response_abonos.data else []
+        
+        # Crear maps (IGUAL QUE PAGOS.PY)
+        fecha_map = {}
+        for f in fechas_pago:
+            k = f.get("orden_numero")
+            v = f.get("fecha_pago")
+            if k is None:
+                continue
+            fecha_map[str(k)] = v
+            try:
+                fecha_map[int(k)] = v
+            except:
+                pass
+        
+        abonos_map = {}
+        for ab in abonos_data:
+            num = ab.get("orden_numero")
+            try:
+                monto = int(round(float(ab.get("monto_abono") or 0)))
+            except:
+                monto = 0
+            if num is None:
+                continue
+            try:
+                num_int = int(num)
+                abonos_map[num_int] = abonos_map.get(num_int, 0) + monto
+            except:
+                abonos_map[num] = abonos_map.get(num, 0) + monto
+        
+        # Agrupar órdenes por número
+        pagos_dict = {}
+        for r in ordenes_pago_raw:
+            num = r.get("orden_numero")
+            fecha_creacion = r.get("fecha_creacion")
+            if num not in pagos_dict:
+                pagos_dict[num] = {
+                    "orden_numero": num,
+                    "total_pago": 0,
+                    "fecha_creacion": fecha_creacion
+                }
+            try:
+                monto = int(round(float(r.get("costo_final_con_iva") or 0)))
+            except:
+                monto = 0
+            pagos_dict[num]["total_pago"] += monto
         
         # Calcular deuda por mes (últimos 6 meses)
         evolucion = []
@@ -601,7 +1245,7 @@ def obtener_evolucion_deuda(prefetch=None):
                          'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
         
         for i in range(5, -1, -1):  # 6 meses atrás hasta hoy
-            # Calcular fecha de corte del mes
+            # Calcular último día del mes
             if fecha_actual.month - i > 0:
                 mes = fecha_actual.month - i
                 anio = fecha_actual.year
@@ -609,27 +1253,44 @@ def obtener_evolucion_deuda(prefetch=None):
                 mes = 12 + (fecha_actual.month - i)
                 anio = fecha_actual.year - 1
             
-            fecha_corte = datetime(anio, mes, 28, 23, 59, 59)  # Último día del mes (aprox)
+            # Último día del mes a las 23:59:59
+            if mes == 12:
+                fecha_corte = datetime(anio, mes, 31, 23, 59, 59)
+            elif mes in [1, 3, 5, 7, 8, 10]:
+                fecha_corte = datetime(anio, mes, 31, 23, 59, 59)
+            elif mes in [4, 6, 9, 11]:
+                fecha_corte = datetime(anio, mes, 30, 23, 59, 59)
+            else:  # Febrero
+                fecha_corte = datetime(anio, mes, 28, 23, 59, 59)
             
             # Calcular deuda pendiente a esa fecha
             deuda_mes = 0
-            for op in ordenes_pago:
-                if op.get('fecha_creacion'):
+            
+            for num, pago in pagos_dict.items():
+                # Solo contar órdenes creadas antes del corte
+                if pago.get('fecha_creacion'):
                     try:
-                        fecha_creacion = datetime.fromisoformat(op['fecha_creacion'].replace('Z', '+00:00'))
+                        fecha_creacion = datetime.fromisoformat(pago['fecha_creacion'].replace('Z', '+00:00'))
                         
-                        # OP creada antes del corte
                         if fecha_creacion <= fecha_corte:
-                            # Si tiene pago, verificar que fue después del corte
-                            pagado_despues = False
-                            if op.get('pagado', False) and op.get('fecha_pago'):
-                                fecha_pago = datetime.fromisoformat(op['fecha_pago'].replace('Z', '+00:00'))
-                                if fecha_pago > fecha_corte:
-                                    pagado_despues = True
+                            # Verificar si estaba pagada a esa fecha
+                            fecha_pago_str = fecha_map.get(num)
+                            estaba_pagada = False
                             
-                            # Si no estaba pagada al corte, contar
-                            if not op.get('pagado', False) or pagado_despues:
-                                deuda_mes += float(op.get('monto_total', 0) or 0)
+                            if fecha_pago_str:
+                                try:
+                                    fecha_pago = datetime.fromisoformat(fecha_pago_str.replace('Z', '+00:00'))
+                                    if fecha_pago <= fecha_corte:
+                                        estaba_pagada = True
+                                except:
+                                    pass
+                            
+                            # Si no estaba pagada, sumar al saldo
+                            if not estaba_pagada:
+                                total_pago = pago["total_pago"]
+                                total_abonado = abonos_map.get(num, 0)
+                                saldo = max(0, total_pago - total_abonado)
+                                deuda_mes += saldo
                     except:
                         pass
             

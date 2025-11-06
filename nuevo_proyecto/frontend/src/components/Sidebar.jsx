@@ -42,8 +42,19 @@ function Sidebar({ onLogout, onToggle }) {
         <div className="brand">
           {!isCollapsed && <h2>Sistema de Gestión</h2>}
         </div>
-        <button className="collapse-btn" onClick={toggleCollapse} aria-label="Toggle sidebar">
-          {isCollapsed ? '›' : '‹'}
+        <button className="collapse-btn" onClick={toggleCollapse} aria-label="Toggle sidebar" title={isCollapsed ? "Expandir menú" : "Contraer menú"}>
+          {isCollapsed ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          )}
         </button>
       </div>
 
@@ -175,8 +186,16 @@ function Sidebar({ onLogout, onToggle }) {
         )}
         
         {/* Botón de Cerrar Sesión */}
-        <button className="sidebar-logout-btn" onClick={onLogout}>
-          <i className="fas fa-right-from-bracket"></i>
+        <button 
+          className={`sidebar-logout-btn ${isCollapsed ? 'collapsed' : ''}`} 
+          onClick={onLogout}
+          title="Cerrar Sesión"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
           {!isCollapsed && <span className="label">Cerrar Sesión</span>}
         </button>
       </div>

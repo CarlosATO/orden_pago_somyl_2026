@@ -265,7 +265,10 @@ def create_orden_pago(current_user):
             .limit(1)
             .execute().data or []
         )
-        n_ingreso = (last_ingreso[0]["n_ingreso"] if last_ingreso else 0) + 1
+        # FIX: Manejar caso donde n_ingreso puede ser None
+        n_ingreso = ((last_ingreso[0]["n_ingreso"] or 0) if last_ingreso else 0) + 1
+        
+        current_app.logger.info(f"📝 Creando Orden de Pago #{data.get('orden_numero')} - n_ingreso inicial: {n_ingreso}")
         
         # 3. Fecha actual
         hoy = date.today().isoformat()
@@ -287,7 +290,7 @@ def create_orden_pago(current_user):
             # Obtener datos de la OC
             oc_data = (
                 supabase.table("orden_de_compra")
-                .select("id, proyecto, condicion_de_pago, fac_sin_iva")
+                .select("id, proyecto, condicion_de_pago, fac_sin_iva, orden_compra")
                 .eq("orden_compra", oc_numero)
                 .eq("art_corr", art_corr)
                 .limit(1)
@@ -299,7 +302,8 @@ def create_orden_pago(current_user):
                 continue
             
             oc = oc_data[0]
-            orden_compra_id = oc["id"]
+            orden_compra_id = oc["id"]  # ID interno para relaciones
+            orden_compra_numero = oc["orden_compra"]  # Número de OC para mostrar
             proyecto = oc.get("proyecto")
             condicion_pago = oc.get("condicion_de_pago")
             fac_sin_iva = oc.get("fac_sin_iva", 0)
@@ -327,7 +331,7 @@ def create_orden_pago(current_user):
             # Construir registro
             registros.append({
                 "ingreso_id": ingreso_id,
-                "orden_compra": orden_compra_id,
+                "orden_compra": orden_compra_numero,  # ✅ FIX: Usa el número de OC, no el ID
                 "doc_recep": documento or "",  # ✅ FIX: Campo correcto
                 "art_corr": art_corr,
                 "material": material_id,

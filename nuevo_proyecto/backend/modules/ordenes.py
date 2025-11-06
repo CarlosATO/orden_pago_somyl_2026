@@ -46,7 +46,15 @@ def create_orden(current_user):
     Adapta la lógica POST de la función 'new_orden' del sistema anterior.
     """
     data = request.get_json()
-    if not data or 'proveedor_id' not in data or not data.get('lineas'):
+    
+    # Extraer header y validar datos requeridos
+    header = data.get('header', {}) if data else {}
+    lineas = data.get('lineas', []) if data else []
+    
+    # Log para debugging
+    current_app.logger.info(f"📦 Creando OC - Proveedor: {header.get('proveedor_id')}, Líneas: {len(lineas)}")
+    
+    if not header.get('proveedor_id') or not lineas:
         return jsonify({"success": False, "message": "Faltan datos requeridos (proveedor, líneas)"}), 400
 
     supabase = current_app.config['SUPABASE']
@@ -63,14 +71,31 @@ def create_orden(current_user):
         hoy = date.today()
         rows_to_insert = []
         
-        # Datos del encabezado (vienen en el JSON)
-        header = data.get('header', {})
+        # Log para debugging
+        current_app.logger.info(f"📝 Procesando {len(lineas)} líneas")
         
-        for i, linea in enumerate(data['lineas']):
+        # Obtener todos los códigos de materiales para hacer una consulta en batch
+        codigos = [linea.get('codigo', '') for linea in lineas if linea.get('codigo')]
+        items_map = {}
+        
+        if codigos:
+            # Consultar items de materiales
+            materiales_res = supabase.table("materiales").select("cod, item").in_("cod", codigos).execute()
+            if materiales_res.data:
+                items_map = {mat['cod']: mat.get('item') for mat in materiales_res.data}
+                current_app.logger.info(f"📦 Items encontrados: {items_map}")
+        
+        for i, linea in enumerate(lineas):
+            current_app.logger.info(f"  Línea {i+1}: {linea}")
+            
             if not linea.get('cantidad') or float(linea['cantidad']) <= 0:
+                current_app.logger.warning(f"  ⚠️ Línea {i+1} omitida: cantidad inválida")
                 continue # Omitir líneas sin cantidad
 
-            rows_to_insert.append({
+            codigo = linea.get('codigo', '')
+            item_value = items_map.get(codigo) if codigo else None
+            
+            row_data = {
                 "orden_compra": next_oc_num,
                 "fecha": hoy.isoformat(),
                 "mes": hoy.month,
@@ -82,25 +107,35 @@ def create_orden(current_user):
                 "proyecto": header.get('proyecto_id'),
                 "solicita": header.get('solicitado_por'),
                 "art_corr": next_corr_num + i,
-                "codigo": linea.get('codigo', ''),
+                "codigo": codigo,
                 "descripcion": linea.get('descripcion'),
                 "cantidad": int(linea['cantidad']),
                 "precio_unitario": parse_monto(linea.get('neto')),
                 "total": parse_monto(linea.get('total')),
+                "item": item_value,  # ← AGREGADO: obtener item desde materiales
                 "estado_pago": "0" # Estado inicial por defecto
-            })
+            }
+            
+            current_app.logger.info(f"  ✓ Fila preparada (item: {item_value}): {row_data}")
+            rows_to_insert.append(row_data)
 
+        current_app.logger.info(f"📊 Total de filas a insertar: {len(rows_to_insert)}")
+        
         if not rows_to_insert:
             return jsonify({"success": False, "message": "No se encontraron líneas válidas para guardar."}), 400
 
         # --- 3. Insertar en Supabase ---
+        current_app.logger.info(f"💾 Insertando {len(rows_to_insert)} filas en la base de datos...")
         res = supabase.table("orden_de_compra").insert(rows_to_insert).execute()
+        
+        current_app.logger.info(f"📥 Respuesta de Supabase - Data: {res.data}, Count: {res.count if hasattr(res, 'count') else 'N/A'}")
 
         # En Supabase v2, el error se encuentra en el objeto `error`
         if res.data:
-             return jsonify({"success": True, "message": f"Orden de Compra {next_oc_num} creada exitosamente.", "orden_compra": next_oc_num})
+             return jsonify({"success": True, "message": f"Orden de Compra {next_oc_num} creada exitosamente con {len(res.data)} líneas.", "orden_compra": next_oc_num})
         else:
             # Manejar el caso de que no haya datos y tampoco error explícito
+            current_app.logger.error(f"❌ No se obtuvieron datos en la respuesta de Supabase")
             return jsonify({"success": False, "message": "Error desconocido al guardar la orden."}), 500
 
     except Exception as e:

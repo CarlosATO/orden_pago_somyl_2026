@@ -42,6 +42,7 @@ const Pagos = () => {
     visible: false,
     orden_numero: null,
     abonos: [],
+    saldo_pendiente: 0,  // ✅ Agregar saldo pendiente
     nuevoAbono: {
       monto_abono: '',
       fecha_abono: new Date().toISOString().split('T')[0],
@@ -254,6 +255,10 @@ const Pagos = () => {
     try {
       const token = getAuthToken();
       
+      // Buscar el pago para obtener el saldo pendiente
+      const pagoActual = pagos.find(p => p.orden_numero === orden_numero);
+      const saldoPendiente = pagoActual ? pagoActual.saldo_pendiente : 0;
+      
       const response = await fetch(`/api/pagos/abonos/${orden_numero}`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -267,8 +272,9 @@ const Pagos = () => {
           visible: true,
           orden_numero,
           abonos: data.data,
+          saldo_pendiente: saldoPendiente,  // ✅ Guardar saldo pendiente
           nuevoAbono: {
-            monto_abono: '',
+            monto_abono: saldoPendiente.toString(),  // ✅ Pre-llenar con saldo pendiente
             fecha_abono: new Date().toISOString().split('T')[0],
             observacion: ''
           }
@@ -284,6 +290,7 @@ const Pagos = () => {
       visible: false,
       orden_numero: null,
       abonos: [],
+      saldo_pendiente: 0,  // ✅ Resetear saldo pendiente
       nuevoAbono: {
         monto_abono: '',
         fecha_abono: new Date().toISOString().split('T')[0],
@@ -567,12 +574,13 @@ const Pagos = () => {
             <table className="tabla-pagos">
               <colgroup>
                 <col /><col /><col /><col /><col /><col /><col /><col />
-                <col /><col /><col /><col /><col /><col /><col />
+                <col /><col /><col /><col /><col /><col /><col /><col />
               </colgroup>
               <thead>
                 <tr>
                   <th>OP</th>
                   <th>Fecha</th>
+                  <th>Vencimiento</th>
                   <th>Proveedor</th>
                   <th>RUT</th>
                   <th>Detalle</th>
@@ -591,7 +599,7 @@ const Pagos = () => {
             <tbody>
               {pagos.length === 0 ? (
                 <tr>
-                  <td colSpan="15" className="no-registros">
+                  <td colSpan="16" className="no-registros">
                     No hay registros para mostrar
                   </td>
                 </tr>
@@ -609,6 +617,7 @@ const Pagos = () => {
                     <tr key={pago.orden_numero} className={filaClase}>
                       <td>{pago.orden_numero}</td>
                       <td>{pago.fecha}</td>
+                      <td>{pago.vencimiento || '---'}</td>
                       <td title={pago.proveedor_nombre}>{pago.proveedor_nombre}</td>
                       <td>{pago.rut_proveedor}</td>
                       <td title={pago.detalle_compra}>{pago.detalle_compra}</td>

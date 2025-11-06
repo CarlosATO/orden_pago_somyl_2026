@@ -221,6 +221,40 @@ function EstadoPresupuesto() {
     setDetalleData(null);
   };
 
+  const descargarPDF = async () => {
+    if (!modalDetalle) return;
+    
+    try {
+      const token = getAuthToken();
+      const { proyectoId, itemId, mes } = modalDetalle;
+      
+      const response = await fetch(
+        `/api/estado-presupuesto/detalle/pdf?proyecto_id=${proyectoId}&item_id=${itemId}&mes=${mes}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `detalle_gastos_${proyectoId}_${itemId}_${mes}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        console.error('Error al descargar PDF');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
   const formatMonto = (monto) => {
     return new Intl.NumberFormat('es-CL', {
       style: 'currency',
@@ -321,15 +355,9 @@ function EstadoPresupuesto() {
           </div>
           <h1>Estado de Presupuesto</h1>
         </div>
-        <button className="btn-refresh" onClick={fetchEstadoPresupuesto}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path d="M21 10C21 10 18.995 7.26822 17.3662 5.63824C15.7373 4.00827 13.4864 3 11 3C6.02944 3 2 7.02944 2 12C2 16.9706 6.02944 21 11 21C15.1031 21 18.5649 18.2543 19.6482 14.5M21 10V4M21 10H15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-          Actualizar
-        </button>
   </div>
 
-      {/* Mensaje */}
+  {/* Filtros */}
       {mensaje && (
         <div className={`alert alert-${mensaje.tipo === 'error' ? 'danger' : 'success'}`}>
           {mensaje.texto}
@@ -671,7 +699,35 @@ function EstadoPresupuesto() {
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Detalle de Gastos</h3>
-              <button className="btn-close" onClick={cerrarModal}>×</button>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button 
+                  className="btn-pdf" 
+                  onClick={descargarPDF}
+                  title="Descargar PDF"
+                  style={{
+                    backgroundColor: '#dc2626',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" strokeWidth="2"/>
+                    <polyline points="14 2 14 8 20 8" strokeWidth="2"/>
+                    <line x1="12" y1="18" x2="12" y2="12" strokeWidth="2"/>
+                    <line x1="9" y1="15" x2="15" y2="15" strokeWidth="2"/>
+                  </svg>
+                  PDF
+                </button>
+                <button className="btn-close" onClick={cerrarModal}>×</button>
+              </div>
             </div>
             
             {loadingDetalle ? (
@@ -695,6 +751,7 @@ function EstadoPresupuesto() {
                         <tr>
                           <th>Orden</th>
                           <th>O.Compra</th>
+                          <th>Proveedor</th>
                           <th>Descripción</th>
                           <th>Monto</th>
                         </tr>
@@ -704,6 +761,7 @@ function EstadoPresupuesto() {
                           <tr key={op.id}>
                             <td>{op.orden_numero}</td>
                             <td>{op.orden_compra}</td>
+                            <td>{op.proveedor || '-'}</td>
                             <td>{op.descripcion || '-'}</td>
                             <td className="text-right">{formatMonto(op.monto)}</td>
                           </tr>
@@ -711,7 +769,7 @@ function EstadoPresupuesto() {
                       </tbody>
                       <tfoot>
                         <tr>
-                          <td colSpan="3"><strong>Total Órdenes</strong></td>
+                          <td colSpan="4"><strong>Total Órdenes</strong></td>
                           <td className="text-right"><strong>{formatMonto(detalleData.total_ordenes)}</strong></td>
                         </tr>
                       </tfoot>
