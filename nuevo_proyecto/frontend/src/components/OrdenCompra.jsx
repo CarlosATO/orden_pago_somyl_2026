@@ -36,10 +36,12 @@ function OrdenCompra() {
   ];
 
   const plazosPagoOptions = [
-    { value: '30 días', label: '30 días' },
-    { value: '60 días', label: '60 días' },
-    { value: '90 días', label: '90 días' },
-    { value: 'Contado', label: 'Contado' }
+  { value: '7 días', label: '7 días' },
+  { value: '15 días', label: '15 días' },
+  { value: '30 días', label: '30 días' },
+  { value: '60 días', label: '60 días' },
+  { value: '90 días', label: '90 días' },
+  { value: 'Contado', label: 'Contado' }
   ];
 
   // ========= Obtener próximo número de OC =========
