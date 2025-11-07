@@ -131,7 +131,19 @@ def generar_pdf_from_form(form):
     fecha_factura = str(form.get("fecha_factura", ""))
     autoriza_nombre = str(form.get("autoriza_input", ""))
     autoriza_email = str(form.get("autoriza_email", ""))
-    numero_factura = str(form.get("numero_factura", "---"))
+    
+    # ✅ NUEVO: Extraer números de factura únicos de las guías (documentos)
+    # Las guías contienen los números de factura/documento
+    facturas_unicas = []
+    for guia in guias:
+        if guia and guia.strip() and guia.strip() != "SIN_DOCUMENTO":
+            if guia.strip() not in facturas_unicas:
+                facturas_unicas.append(guia.strip())
+    
+    # Unir con comas o usar "---" si no hay facturas
+    numero_factura = ", ".join(facturas_unicas) if facturas_unicas else "---"
+    current_app.logger.info(f"📄 Números de factura detectados: {numero_factura}")
+    
     condicion_pago = str(form.get("condicion_pago", "---"))
     proyecto = str(form.get("proyecto", "---"))
     
