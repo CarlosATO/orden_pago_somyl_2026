@@ -10,8 +10,10 @@
   position: fixed;
   left: 0;
   top: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  /* convert to flex column so footer can sit at bottom and menu area can scroll */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* menu area will handle scrolling */
   box-shadow: 2px 0 8px rgba(0,0,0,0.15);
   transition: width 250ms cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1000;
@@ -72,6 +74,10 @@
 
 .sidebar-nav {
   padding: 16px 0;
+  /* Make nav area grow and be scrollable inside the sidebar */
+  flex: 1 1 auto;
+  overflow-y: auto;
+  position: relative; /* for any absolute submenu overlays */
 }
 
 .sidebar-nav ul {
@@ -258,15 +264,16 @@
    FADE DE SCROLL
    ========================================= */
 
-.sidebar::after {
+.sidebar-nav::after {
+  /* subtle fade at bottom of the nav area to hint there's more content */
   content: '';
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 80px;
+  height: 60px;
   pointer-events: none;
-  background: linear-gradient(180deg, transparent 0%, rgba(26,29,46,0.9) 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(26,29,46,0.95) 100%);
 }
 
 /* =========================================
@@ -274,11 +281,11 @@
    ========================================= */
 
 .sidebar-footer {
-  position: absolute;
-  bottom: 20px;
-  left: 12px;
-  right: 12px;
-  z-index: 10;
+  /* keep footer inside the flow; margin-top:auto pushes it to the bottom of the sidebar */
+  margin-top: auto;
+  padding: 12px 12px 20px 12px;
+  left: 0;
+  right: 0;
 }
 
 /* Perfil del Usuario */
@@ -384,8 +391,8 @@
 }
 
 .sidebar.collapsed .sidebar-footer {
-  left: 11px;
-  right: 11px;
+  padding-left: 10px;
+  padding-right: 10px;
 }
 
 .sidebar.collapsed .user-profile {
