@@ -149,11 +149,21 @@ function OrdenesPago() {
 
   // ========= Calcular totales =========
   const calcularTotales = () => {
-    const neto = lineasSeleccionadas.reduce((sum, linea) => sum + linea.neto_total, 0);
-    // ⚠️ TODO: Aquí deberíamos chequear el IVA por OC
-    const iva = neto * 0.19; 
+    // Calcular neto e IVA por línea según fac_sin_iva
+    let neto = 0;
+    let iva = 0;
+    
+    lineasSeleccionadas.forEach(linea => {
+      const netoLinea = linea.neto_total || 0;
+      neto += netoLinea;
+      
+      // Solo agregar IVA si la OC NO es sin IVA (fac_sin_iva == 0 o false)
+      if (!linea.fac_sin_iva) {
+        iva += netoLinea * 0.19;
+      }
+    });
+    
     const total = neto + iva;
-
     return { neto, iva, total };
   };
 
@@ -987,7 +997,7 @@ function OrdenesPago() {
                   <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
                   <path d="M12 16v-4m0-4h.01" stroke="currentColor" strokeWidth="2"/>
                 </svg>
-                Los totales incluyen IVA (19%). (Revisar casos exentos)
+                Los totales calculan IVA (19%) según la configuración de cada orden de compra.
               </div>
 
               <div className="totales-box">

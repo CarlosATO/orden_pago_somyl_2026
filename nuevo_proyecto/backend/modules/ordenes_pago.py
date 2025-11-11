@@ -195,13 +195,36 @@ def get_detalle_documento(current_user):
             )
             mat_map = {m["id"]: m["material"] for m in mats}
         
-        # 4. Construir resultado
+        # 4. Obtener fac_sin_iva de orden_de_compra por art_corr
+        oc_sin_iva_map = {}
+        art_corrs = {(ing.get("orden_compra"), ing.get("art_corr")) for ing in ingresos if ing.get("art_corr")}
+        
+        if art_corrs:
+            for oc_num, art_corr in art_corrs:
+                try:
+                    oc_result = (
+                        supabase.table("orden_de_compra")
+                        .select("orden_compra, art_corr, fac_sin_iva")
+                        .eq("orden_compra", oc_num)
+                        .eq("art_corr", art_corr)
+                        .limit(1)
+                        .execute().data or []
+                    )
+                    if oc_result:
+                        key = (oc_num, art_corr)
+                        oc_sin_iva_map[key] = oc_result[0].get("fac_sin_iva", 0)
+                except Exception as e:
+                    current_app.logger.error(f"Error obteniendo fac_sin_iva para OC {oc_num} art {art_corr}: {e}")
+        
+        # 5. Construir resultado
         result = []
         for ing in ingresos:
             if ing["id"] in pagados_ids:
                 continue
             
             material_nombre = mat_map.get(ing["material"], f"Material ID: {ing['material']}")
+            key = (ing.get("orden_compra"), ing.get("art_corr"))
+            fac_sin_iva = oc_sin_iva_map.get(key, 0)
             
             result.append({
                 "ingreso_id": ing["id"],
@@ -212,7 +235,8 @@ def get_detalle_documento(current_user):
                 "art_corr": ing.get("art_corr"),
                 "orden_compra": ing.get("orden_compra"),
                 "material_id": ing.get("material"),
-                "documento": ing.get("factura") or "SIN_DOCUMENTO"
+                "documento": ing.get("factura") or "SIN_DOCUMENTO",
+                "fac_sin_iva": fac_sin_iva  # ✅ FIX: Incluir información de IVA
             })
         
         return jsonify({"success": True, "data": result})
@@ -436,6 +460,26 @@ def copiar_orden_pago(current_user, orden_numero):
         
         # Procesar líneas
         for linea in lineas:
+            # Obtener fac_sin_iva de la OC para cada línea
+            fac_sin_iva = 0
+            oc_numero = linea.get("orden_compra")
+            art_corr = linea.get("art_corr")
+            
+            if oc_numero and art_corr:
+                try:
+                    oc_data = (
+                        supabase.table("orden_de_compra")
+                        .select("fac_sin_iva")
+                        .eq("orden_compra", oc_numero)
+                        .eq("art_corr", art_corr)
+                        .limit(1)
+                        .execute().data or []
+                    )
+                    if oc_data:
+                        fac_sin_iva = oc_data[0].get("fac_sin_iva", 0)
+                except Exception as e:
+                    current_app.logger.warning(f"Error obteniendo fac_sin_iva para OC {oc_numero}: {e}")
+            
             response["lineas"].append({
                 "descripcion": linea.get("material_nombre"),
                 "cantidad": linea.get("cantidad"),
@@ -444,7 +488,8 @@ def copiar_orden_pago(current_user, orden_numero):
                 "orden_compra": linea.get("orden_compra"),
                 "documento": linea.get("factura") or "SIN_DOCUMENTO",
                 "art_corr": linea.get("art_corr"),
-                "material_id": linea.get("material")
+                "material_id": linea.get("material"),
+                "fac_sin_iva": fac_sin_iva  # ✅ FIX: Incluir información de IVA
             })
         
         return jsonify({"success": True, "data": response})
