@@ -1350,7 +1350,21 @@ def obtener_ejecucion_presupuestaria(prefetch=None):
         else:
             response_proy = supabase.table('proyectos').select('id, nombre').execute()
             proyectos = response_proy.data if response_proy.data else []
-        proyecto_nombres = {p['id']: p['nombre'] for p in proyectos}
+        proyecto_nombres = {}
+        for p in proyectos:
+            try:
+                pid = p.get('id') if isinstance(p, dict) else None
+            except Exception:
+                pid = None
+            if pid is None:
+                # skip malformed entry but log for debugging
+                print(f"Warning: proyecto sin 'id' en obtener_ejecucion_presupuestaria: {p}")
+                continue
+            # accept different possible name keys and guard missing values
+            name = None
+            if isinstance(p, dict):
+                name = p.get('nombre') or p.get('name') or p.get('proyecto')
+            proyecto_nombres[pid] = name or f'Proyecto {pid}'
         
         # Agrupar por proyecto
         ejecucion_por_proyecto = {}
