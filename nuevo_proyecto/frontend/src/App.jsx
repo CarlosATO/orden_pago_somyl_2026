@@ -23,6 +23,7 @@ import GastosDirectos from './components/GastosDirectos';
 import OrdenesNoRecepcionadas from './components/OrdenesNoRecepcionadas';
 import { isTokenValid, removeAuthToken } from './utils/auth';
 import './App.css';
+import { COMMIT_HASH } from './buildInfo';
 
 // Componentes placeholder para cada sección
 function OrdenesCompra() {
@@ -247,4 +248,31 @@ function App() {
   );
 }
 
-export default App;
+// Small commit banner to help identify deployed version in production.
+// It appears fixed at bottom-right and shows the short commit hash.
+function CommitBanner() {
+  const hash = typeof COMMIT_HASH === 'string' ? COMMIT_HASH : 'unknown';
+  const short = hash && hash.length > 7 ? hash.slice(0, 7) : hash;
+  const style = {
+    position: 'fixed',
+    right: 12,
+    bottom: 12,
+    background: 'rgba(0,0,0,0.6)',
+    color: '#fff',
+    padding: '6px 10px',
+    borderRadius: 6,
+    fontSize: 12,
+    zIndex: 9999
+  };
+  return <div style={style}>build: {short}</div>;
+}
+
+// Wrap App to include the banner globally so it's visible in production
+const AppWithBanner = () => (
+  <>
+    <App />
+    <CommitBanner />
+  </>
+);
+
+export default AppWithBanner;
