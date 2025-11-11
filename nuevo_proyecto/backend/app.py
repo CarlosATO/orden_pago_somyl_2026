@@ -1,4 +1,6 @@
 # backend/app.py
+
+# backend/app.py
 import os
 from pathlib import Path
 from flask import Flask, jsonify, send_from_directory
@@ -32,7 +34,6 @@ def create_app():
 
     from .modules.auth import bp as auth_bp
     from .modules.ordenes import bp as ordenes_bp
-    from .modules.lista_ordenes import bp as lista_ordenes_bp
     from .modules.ordenes_pago import bp as ordenes_pago_bp
     from .modules.ingresos import bp as ingresos_bp
     from .modules.proveedores import bp as proveedores_bp
@@ -56,7 +57,6 @@ def create_app():
     app.register_blueprint(bp_documentos_pendientes, url_prefix='/api/documentos-pendientes')
     app.register_blueprint(estado_presupuesto_bp, url_prefix='/api/estado-presupuesto')
     app.register_blueprint(ordenes_bp, url_prefix='/api/ordenes')
-    app.register_blueprint(lista_ordenes_bp, url_prefix='/api/lista-ordenes')
     app.register_blueprint(ordenes_pago_bp, url_prefix='/api/ordenes_pago')
     app.register_blueprint(ingresos_bp, url_prefix='/api/ingresos')
     app.register_blueprint(proveedores_bp, url_prefix='/api/proveedores')

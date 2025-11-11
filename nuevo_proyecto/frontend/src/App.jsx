@@ -5,7 +5,6 @@ import Sidebar from './components/Sidebar';
 import ProtectedRoute from './components/ProtectedRoute';
 import Dashboard from './components/Dashboard';
 import OrdenCompra from './components/OrdenCompra';
-import ListaOrdenesCompra from './components/ListaOrdenesCompra';
 import Ingresos from './components/Ingresos';
 import OrdenesPago from './components/OrdenesPago';
 import ProveedoresPage from './components/ProveedoresPage';
@@ -23,12 +22,10 @@ import GastosDirectos from './components/GastosDirectos';
 import OrdenesNoRecepcionadas from './components/OrdenesNoRecepcionadas';
 import { isTokenValid, removeAuthToken } from './utils/auth';
 import './App.css';
-import { COMMIT_HASH } from './buildInfo';
 
 // Componentes placeholder para cada sección
 function OrdenesCompra() {
-  // Esto era antes el formulario; ahora la ruta principal mostrará la lista.
-  return <ListaOrdenesCompra />;
+  return <OrdenCompra />;
 }
 
 function IngresosRecepciones() {
@@ -203,7 +200,6 @@ function AppContent() {
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/ordenes-compra" element={<OrdenesCompra />} />
-                  <Route path="/adquisiciones/crear-orden" element={<OrdenCompra />} />
                   <Route path="/ingresos-recepciones" element={<IngresosRecepciones />} />
                   <Route path="/ordenes-pago" element={<OrdenesPagoView />} />
                   <Route path="/presupuestos" element={<Presupuestos />} />
@@ -248,31 +244,4 @@ function App() {
   );
 }
 
-// Small commit banner to help identify deployed version in production.
-// It appears fixed at bottom-right and shows the short commit hash.
-function CommitBanner() {
-  const hash = typeof COMMIT_HASH === 'string' ? COMMIT_HASH : 'unknown';
-  const short = hash && hash.length > 7 ? hash.slice(0, 7) : hash;
-  const style = {
-    position: 'fixed',
-    right: 12,
-    bottom: 12,
-    background: 'rgba(0,0,0,0.6)',
-    color: '#fff',
-    padding: '6px 10px',
-    borderRadius: 6,
-    fontSize: 12,
-    zIndex: 9999
-  };
-  return <div style={style}>build: {short}</div>;
-}
-
-// Wrap App to include the banner globally so it's visible in production
-const AppWithBanner = () => (
-  <>
-    <App />
-    <CommitBanner />
-  </>
-);
-
-export default AppWithBanner;
+export default App;

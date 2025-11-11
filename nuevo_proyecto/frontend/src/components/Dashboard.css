@@ -921,48 +921,6 @@
   margin-bottom: 30px;
 }
 
-/* ================================================
-   SECCIÓN: ÓRDENES DE COMPRA PENDIENTES (modal)
-   ================================================ */
-.oc-compras-pendientes {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  background: #f5fbff;
-  border-left: 4px solid #3498db;
-  padding: 12px 16px;
-  margin-bottom: 18px;
-  border-radius: 8px;
-}
-.oc-compras-pendientes .oc-compras-info h4 {
-  font-size: 16px;
-  color: #2c3e50;
-  margin-bottom: 6px;
-}
-.oc-compras-stats {
-  display: flex;
-  align-items: baseline;
-  gap: 18px;
-}
-.oc-comp-count {
-  font-size: 14px;
-  color: #34495e;
-  font-weight: 700;
-}
-.oc-comp-total {
-  font-size: 18px;
-  color: #e74c3c;
-  font-weight: 800;
-}
-
-@media (max-width: 768px) {
-  .oc-compras-pendientes {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
 .documentos-section h3 {
   color: #2c3e50;
   font-size: 18px;

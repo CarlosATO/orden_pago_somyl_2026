@@ -507,65 +507,61 @@ const Pagos = () => {
       
       {/* Filtros */}
       <div className="filtros-container">
-        <div className="filtros-grid">
-          <div className="filtros-label">
-            <h3>Filtros de Búsqueda</h3>
-          </div>
-          <div className="filtros-content">
-            <div className="filtros-row">
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Buscar proveedor..."
-                value={filtros.proveedor}
-                onChange={(e) => handleFiltroChange('proveedor', e.target.value)}
-              />
-
-              <input
-                type="text"
-                className="form-control"
-                placeholder="N° Orden..."
-                value={filtros.orden_numero}
-                onChange={(e) => handleFiltroChange('orden_numero', e.target.value)}
-              />
-
-              <select
-                className="form-select"
-                value={filtros.proyecto}
-                onChange={(e) => handleFiltroChange('proyecto', e.target.value)}
-              >
-                <option value="">Todos los proyectos</option>
-                {proyectos.map(p => (
-                  <option key={p.id} value={p.id}>{p.nombre}</option>
-                ))}
-              </select>
-
-              <select
-                className="form-select"
-                value={filtros.estado}
-                onChange={(e) => handleFiltroChange('estado', e.target.value)}
-              >
-                <option value="">Todos los estados</option>
-                <option value="pendiente">Pendientes</option>
-                <option value="pagado">Pagados</option>
-                <option value="abono">Con Abonos</option>
-              </select>
-
-              <input
-                type="date"
-                className="form-control"
-                value={filtros.fecha_desde}
-                onChange={(e) => handleFiltroChange('fecha_desde', e.target.value)}
-              />
-
-              <input
-                type="date"
-                className="form-control"
-                value={filtros.fecha_hasta}
-                onChange={(e) => handleFiltroChange('fecha_hasta', e.target.value)}
-              />
-            </div>
-          </div>
+        <div className="filtros-header">
+          <h3>Filtros de Búsqueda</h3>
+        </div>
+        <div className="filtros-row">
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Buscar proveedor..."
+            value={filtros.proveedor}
+            onChange={(e) => handleFiltroChange('proveedor', e.target.value)}
+          />
+          
+          <input
+            type="text"
+            className="form-control"
+            placeholder="N° Orden..."
+            value={filtros.orden_numero}
+            onChange={(e) => handleFiltroChange('orden_numero', e.target.value)}
+          />
+          
+          <select
+            className="form-select"
+            value={filtros.proyecto}
+            onChange={(e) => handleFiltroChange('proyecto', e.target.value)}
+          >
+            <option value="">Todos los proyectos</option>
+            {proyectos.map(p => (
+              <option key={p.id} value={p.id}>{p.nombre}</option>
+            ))}
+          </select>
+          
+          <select
+            className="form-select"
+            value={filtros.estado}
+            onChange={(e) => handleFiltroChange('estado', e.target.value)}
+          >
+            <option value="">Todos los estados</option>
+            <option value="pendiente">Pendientes</option>
+            <option value="pagado">Pagados</option>
+            <option value="abono">Con Abonos</option>
+          </select>
+          
+          <input
+            type="date"
+            className="form-control"
+            value={filtros.fecha_desde}
+            onChange={(e) => handleFiltroChange('fecha_desde', e.target.value)}
+          />
+          
+          <input
+            type="date"
+            className="form-control"
+            value={filtros.fecha_hasta}
+            onChange={(e) => handleFiltroChange('fecha_hasta', e.target.value)}
+          />
         </div>
       </div>
       
