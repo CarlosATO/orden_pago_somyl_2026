@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react';
 import Select from 'react-select';
 import './Ingresos.css';
 import { getAuthToken } from '../utils/auth';
+import { useLocation } from 'react-router-dom';  // ← AGREGADO: para auto-seleccionar OC desde location.state
+
 
 function Ingresos() {
+  const location = useLocation();  // ← AGREGADO: leer state cuando se navega desde otra vista
   // ========= Estados principales =========
   const [ocSeleccionada, setOcSeleccionada] = useState(null);
   const [ocList, setOcList] = useState([]);
@@ -23,6 +26,17 @@ function Ingresos() {
   useEffect(() => {
     fetchOCsDisponibles();
   }, []);
+
+  // ========= Auto-seleccionar OC si viene del state =========
+  useEffect(() => {
+    if (location.state?.ocNumero && ocList.length > 0) {
+      const ocDesdeState = ocList.find(oc => oc.value === location.state.ocNumero);
+      if (ocDesdeState) {
+        setOcSeleccionada(ocDesdeState);
+        console.log(`✅ OC ${location.state.ocNumero} auto-seleccionada`);
+      }
+    }
+  }, [location.state, ocList]);
 
   // ========= Cargar datos cuando cambia la OC =========
   useEffect(() => {

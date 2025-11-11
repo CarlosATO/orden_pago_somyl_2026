@@ -392,6 +392,21 @@ function Dashboard() {
                       </span>
                     </div>
                   </div>
+                  {/* Sección: Órdenes Compras Pendientes (nuevo) */}
+                  {documentosDetalle.ordenes_compra_pendientes && (
+                    <div className="oc-compras-pendientes">
+                      <div className="oc-compras-info">
+                        <h4 style={{margin: 0}}>Órdenes Compras Pendientes</h4>
+                        <div className="oc-compras-stats">
+                          <div className="oc-comp-count">{formatNumber(documentosDetalle.ordenes_compra_pendientes.count)} órdenes</div>
+                          <div className="oc-comp-total">{formatCurrency(documentosDetalle.ordenes_compra_pendientes.total_neto)}</div>
+                        </div>
+                      </div>
+                      <div>
+                        <button className="btn btn-secondary" onClick={() => navigate('/ordenes-compra')}>Ver Órdenes</button>
+                      </div>
+                    </div>
+                  )}
                   
                   {/* Todos los Documentos Pendientes */}
                   {documentosDetalle.documentos && documentosDetalle.documentos.length > 0 ? (

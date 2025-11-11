@@ -1,5 +1,6 @@
 import re
 from datetime import date
+import time
 from collections import defaultdict
 from flask import Blueprint, request, jsonify, current_app
 
@@ -8,6 +9,14 @@ from backend.utils.decorators import token_required
 from backend.utils.cache import cache_result
 
 bp = Blueprint("ingresos", __name__)
+
+# Simple in-memory cache para reducir llamadas repetidas a Supabase cuando Redis no está disponible
+_MODULE_CACHE = {
+    "oc_list": {"ts": 0, "data": []},
+    "materials": {"ts": 0, "data": []},
+    "items": {"ts": 0, "data": []}
+}
+_CACHE_TTL = 120  # segundos
 
 # ========= Funciones Auxiliares =========
 
@@ -36,13 +45,22 @@ def get_ingresos_por_oc(current_user):
     
     try:
         # 1. Obtener lista de OCs disponibles (ordenadas desc)
-        oc_raw = (
-            supabase.table("orden_de_compra")
-            .select("orden_compra")
-            .order("orden_compra", desc=True)
-            .execute().data or []
-        )
-        oc_nums = sorted(set(int(oc_item["orden_compra"]) for oc_item in oc_raw if oc_item["orden_compra"] is not None), reverse=True)
+        t_start_oc = time.time()
+        now = time.time()
+        if now - _MODULE_CACHE["oc_list"]["ts"] < _CACHE_TTL and _MODULE_CACHE["oc_list"]["data"]:
+            oc_nums = _MODULE_CACHE["oc_list"]["data"]
+            current_app.logger.info(f"[ingresos] oc_list from cache (len={len(oc_nums)})")
+        else:
+            oc_raw = (
+                supabase.table("orden_de_compra")
+                .select("orden_compra")
+                .order("orden_compra", desc=True)
+                .execute().data or []
+            )
+            oc_nums = sorted(set(int(oc_item["orden_compra"]) for oc_item in oc_raw if oc_item["orden_compra"] is not None), reverse=True)
+            _MODULE_CACHE["oc_list"]["ts"] = now
+            _MODULE_CACHE["oc_list"]["data"] = oc_nums
+            current_app.logger.info(f"[ingresos] oc_list fetched (len={len(oc_nums)}) in {time.time()-t_start_oc:.3f}s")
         max_oc = oc_nums[0] if oc_nums else None
         
         # Si no viene OC, usar la más reciente
@@ -111,6 +129,7 @@ def get_ingresos_por_oc(current_user):
         page_size = 1000
         offset = 0
         oc_lines = []
+        t_lines = time.time()
         while True:
             batch = (
                 supabase.table("orden_de_compra")
@@ -123,16 +142,25 @@ def get_ingresos_por_oc(current_user):
             if len(batch) < page_size:
                 break
             offset += page_size
-        
-        # 5. Mapear descripciones a material_id
-        mats = (
-            supabase.table("materiales")
-            .select("id, material")
-            .execute().data or []
-        )
+        current_app.logger.info(f"[ingresos] oc_lines loaded: {len(oc_lines)} rows in {time.time()-t_lines:.3f}s")
+
+        # 5. Mapear descripciones a material_id (usar cache en memoria)
+        now = time.time()
+        if now - _MODULE_CACHE["materials"]["ts"] < _CACHE_TTL and _MODULE_CACHE["materials"]["data"]:
+            mats = _MODULE_CACHE["materials"]["data"]
+        else:
+            mats = (
+                supabase.table("materiales")
+                .select("id, material")
+                .execute().data or []
+            )
+            _MODULE_CACHE["materials"]["ts"] = now
+            _MODULE_CACHE["materials"]["data"] = mats
+
         mat_id_map = {normalize_text(m["material"]): m["id"] for m in mats}
-        
-        # 6. Obtener recepciones previas agrupadas por art_corr
+
+        # 6. Obtener recepciones previas agrupadas por art_corr (traer solo campos necesarios)
+        t0 = time.time()
         prev = (
             supabase.table("ingresos")
             .select("art_corr, recepcion")
@@ -141,27 +169,31 @@ def get_ingresos_por_oc(current_user):
         )
         ing_map = defaultdict(int)
         for i in prev:
-            art = int(i["art_corr"])
-            ing_map[art] += int(i["recepcion"] or 0)
-        
+            try:
+                art = int(i.get("art_corr") or 0)
+                ing_map[art] += int(i.get("recepcion") or 0)
+            except Exception:
+                continue
+        current_app.logger.info(f"[ingresos] obtuv prev {len(prev)} rows en {time.time()-t0:.3f}s")
+
         # 7. Construir líneas con cálculos
         for ln in oc_lines:
             sol = ln["cantidad"]
-            net = float(ln["precio_unitario"] or 0)
+            net = float(ln.get("precio_unitario") or 0)
             net_tot = sol * net
             total = net_tot if response_data["header"]["fac_sin_iva"] else net_tot * 1.19
             iva = total - net_tot
-            
-            art_key = int(ln["art_corr"])
+
+            art_key = int(ln.get("art_corr") or 0)
             prev_r = ing_map.get(art_key, 0)
             pend = sol - prev_r
-            
+
             # Buscar material_id normalizado
-            norm_desc = normalize_text(ln["descripcion"])
-            
+            norm_desc = normalize_text(ln.get("descripcion"))
+
             response_data["lineas"].append({
-                "codigo": ln["codigo"],
-                "descripcion": ln["descripcion"],
+                "codigo": ln.get("codigo"),
+                "descripcion": ln.get("descripcion"),
                 "solicitado": sol,
                 "neto": net,
                 "neto_tot": net_tot,
@@ -170,9 +202,9 @@ def get_ingresos_por_oc(current_user):
                 "total_recibido": prev_r,
                 "pendiente": pend,
                 "material_id": mat_id_map.get(norm_desc, None),
-                "art_corr": ln["art_corr"],
+                "art_corr": ln.get("art_corr"),
             })
-        
+
         return jsonify({"success": True, "data": response_data})
         
     except Exception as e:
@@ -261,20 +293,36 @@ def save_ingreso(current_user):
         )
         oc_map = {d["descripcion"]: d for d in oc_dt}
         
-        # Obtener materiales y tipos
-        mats = (
-            supabase.table("materiales")
-            .select("id, material, tipo, item")
-            .execute().data or []
-        )
+        # Obtener materiales y tipos (usar cache en memoria cuando sea posible)
+        t1 = time.time()
+        now = time.time()
+        if now - _MODULE_CACHE["materials"]["ts"] < _CACHE_TTL and _MODULE_CACHE["materials"]["data"]:
+            mats = _MODULE_CACHE["materials"]["data"]
+        else:
+            mats = (
+                supabase.table("materiales")
+                .select("id, material, tipo, item")
+                .execute().data or []
+            )
+            _MODULE_CACHE["materials"]["ts"] = now
+            _MODULE_CACHE["materials"]["data"] = mats
+
         mat_map = {normalize_text(m["material"]): m for m in mats}
-        
-        items = (
-            supabase.table("item")
-            .select("id, tipo")
-            .execute().data or []
-        )
+
+        # items cache
+        if now - _MODULE_CACHE["items"]["ts"] < _CACHE_TTL and _MODULE_CACHE["items"]["data"]:
+            items = _MODULE_CACHE["items"]["data"]
+        else:
+            items = (
+                supabase.table("item")
+                .select("id, tipo")
+                .execute().data or []
+            )
+            _MODULE_CACHE["items"]["ts"] = now
+            _MODULE_CACHE["items"]["data"] = items
+
         tipo_to_id = {it["tipo"]: it["id"] for it in items}
+        current_app.logger.info(f"[ingresos] materiales/items cargados en {time.time()-t1:.3f}s (mats={len(mats)}, items={len(items)})")
         
         hoy = date.today().isoformat()
         to_insert = []
@@ -344,6 +392,12 @@ def save_ingreso(current_user):
             if not factura:
                 warning = "Ingreso registrado sin número de factura. Quedará pendiente en Doc Pendientes."
             
+            # Invalidar cache de lista de OCs para que nuevas OCs aparezcan rápidamente
+            try:
+                _MODULE_CACHE["oc_list"]["ts"] = 0
+            except Exception:
+                pass
+
             return jsonify({
                 "success": True,
                 "message": "Ingreso registrado con éxito",

@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar';
 import ProtectedRoute from './components/ProtectedRoute';
 import Dashboard from './components/Dashboard';
 import OrdenCompra from './components/OrdenCompra';
+import ListaOrdenesCompra from './components/ListaOrdenesCompra';
 import Ingresos from './components/Ingresos';
 import OrdenesPago from './components/OrdenesPago';
 import ProveedoresPage from './components/ProveedoresPage';
@@ -25,7 +26,8 @@ import './App.css';
 
 // Componentes placeholder para cada sección
 function OrdenesCompra() {
-  return <OrdenCompra />;
+  // Esto era antes el formulario; ahora la ruta principal mostrará la lista.
+  return <ListaOrdenesCompra />;
 }
 
 function IngresosRecepciones() {
@@ -200,6 +202,7 @@ function AppContent() {
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/ordenes-compra" element={<OrdenesCompra />} />
+                  <Route path="/adquisiciones/crear-orden" element={<OrdenCompra />} />
                   <Route path="/ingresos-recepciones" element={<IngresosRecepciones />} />
                   <Route path="/ordenes-pago" element={<OrdenesPagoView />} />
                   <Route path="/presupuestos" element={<Presupuestos />} />
