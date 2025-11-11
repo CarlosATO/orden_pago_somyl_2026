@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
   "dev": "vite",
-  "prebuild": "node scripts/write-commit.js",
+  "prebuild": "node scripts/write-commit.cjs",
   "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
