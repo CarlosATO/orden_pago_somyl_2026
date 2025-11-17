@@ -80,8 +80,8 @@ def normalize_data(data: dict):
         if k in out and out[k] is not None:
             out[k] = str(out[k]).upper()
 
-    if 'email' in out and out['email']:
-        out['email'] = str(out['email']).lower()
+    if 'correo' in out and out['correo']:
+        out['correo'] = str(out['correo']).lower()
 
     if 'subcontrato' in out:
         val = out.get('subcontrato')
@@ -149,6 +149,13 @@ def proveedores_index():
 @bp.route('/new', methods=['POST'])
 def proveedores_new():
     data = request.get_json() or {}
+    
+    # Mapear campos del frontend a los de la BD
+    if 'telefono' in data:
+        data['fono'] = data.pop('telefono')
+    if 'email' in data:
+        data['correo'] = data.pop('email')
+    
     # Normalizar y validar RUT
     rut_raw = data.get('rut')
     ok, resp = validate_rut(rut_raw)
@@ -196,7 +203,13 @@ def proveedores_edit(proveedor_id):
         try:
             res = supabase.table('proveedores').select('*').eq('id', proveedor_id).single().execute()
             if res.data:
-                return jsonify({'success': True, 'data': res.data})
+                # Mapear campos de BD a frontend
+                data = res.data.copy()
+                if 'fono' in data:
+                    data['telefono'] = data['fono']
+                if 'correo' in data:
+                    data['email'] = data['correo']
+                return jsonify({'success': True, 'data': data})
             return jsonify({'success': False, 'message': 'No encontrado'}), 404
         except Exception as e:
             current_app.logger.error(f"Error get proveedor {proveedor_id}: {str(e)}")
@@ -204,6 +217,13 @@ def proveedores_edit(proveedor_id):
 
     # POST -> actualizar
     data = request.get_json() or {}
+    
+    # Mapear campos del frontend a los de la BD
+    if 'telefono' in data:
+        data['fono'] = data.pop('telefono')
+    if 'email' in data:
+        data['correo'] = data.pop('email')
+    
     if 'rut' in data:
         ok, resp = validate_rut(data.get('rut'))
         if not ok:
