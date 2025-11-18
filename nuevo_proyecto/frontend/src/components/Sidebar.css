@@ -10,10 +10,9 @@
   position: fixed;
   left: 0;
   top: 0;
-  /* convert to flex column so footer can sit at bottom and menu area can scroll */
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* menu area will handle scrolling */
+  overflow: hidden;
   box-shadow: 2px 0 8px rgba(0,0,0,0.15);
   transition: width 250ms cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1000;
@@ -34,6 +33,7 @@
   padding: 20px 16px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   background: #141824;
+  flex-shrink: 0;
 }
 
 .brand h2 {
@@ -69,15 +69,42 @@
 }
 
 /* =========================================
-   NAVEGACIÓN
+   NAVEGACIÓN - CON SCROLL FUNCIONAL
    ========================================= */
 
 .sidebar-nav {
-  padding: 16px 0;
-  /* Make nav area grow and be scrollable inside the sidebar */
+  padding: 16px 0 100px 0; /* padding-bottom para espacio del footer */
   flex: 1 1 auto;
   overflow-y: auto;
-  position: relative; /* for any absolute submenu overlays */
+  overflow-x: hidden;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Scrollbar personalizado - SIEMPRE VISIBLE */
+.sidebar-nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.15);
+  border-radius: 3px;
+  margin: 8px 0;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+  border-radius: 3px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.35);
+}
+
+/* Firefox scrollbar */
+.sidebar-nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) rgba(0,0,0,0.15);
 }
 
 .sidebar-nav ul {
@@ -90,32 +117,35 @@
   margin: 2px 0;
 }
 
-/* Links directos (sin submenú) */
+/* Links directos (sin submenú) - DESTACADOS */
 .nav-link {
   display: flex;
   align-items: center;
   gap: 12px;
-  color: #b8bcc8;
+  color: #e4e6eb; /* ✅ Igual que menú principal */
   text-decoration: none;
   padding: 12px 16px;
   margin: 0 12px;
   border-radius: 10px;
   transition: all 0.2s ease;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600; /* ✅ Bold como menú principal */
+  background: rgba(255,255,255,0.03); /* ✅ Fondo sutil */
 }
 
 .nav-link:hover {
-  background: rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.08);
   color: #fff;
+  transform: translateX(2px);
 }
 
 .nav-link.active {
   background: linear-gradient(90deg, #4c6ef5 0%, #5c7cfa 100%);
   color: #fff;
+  box-shadow: 0 2px 8px rgba(76,110,245,0.3);
 }
 
-/* Items de menú con submenú */
+/* Items de menú con submenú - MÁS DESTACADO */
 .menu-item {
   display: flex;
   align-items: center;
@@ -125,12 +155,14 @@
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
-  color: #b8bcc8;
-  font-weight: 500;
+  color: #e4e6eb; /* ✅ Más claro que submenús */
+  font-weight: 600; /* ✅ Más bold */
+  font-size: 14px;
+  background: rgba(255,255,255,0.03); /* ✅ Fondo sutil */
 }
 
 .menu-item:hover {
-  background: rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.08);
   color: #fff;
 }
 
@@ -141,32 +173,41 @@
   font-size: 14px;
 }
 
-/* Iconos de FontAwesome */
-.menu-content i,
-.nav-link i {
+/* Iconos de FontAwesome - MÁS GRANDES EN MENÚ PRINCIPAL */
+.menu-content i {
   width: 20px;
-  font-size: 16px;
+  font-size: 17px; /* ✅ Más grande */
   text-align: center;
   flex-shrink: 0;
+  color: #a5b4fc; /* ✅ Color distintivo */
 }
 
-/* Flechas de expansión */
+.nav-link i {
+  width: 20px;
+  font-size: 17px;
+  text-align: center;
+  flex-shrink: 0;
+  color: #a5b4fc;
+}
+
+/* Flechas de expansión - MÁS VISIBLE */
 .arrow {
-  font-size: 11px;
-  color: #6c7486;
+  font-size: 12px; /* ✅ Más grande */
+  color: #8b92a8; /* ✅ Más visible */
   transition: transform 0.2s ease;
+  font-weight: 700;
 }
 
 /* =========================================
-   SUBMENÚS
+   SUBMENÚS - MÁS DISTINGUIBLES
    ========================================= */
 
 .submenu {
-  background: rgba(0,0,0,0.15);
+  background: rgba(0,0,0,0.25); /* ✅ Fondo más oscuro */
   margin: 4px 12px 8px 12px;
-  padding: 6px 0;
+  padding: 8px 0;
   border-radius: 8px;
-  border-left: 2px solid rgba(76,110,245,0.4);
+  border-left: 3px solid #4c6ef5; /* ✅ Borde más ancho y azul brillante */
   animation: slideDown 0.2s ease;
 }
 
@@ -189,25 +230,28 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 16px;
+  padding: 10px 16px 10px 24px; /* ✅ Más padding izquierdo */
   font-size: 13px;
   color: #9ca3b4;
   text-decoration: none;
   transition: all 0.2s ease;
   border-radius: 6px;
   margin: 2px 8px;
+  font-weight: 400; /* ✅ Más delgado que menú principal */
 }
 
 .submenu a:hover {
-  background: rgba(255,255,255,0.05);
+  background: rgba(76,110,245,0.15); /* ✅ Hover con color azul */
   color: #fff;
-  padding-left: 20px;
+  padding-left: 28px; /* ✅ Animación más pronunciada */
+  transform: translateX(2px);
 }
 
 .submenu a i {
   width: 16px;
-  font-size: 13px;
-  opacity: 0.7;
+  font-size: 12px; /* ✅ Iconos más pequeños */
+  opacity: 0.6;
+  color: #7e88a3; /* ✅ Color distintivo */
 }
 
 /* Submenú flotante cuando sidebar está colapsado */
@@ -221,6 +265,9 @@
   box-shadow: 4px 4px 16px rgba(0,0,0,0.3);
   border: 1px solid rgba(255,255,255,0.1);
   margin: 0;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* =========================================
@@ -240,52 +287,15 @@
 }
 
 /* =========================================
-   SCROLLBAR PERSONALIZADO
-   ========================================= */
-
-.sidebar::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sidebar::-webkit-scrollbar-track {
-  background: rgba(0,0,0,0.1);
-}
-
-.sidebar::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.15);
-  border-radius: 3px;
-}
-
-.sidebar::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,0.25);
-}
-
-/* =========================================
-   FADE DE SCROLL
-   ========================================= */
-
-.sidebar-nav::after {
-  /* subtle fade at bottom of the nav area to hint there's more content */
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
-  pointer-events: none;
-  background: linear-gradient(180deg, transparent 0%, rgba(26,29,46,0.95) 100%);
-}
-
-/* =========================================
    FOOTER / LOGOUT
    ========================================= */
 
 .sidebar-footer {
-  /* keep footer inside the flow; margin-top:auto pushes it to the bottom of the sidebar */
   margin-top: auto;
   padding: 12px 12px 20px 12px;
-  left: 0;
-  right: 0;
+  background: #141824;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
 }
 
 /* Perfil del Usuario */
@@ -373,7 +383,7 @@
   stroke: currentColor;
 }
 
-/* Estilo especial cuando está contraído - MUY DISTINTIVO */
+/* Estilo especial cuando está contraído */
 .sidebar-logout-btn.collapsed {
   background: rgba(239,68,68,0.25);
   border: 2px solid #ef4444;
