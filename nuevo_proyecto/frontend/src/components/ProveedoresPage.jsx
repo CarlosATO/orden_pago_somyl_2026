@@ -63,9 +63,27 @@ const ProveedoresPage = () => {
     setShowModal(true);
   };
 
-  const handleEdit = (proveedor) => {
-    setSelectedProveedor(proveedor);
-    setShowModal(true);
+  const handleEdit = async (proveedor) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/proveedores/edit/${proveedor.id}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSelectedProveedor(data.data);
+        setShowModal(true);
+      } else {
+        console.error('Error cargando proveedor para editar:', data);
+      }
+    } catch (err) {
+      console.error('Fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCloseModal = () => {

@@ -207,8 +207,10 @@ def proveedores_edit(proveedor_id):
                 data = res.data.copy()
                 if 'fono' in data:
                     data['telefono'] = data['fono']
+                    del data['fono']
                 if 'correo' in data:
                     data['email'] = data['correo']
+                    del data['correo']
                 return jsonify({'success': True, 'data': data})
             return jsonify({'success': False, 'message': 'No encontrado'}), 404
         except Exception as e:
@@ -289,8 +291,16 @@ def api_validate_rut():
 def api_todos(current_user):
     supabase = current_app.config['SUPABASE']
     try:
-        res = supabase.table('proveedores').select('id, nombre').order('nombre').execute()
+        res = supabase.table('proveedores').select('id, nombre, rut, fono, correo, contacto, direccion, comuna, subcontrato, banco, cuenta, paguese_a').order('nombre').execute()
         items = res.data or []
+        # Mapear campos de BD a frontend
+        for item in items:
+            if 'fono' in item:
+                item['telefono'] = item['fono']
+                del item['fono']
+            if 'correo' in item:
+                item['email'] = item['correo']
+                del item['correo']
         return jsonify({'success': True, 'data': items})
     except Exception as e:
         current_app.logger.error(f"Error api_todos proveedores: {str(e)}")
