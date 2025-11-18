@@ -384,6 +384,15 @@
   border-color: #e5e7eb;
 }
 
+.field-hint {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-style: italic;
+  margin-top: 0.25rem;
+  display: block;
+  line-height: 1.4;
+}
+
 .checkbox-group label {
   display: flex;
   align-items: center;

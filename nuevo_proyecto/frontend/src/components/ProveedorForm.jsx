@@ -160,7 +160,7 @@ const ProveedorForm = ({ proveedor, onClose, onSaved }) => {
                 />
               </div>
 
-              <div className="form-grid-2">
+              <div className="form-grid-proveedor">
                 <div className="form-row">
                   <label className="form-label">
                     RUT <span className="required">*</span>
@@ -177,7 +177,7 @@ const ProveedorForm = ({ proveedor, onClose, onSaved }) => {
                 </div>
 
                 <div className="form-row">
-                  <label className="form-label">Subcontrato</label>
+                  <label className="form-label">Selecciona si es subcontrato</label>
                   <div className="form-checkbox-wrapper">
                     <input 
                       className="form-checkbox"

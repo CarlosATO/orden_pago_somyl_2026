@@ -470,6 +470,7 @@ function Ingresos() {
                   maxLength={50}
                   disabled={estadoRecepcion === 'completo'}
                 />
+                <small className="field-hint">Puede dejarse vacío para pagos urgentes. Se completará después en "Documentos Pendientes"</small>
               </div>
               <div className="form-group">
                 <label>
@@ -487,6 +488,7 @@ function Ingresos() {
                   maxLength={50}
                   disabled={estadoRecepcion === 'completo'}
                 />
+                <small className="field-hint">Campo opcional para control interno</small>
               </div>
               <div className="form-group checkbox-group">
                 <label className={estadoRecepcion === 'completo' ? 'disabled' : ''}>
@@ -498,6 +500,7 @@ function Ingresos() {
                   />
                   <span>Factura Pendiente</span>
                 </label>
+                <small className="field-hint">Marque si la factura queda pendiente de recepción</small>
               </div>
             </div>
           </div>

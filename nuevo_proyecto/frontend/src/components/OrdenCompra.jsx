@@ -436,10 +436,26 @@ function OrdenCompra() {
 
       if (response.ok && data.success) {
         setMensaje({ tipo: 'success', texto: `✅ ${data.message}` });
-        // Limpiar formulario
+        
+        // Limpiar formulario sin recargar la página
         setTimeout(() => {
-          window.location.reload();
-        }, 2000);
+          // Resetear todos los estados
+          setProveedor(null);
+          setRutProveedor('');
+          setTipoEntrega(null);
+          setPlazoPago(null);
+          setIncluirIVA(true);
+          setProyecto(null);
+          setSolicitadoPor(null);
+          setObservaciones('');
+          setLineas([{ id: Date.now(), material: null, descripcion: '', cantidad: 0, netoUnitario: 0, total: 0 }]);
+          
+          // Obtener nuevo número de OC
+          fetchProximoNumeroOC();
+          
+          // Limpiar mensaje después de 3 segundos
+          setTimeout(() => setMensaje(null), 3000);
+        }, 1500);
       } else {
         setMensaje({ tipo: 'error', texto: `❌ ${data.message || 'Error al guardar'}` });
       }
