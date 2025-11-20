@@ -9,6 +9,16 @@ from backend.utils.decorators import token_required
 bp = Blueprint("proyectos", __name__)
 
 
+def _clean_upper(val):
+    """Normaliza un valor a string, strip y upper de forma segura."""
+    if val is None:
+        return ''
+    try:
+        return str(val).strip().upper()
+    except Exception:
+        return ''
+
+
 @bp.route("/", methods=["GET"])
 @token_required
 def get_proyectos(current_user):
@@ -30,7 +40,7 @@ def get_proyectos(current_user):
         })
 
     except Exception as e:
-        current_app.logger.error(f"Error al obtener proyectos: {str(e)}")
+        current_app.logger.exception(f"Error al obtener proyectos: {e}")
         return jsonify({"success": False, "message": "Error al obtener los proyectos"}), 500
 
 
@@ -54,7 +64,7 @@ def api_get_proyectos_activos(current_user):
         })
 
     except Exception as e:
-        current_app.logger.error(f"Error en API de proyectos: {str(e)}")
+        current_app.logger.exception(f"Error en API de proyectos: {e}")
         return jsonify({"success": False, "message": "Error al obtener los proyectos"}), 500
 
 
@@ -64,11 +74,11 @@ def new_proyecto(current_user):
     """Crea un nuevo proyecto"""
     try:
         data = request.get_json() or {}
-        
-        # Validar y limpiar datos de entrada
-        proyecto_val = data.get("proyecto", "").strip().upper()
-        venta_val = data.get("venta", "").strip().upper()
-        observacion_val = data.get("observacion", "").strip().upper()
+
+        # Validar y limpiar datos de entrada (manejar tipos no-string)
+        proyecto_val = _clean_upper(data.get("proyecto"))
+        venta_val = _clean_upper(data.get("venta"))
+        observacion_val = _clean_upper(data.get("observacion"))
 
         # Validaciones básicas
         if not proyecto_val:
@@ -112,13 +122,13 @@ def new_proyecto(current_user):
             return jsonify({"success": False, "message": "Error al crear el proyecto"}), 500
 
     except Exception as e:
-        current_app.logger.error(f"Error al crear proyecto: {str(e)}")
+        current_app.logger.exception(f"Error al crear proyecto: {e}")
         return jsonify({"success": False, "message": "Error interno al crear el proyecto"}), 500
 
 
 @bp.route("/edit/<int:id>", methods=["GET", "POST"])
 @token_required
-def edit_proyecto(id, current_user):
+def edit_proyecto(current_user, id):
     """Edita un proyecto existente"""
     supabase = current_app.config['SUPABASE']
     
@@ -135,11 +145,11 @@ def edit_proyecto(id, current_user):
 
         # POST - actualizar
         data = request.get_json() or {}
-        
-        # Validar y limpiar datos
-        proyecto_val = data.get("proyecto", "").strip().upper()
-        venta_val = data.get("venta", "").strip().upper()
-        observacion_val = data.get("observacion", "").strip().upper()
+
+        # Validar y limpiar datos (manejar tipos no-string)
+        proyecto_val = _clean_upper(data.get("proyecto"))
+        venta_val = _clean_upper(data.get("venta"))
+        observacion_val = _clean_upper(data.get("observacion"))
 
         if not proyecto_val:
             return jsonify({"success": False, "message": "El nombre del proyecto es obligatorio"}), 400
@@ -179,7 +189,7 @@ def edit_proyecto(id, current_user):
             return jsonify({"success": False, "message": "Error al actualizar el proyecto"}), 500
 
     except Exception as e:
-        current_app.logger.error(f"Error al editar proyecto ID {id}: {str(e)}")
+        current_app.logger.exception(f"Error al editar proyecto ID {id}: {e}")
         return jsonify({"success": False, "message": "Error interno al procesar el proyecto"}), 500
 
 
@@ -207,7 +217,7 @@ def api_search(current_user):
         return jsonify({"results": results})
         
     except Exception as e:
-        current_app.logger.error(f"Error en búsqueda de proyectos: {e}")
+        current_app.logger.exception(f"Error en búsqueda de proyectos: {e}")
         return jsonify({"results": []})
 
 
@@ -230,5 +240,5 @@ def api_stats(current_user):
         })
         
     except Exception as e:
-        current_app.logger.error(f"Error al obtener estadísticas de proyectos: {e}")
+        current_app.logger.exception(f"Error al obtener estadísticas de proyectos: {e}")
         return jsonify({"total": 0, "con_venta": 0, "sin_venta": 0})
