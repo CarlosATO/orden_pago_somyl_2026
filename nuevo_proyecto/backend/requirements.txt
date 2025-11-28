@@ -1,0 +1,30 @@
+# ---- Framework y Servidor ----
+Flask==3.0.3
+Flask-CORS==4.0.0
+gunicorn==22.0.0
+gevent==24.11.1  # Worker asíncrono para producción (compatible con Python 3.13)
+Werkzeug==3.0.3
+
+# ---- Base de Datos y Cache ----
+supabase==2.5.1
+redis==5.0.4
+gql[requests]==3.5.0  # Cliente GraphQL para Nhost/Hasura
+# psycopg2-binary==2.9.9  # No necesario con Supabase
+
+# ---- Utilidades ----
+python-dotenv==1.0.1
+requests==2.31.0
+
+# ---- Para manejo de JWT (Autenticación) ----
+PyJWT==2.8.0
+bcrypt==4.2.1
+
+# ---- Generación de PDFs ----
+reportlab==4.0.7
+pdfkit==1.0.0
+
+# ---- Excel / Sheets ----
+openpyxl==3.1.2
+
+twilio
+google-generativeai

@@ -1,0 +1,435 @@
+/* =========================================
+   SIDEBAR - Diseño Minimalista y Profesional
+   ========================================= */
+
+.sidebar {
+  width: 260px;
+  height: 100vh;
+  background: #1a1d2e;
+  color: #e4e6eb;
+  position: fixed;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+  transition: width 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1000;
+}
+
+.sidebar.collapsed {
+  width: 70px;
+}
+
+/* =========================================
+   HEADER
+   ========================================= */
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  background: #141824;
+  flex-shrink: 0;
+}
+
+.brand h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.collapse-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: #e4e6eb;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.collapse-btn:hover {
+  background: rgba(255,255,255,0.12);
+  transform: scale(1.05);
+}
+
+.collapse-btn svg {
+  stroke: currentColor;
+}
+
+/* =========================================
+   NAVEGACIÓN - CON SCROLL FUNCIONAL
+   ========================================= */
+
+.sidebar-nav {
+  padding: 16px 0 100px 0; /* padding-bottom para espacio del footer */
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Scrollbar personalizado - SIEMPRE VISIBLE */
+.sidebar-nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-nav::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.15);
+  border-radius: 3px;
+  margin: 8px 0;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.2);
+  border-radius: 3px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.35);
+}
+
+/* Firefox scrollbar */
+.sidebar-nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) rgba(0,0,0,0.15);
+}
+
+.sidebar-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-nav > ul > li {
+  margin: 2px 0;
+}
+
+/* Links directos (sin submenú) - DESTACADOS */
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #e4e6eb; /* ✅ Igual que menú principal */
+  text-decoration: none;
+  padding: 12px 16px;
+  margin: 0 12px;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  font-weight: 600; /* ✅ Bold como menú principal */
+  background: rgba(255,255,255,0.03); /* ✅ Fondo sutil */
+}
+
+.nav-link:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  transform: translateX(2px);
+}
+
+.nav-link.active {
+  background: linear-gradient(90deg, #4c6ef5 0%, #5c7cfa 100%);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(76,110,245,0.3);
+}
+
+/* Items de menú con submenú - MÁS DESTACADO */
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  margin: 0 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #e4e6eb; /* ✅ Más claro que submenús */
+  font-weight: 600; /* ✅ Más bold */
+  font-size: 14px;
+  background: rgba(255,255,255,0.03); /* ✅ Fondo sutil */
+}
+
+.menu-item:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+
+.menu-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+
+/* Iconos de FontAwesome - MÁS GRANDES EN MENÚ PRINCIPAL */
+.menu-content i {
+  width: 20px;
+  font-size: 17px; /* ✅ Más grande */
+  text-align: center;
+  flex-shrink: 0;
+  color: #a5b4fc; /* ✅ Color distintivo */
+}
+
+.nav-link i {
+  width: 20px;
+  font-size: 17px;
+  text-align: center;
+  flex-shrink: 0;
+  color: #a5b4fc;
+}
+
+/* Flechas de expansión - MÁS VISIBLE */
+.arrow {
+  font-size: 12px; /* ✅ Más grande */
+  color: #8b92a8; /* ✅ Más visible */
+  transition: transform 0.2s ease;
+  font-weight: 700;
+}
+
+/* =========================================
+   SUBMENÚS - MÁS DISTINGUIBLES
+   ========================================= */
+
+.submenu {
+  background: rgba(0,0,0,0.25); /* ✅ Fondo más oscuro */
+  margin: 4px 12px 8px 12px;
+  padding: 8px 0;
+  border-radius: 8px;
+  border-left: 3px solid #4c6ef5; /* ✅ Borde más ancho y azul brillante */
+  animation: slideDown 0.2s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.submenu li {
+  margin: 0;
+}
+
+.submenu a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px 10px 24px; /* ✅ Más padding izquierdo */
+  font-size: 13px;
+  color: #9ca3b4;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border-radius: 6px;
+  margin: 2px 8px;
+  font-weight: 400; /* ✅ Más delgado que menú principal */
+}
+
+.submenu a:hover {
+  background: rgba(76,110,245,0.15); /* ✅ Hover con color azul */
+  color: #fff;
+  padding-left: 28px; /* ✅ Animación más pronunciada */
+  transform: translateX(2px);
+}
+
+.submenu a i {
+  width: 16px;
+  font-size: 12px; /* ✅ Iconos más pequeños */
+  opacity: 0.6;
+  color: #7e88a3; /* ✅ Color distintivo */
+}
+
+/* Submenú flotante cuando sidebar está colapsado */
+.submenu.overlay {
+  position: absolute;
+  left: 70px;
+  top: 0;
+  width: 220px;
+  z-index: 50;
+  background: #1a1d2e;
+  box-shadow: 4px 4px 16px rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.1);
+  margin: 0;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* =========================================
+   ESTADO COLAPSADO
+   ========================================= */
+
+.sidebar.collapsed .label,
+.sidebar.collapsed .arrow {
+  display: none;
+}
+
+.sidebar.collapsed .nav-link,
+.sidebar.collapsed .menu-item {
+  justify-content: center;
+  padding-left: 25px;
+  padding-right: 25px;
+}
+
+/* =========================================
+   FOOTER / LOGOUT
+   ========================================= */
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 12px 12px 20px 12px;
+  background: #141824;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+
+/* Perfil del Usuario */
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.user-profile:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.12);
+}
+
+.user-avatar {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #4c6ef5 0%, #5c7cfa 100%);
+  border-radius: 50%;
+  color: #fff;
+  font-size: 20px;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  flex: 1;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-email {
+  font-size: 11px;
+  color: #9ca3b4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Botón de Logout */
+.sidebar-logout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(239,68,68,0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239,68,68,0.3);
+  padding: 11px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.sidebar-logout-btn:hover {
+  background: rgba(239,68,68,0.2);
+  border-color: rgba(239,68,68,0.5);
+  color: #fff;
+}
+
+.sidebar-logout-btn svg {
+  flex-shrink: 0;
+  stroke: currentColor;
+}
+
+/* Estilo especial cuando está contraído */
+.sidebar-logout-btn.collapsed {
+  background: rgba(239,68,68,0.25);
+  border: 2px solid #ef4444;
+  padding: 14px 8px;
+  gap: 0;
+  border-radius: 12px;
+}
+
+.sidebar-logout-btn.collapsed:hover {
+  background: #ef4444;
+  border-color: #dc2626;
+  color: #fff;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(239,68,68,0.4);
+}
+
+.sidebar.collapsed .sidebar-footer {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.sidebar.collapsed .user-profile {
+  justify-content: center;
+  padding: 10px;
+}
+
+.sidebar.collapsed .user-info {
+  display: none;
+}
+
+/* =========================================
+   RESPONSIVE
+   ========================================= */
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 100%;
+    max-width: 280px;
+    transform: translateX(-100%);
+  }
+  
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  
+  .sidebar.collapsed {
+    transform: translateX(-100%);
+  }
+}

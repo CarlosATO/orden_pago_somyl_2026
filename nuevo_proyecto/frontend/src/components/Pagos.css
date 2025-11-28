@@ -1,0 +1,1016 @@
+/* nuevo_proyecto/frontend/src/components/Pagos.css */
+
+.pagos-container {
+  padding: 1.5rem;
+  max-width: 100%;
+  margin: 0 auto;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+  overflow-x: hidden; /* Prevenir scroll horizontal en la página completa */
+}
+
+/* ========= HEADER ========= */
+.pagos-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.pagos-header h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn-success {
+  background-color: #10b981;
+  color: white;
+  border: none;
+  padding: 0.625rem 1.25rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-success:hover {
+  background-color: #059669;
+  transform: translateY(-1px);
+}
+
+/* ========= MENSAJES ========= */
+.alert {
+  padding: 0.875rem 1.25rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.alert-success {
+  background-color: #d1fae5;
+  color: #065f46;
+  border-left: 3px solid #10b981;
+}
+
+.alert-danger {
+  background-color: #fee2e2;
+  color: #991b1b;
+  border-left: 3px solid #ef4444;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  opacity: 0.6;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  line-height: 1;
+  color: inherit;
+}
+
+.btn-close:hover {
+  opacity: 1;
+}
+
+/* ========= LAYOUT SUPERIOR: TABLAS LADO A LADO ========= */
+.pagos-top-section {
+  display: grid;
+  grid-template-columns: minmax(320px, 380px) 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  overflow-x: hidden;
+}
+
+/* ========= TABLA DE ESTADÍSTICAS - MINIMALISTA Y COMPACTA ========= */
+.stats-table-container {
+  background: white;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e5e7eb;
+}
+
+.stats-table-container h3 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  margin: 0 0 0.75rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.stats-table td {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #f1f3f5;
+  text-align: center;
+  background: #fafbfc;
+  transition: all 0.2s ease;
+}
+
+.stats-table tr:first-child td:first-child {
+  border-top-left-radius: 6px;
+}
+
+.stats-table tr:first-child td:last-child {
+  border-top-right-radius: 6px;
+}
+
+.stats-table tr:last-child td {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f5 100%);
+  border-color: #dee2e6;
+}
+
+.stats-table td:hover {
+  background: #f5f7f9;
+  transform: translateY(-1px);
+}
+
+.stat-value-compact {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.2;
+  margin-bottom: 0.15rem;
+}
+
+.stat-label-compact {
+  font-size: 0.65rem;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* ========= TABLA DE PROYECTOS - ELEGANTE Y COMPACTA ========= */
+.proyectos-table-container {
+  background: white;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e5e7eb;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.proyectos-table-container h3 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  margin: 0 0 0.75rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.proyectos-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.proyectos-table thead th {
+  position: sticky;
+  top: 0;
+  background: #fafbfc;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  border-bottom: 1px solid #e5e7eb;
+  z-index: 1;
+}
+
+.proyectos-table tbody tr {
+  border-bottom: 1px solid #f8f9fa;
+  transition: all 0.15s ease;
+}
+
+.proyectos-table tbody tr:hover {
+  background-color: #fafbfc;
+  transform: translateX(2px);
+}
+
+.proyectos-table tbody td {
+  padding: 0.65rem 0.75rem;
+  font-size: 0.8rem;
+  color: #1e293b;
+}
+
+.proyectos-table tbody td:first-child {
+  font-weight: 600;
+}
+
+.proyectos-table tbody td:nth-child(2) {
+  text-align: right;
+  font-weight: 600;
+  color: #3b82f6;
+  font-variant-numeric: tabular-nums;
+}
+
+.proyectos-table tbody td:last-child {
+  text-align: right;
+  font-weight: 700;
+  color: #374151;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Fila de totales en tabla de proyectos */
+.proyectos-totales {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-top: 2px solid #5a67d8;
+}
+
+.proyectos-totales:hover {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  transform: none !important;
+}
+
+.proyectos-totales .totales-label {
+  color: white;
+  font-size: 0.75rem;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+}
+
+.proyectos-totales .totales-value {
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* Scrollbar minimalista */
+.proyectos-table-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.proyectos-table-container::-webkit-scrollbar-track {
+  background: #f9fafb;
+}
+
+.proyectos-table-container::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+.proyectos-table-container::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* ========= MENSAJE CUANDO NO HAY PROYECTOS PENDIENTES ========= */
+.no-proyectos {
+  text-align: center;
+  padding: 2rem;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+/* ========= FILTROS ========= */
+.filtros-container {
+  background: white;
+  padding: 1.25rem;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+  margin-bottom: 1.5rem;
+}
+
+.filtros-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.filtros-header h3 {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #374151;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filtros-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.form-control,
+.form-select {
+  padding: 0.625rem 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background-color: white;
+  transition: all 0.2s;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.form-control:focus,
+.form-select:focus {
+  outline: none;
+  border-color: #6b7280;
+  box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.1);
+}
+
+.form-control::placeholder {
+  color: #9ca3af;
+}
+
+/* ========= TABLA PRINCIPAL - DOBLE CONTENEDOR PARA SCROLL ========= */
+/* Wrapper externo: borde, sombra y border-radius */
+.tabla-wrapper {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+  margin-bottom: 1.5rem;
+  /* NO overflow hidden - dejar que el contenedor interno maneje el scroll */
+}
+
+/* Contenedor interno: maneja el scroll */
+.tabla-container {
+  overflow-x: auto !important; /* FORZAR scroll horizontal */
+  overflow-y: auto !important; /* FORZAR scroll vertical */
+  max-height: calc(100vh - 420px); /* Altura máxima para scroll vertical */
+  min-height: 500px; /* Asegurar altura mínima */
+  -webkit-overflow-scrolling: touch; /* Scroll suave en iOS */
+  border-radius: 8px; /* Aplicar border-radius aquí */
+}
+
+.tabla-pagos {
+  width: 2000px !important; /* FORZAR ancho grande para garantizar scroll */
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  table-layout: fixed; /* Mantener anchos de columna fijos */
+  margin: 0;
+  border: none;
+}
+
+/* DEFINIR ANCHOS MÁXIMOS POR COLUMNA */
+.tabla-pagos colgroup col:nth-child(1) { width: 70px; }   /* OP */
+.tabla-pagos colgroup col:nth-child(2) { width: 100px; }  /* Fecha */
+.tabla-pagos colgroup col:nth-child(3) { width: 180px; }  /* Proveedor */
+.tabla-pagos colgroup col:nth-child(4) { width: 120px; }  /* RUT */
+.tabla-pagos colgroup col:nth-child(5) { width: 200px; }  /* Detalle */
+.tabla-pagos colgroup col:nth-child(6) { width: 120px; }  /* Factura */
+.tabla-pagos colgroup col:nth-child(7) { width: 110px; }  /* Total */
+.tabla-pagos colgroup col:nth-child(8) { width: 150px; }  /* Proyecto */
+.tabla-pagos colgroup col:nth-child(9) { width: 100px; }  /* Item */
+.tabla-pagos colgroup col:nth-child(10) { width: 80px; }  /* OC */
+.tabla-pagos colgroup col:nth-child(11) { width: 140px; } /* Fecha Pago */
+.tabla-pagos colgroup col:nth-child(12) { width: 110px; } /* Abonos */
+.tabla-pagos colgroup col:nth-child(13) { width: 110px; } /* Saldo */
+.tabla-pagos colgroup col:nth-child(14) { width: 100px; } /* Estado */
+.tabla-pagos colgroup col:nth-child(15) { width: 100px; } /* Acciones */
+
+/* HEADER FIJO - ESTILO MINIMALISTA */
+.tabla-pagos thead {
+  background: #f9fafb;
+  color: #374151;
+  position: sticky;
+  top: 0;
+  z-index: 2; /* Reducido para evitar conflictos */
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.tabla-pagos th {
+  padding: 0.875rem 0.75rem;
+  text-align: left;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  background: #f9fafb; /* Fondo para que el sticky funcione */
+  color: #374151;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-right: 1px solid #f3f4f6;
+  position: relative; /* Agregar para evitar problemas de sticky */
+}
+
+.tabla-pagos th:last-child {
+  border-right: none;
+}
+
+/* FILAS */
+.tabla-pagos tbody tr {
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.15s;
+  background-color: #ffffff;
+}
+
+.tabla-pagos tbody tr:nth-child(even) {
+  background-color: #fafafa;
+}
+
+.tabla-pagos tbody tr:hover {
+  background-color: #f5f5f5;
+}
+
+/* FILA PAGADA - TODA LA FILA EN VERDE */
+.tabla-pagos tbody tr.fila-pagada {
+  background-color: #d1fae5 !important; /* Verde claro */
+}
+
+.tabla-pagos tbody tr.fila-pagada:hover {
+  background-color: #a7f3d0 !important; /* Verde más oscuro al hover */
+}
+
+.tabla-pagos tbody tr.fila-pagada td {
+  color: #065f46; /* Texto verde oscuro */
+  font-weight: 500;
+}
+
+/* FILA CON ABONOS - TODA LA FILA EN AMARILLO SUAVE */
+.tabla-pagos tbody tr.fila-abono {
+  background-color: #fef3c7 !important; /* Amarillo suave */
+}
+
+.tabla-pagos tbody tr.fila-abono:hover {
+  background-color: #fde68a !important; /* Amarillo más intenso al hover */
+}
+
+.tabla-pagos tbody tr.fila-abono td {
+  color: #92400e; /* Texto marrón oscuro */
+  font-weight: 500;
+}
+
+.tabla-pagos td {
+  padding: 0.875rem 0.75rem;
+  border-right: 1px solid #f9fafb;
+  color: #1e293b;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tabla-pagos td:last-child {
+  border-right: none;
+}
+
+.tabla-pagos td strong {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.text-right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.text-center {
+  text-align: center;
+}
+
+/* ========= BADGES - MINIMALISTAS ========= */
+.badge {
+  display: inline-block;
+  padding: 0.3rem 0.7rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.badge-success {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.badge-danger {
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.badge-warning {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.badge-secondary {
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+/* ========= BOTONES ========= */
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  font-size: 0.875rem;
+}
+
+.btn-primary {
+  background: #374151;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #1f2937;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: #e5e7eb;
+  color: #374151;
+  font-weight: 600;
+}
+
+.btn-secondary:hover {
+  background-color: #d1d5db;
+  transform: translateY(-1px);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-danger {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  border: none;
+  box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+  transition: all 0.2s ease;
+}
+
+.btn-danger:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(239, 68, 68, 0.2);
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.75rem;
+  border-radius: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+/* ========= INPUT DE FECHA EN TABLA ========= */
+/* Wrapper para el input y el icono */
+.fecha-input-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 140px;
+}
+
+/* Ícono de calendario SIEMPRE VISIBLE */
+.calendar-icon {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: #000000;
+  pointer-events: none; /* No interfiere con el click en el input */
+  z-index: 1;
+}
+
+.form-control-sm {
+  padding: 0.375rem 0.625rem;
+  padding-right: 30px; /* Espacio para el icono */
+  font-size: 0.8rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  width: 100%;
+  font-weight: 600;
+  transition: all 0.2s;
+  background-color: white;
+  color: #1e293b;
+  cursor: pointer;
+  position: relative;
+}
+
+.form-control-sm:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Ocultar el icono nativo del navegador */
+.form-control-sm::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  cursor: pointer;
+}
+
+.form-control-sm::-webkit-datetime-edit {
+  padding-right: 0;
+}
+
+.form-control-sm::-webkit-datetime-edit-fields-wrapper {
+  padding-right: 0;
+}
+
+.form-control-sm::-webkit-datetime-edit-text {
+  padding: 0 0.3em;
+  color: #1e293b;
+}
+
+.form-control-sm::-webkit-datetime-edit-month-field,
+.form-control-sm::-webkit-datetime-edit-day-field,
+.form-control-sm::-webkit-datetime-edit-year-field {
+  padding: 0;
+  color: #1e293b;
+}
+
+/* Hover effect para mostrar que es clickeable */
+.form-control-sm:hover {
+  border-color: #93c5fd;
+  background-color: #fafbff;
+}
+
+.fecha-input-wrapper:hover .calendar-icon {
+  color: #3b82f6;
+}
+
+/* Para Firefox */
+.form-control-sm::-moz-focus-inner {
+  border: 0;
+}
+
+/* Estilo cuando el campo está vacío */
+.form-control-sm:invalid {
+  color: #9ca3af;
+}
+
+.form-control-sm:invalid:hover {
+  color: #6b7280;
+}
+
+/* ========= PAGINACIÓN ========= */
+.paginacion {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+}
+
+.paginacion-info {
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.paginacion-botones {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.page-info {
+  color: #374151;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+/* ========= MODAL DE ABONOS - DISEÑO MODERNO ========= */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 2rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.modal-content {
+  background: white;
+  border-radius: 16px;
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(to bottom, #ffffff, #f9fafb);
+  border-radius: 16px 16px 0 0;
+}
+
+.modal-header h2 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin: 0;
+  color: #0f172a;
+  letter-spacing: -0.025em;
+}
+
+.modal-header .btn-close {
+  color: #64748b;
+  font-size: 2rem;
+  font-weight: 300;
+  opacity: 0.7;
+  transition: all 0.2s ease;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+
+.modal-header .btn-close:hover {
+  opacity: 1;
+  color: #1e293b;
+  background: #f1f5f9;
+}
+
+.modal-body {
+  padding: 2rem;
+}
+
+.abonos-list h3,
+.nuevo-abono h3 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.abonos-list h3::before {
+  content: "📋";
+  font-size: 1rem;
+}
+
+.nuevo-abono h3::before {
+  content: "➕";
+  font-size: 1rem;
+}
+
+.tabla-abonos {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-top: 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.tabla-abonos th,
+.tabla-abonos td {
+  padding: 1rem 1.25rem;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.tabla-abonos th {
+  background: linear-gradient(to bottom, #f8fafc, #f1f5f9);
+  font-weight: 700;
+  color: #334155;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.tabla-abonos tbody td {
+  color: #1e293b;
+  font-size: 0.875rem;
+  background: white;
+}
+
+.tabla-abonos tbody tr {
+  transition: all 0.2s ease;
+}
+
+.tabla-abonos tbody tr:hover {
+  background: linear-gradient(to right, #f8fafc, #ffffff);
+  transform: translateX(2px);
+}
+
+.tabla-abonos tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.nuevo-abono {
+  padding-top: 2rem;
+  border-top: 2px solid #f1f5f9;
+  margin-top: 2rem;
+  background: linear-gradient(to bottom, transparent, #fafbfc);
+  padding: 2rem;
+  border-radius: 12px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 200px 200px;
+  gap: 2.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.form-group .form-control {
+  padding: 0.75rem 1rem;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: #1e293b;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.form-group .form-control:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-group .form-control:hover {
+  border-color: #cbd5e1;
+}
+
+textarea.form-control {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+/* ========= LOADING ========= */
+.loading {
+  text-align: center;
+  padding: 3rem;
+  color: #6b7280;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* ========= NO REGISTROS ========= */
+.no-registros {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: #94a3b8;
+  font-size: 0.875rem;
+  font-style: italic;
+  background: linear-gradient(to bottom, #fafbfc, #f8fafc);
+  border-radius: 12px;
+  border: 2px dashed #e2e8f0;
+  margin: 1rem 0;
+}
+
+.no-registros::before {
+  content: "📭";
+  display: block;
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+/* ========= RESPONSIVE ========= */
+@media (max-width: 1200px) {
+  .pagos-top-section {
+    grid-template-columns: 1fr;
+  }
+  
+  .stats-table-container {
+    max-width: 500px;
+  }
+}
+
+@media (max-width: 768px) {
+  .pagos-container {
+    padding: 1rem;
+  }
+  
+  .filtros-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .paginacion {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Scrollbar minimalista para tabla principal */
+.tabla-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.tabla-container::-webkit-scrollbar-track {
+  background: #f9fafb;
+}
+
+.tabla-container::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+.tabla-container::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 30px; }
+    .header, .footer { text-align: center; font-size: 12px; color: #555; }
+    .section { margin-bottom: 20px; }
+    h1, h2, h3, h4, h5 { margin: 5px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { border: 1px solid #444; padding: 6px; font-size: 12px; }
+    th { background: #f0f0f0; }
+    .right { text-align: right; }
+  </style>
+</head>
+<body>
+
+  <!-- Título -->
+  <h2 style="text-align:center;">Orden de Pago #{{ numero }}</h2>
+
+  <!-- Encabezado Empresa -->
+  <div class="section header">
+    <strong>{{ empresa.nombre }}</strong><br>
+    RUT: {{ empresa.rut }} &nbsp; Teléfono: {{ empresa.telefono }}<br>
+    Rubro: {{ empresa.rubro }}<br>
+    Dirección: {{ empresa.direccion }}
+  </div>
+
+  <!-- Beneficiario, Detalles de Factura y Detalle de O.P. lado a lado -->
+  <table width="100%" style="margin-bottom:20px;">
+    <tr>
+      <td valign="top" width="33%">
+        <h4>Páguese a:</h4>
+        <p><strong>{{ proveedor.paguese_a }}</strong></p>
+        <p><strong>Nombre:</strong> {{ proveedor.nombre }}</p>
+        <p><strong>RUT:</strong> {{ proveedor.rut }}</p>
+        <p><strong>Cuenta Corriente:</strong> {{ proveedor.cuenta }}</p>
+        <p><strong>Banco:</strong> {{ proveedor.banco }}</p>
+        <p><strong>Correo:</strong> {{ proveedor.correo }}</p>
+      </td>
+      <td valign="top" width="33%">
+        <h4>Detalles de Factura / Orden de Compra</h4>
+        <p><strong>Número de Factura:</strong> {{ facturas_uniq | join(', ') }}</p>
+        <p><strong>OC:</strong> {{ ocs_uniq | join(', ') }}</p>
+        <p><strong>Condición de Pago:</strong> {{ cond_pago }}</p>
+        <p><strong>Fecha Factura:</strong> {{ fecha_factura }}</p>
+        <p><strong>Fecha de Vencimiento:</strong> {{ fecha_venc }}</p>
+        <p><strong>Proyecto:</strong> {{ proyectos_str }}</p>
+      </td>
+      <td valign="top" width="33%">
+        <h4>Detalle de O.P.:</h4>
+        <p style="font-size:12px;">{{ detalle_op }}</p>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Tabla de materiales -->
+  <div class="section">
+    <h4>Detalle de Material</h4>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:80px;">Guía Recepción</th>
+          <th style="width:60px;">Orden Compra</th>
+          <th>Descripción</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in detalle_material %}
+        <tr>
+          <td>{{ m.guia }}</td>
+          <td>{{ m.oc }}</td>
+          <td>{{ m.descripcion }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Totales -->
+  <div class="section" style="width:40%; float:right;">
+    <table>
+      <tbody>
+        <tr>
+          <th class="right">Total Neto:</th>
+          <td class="right">$ {{ "{:,.0f}".format(total_neto) }}</td>
+        </tr>
+        <tr>
+          <th class="right">Total IVA (19%){% if sin_iva %} - EXENTO{% endif %}:</th>
+          <td class="right">$ {{ "{:,.0f}".format(total_iva) }}</td>
+        </tr>
+        <tr>
+          <th class="right">Total a Pagar:</th>
+          <td class="right">$ {{ "{:,.0f}".format(total_pagar) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div style="clear:both;"></div>
+
+  <!-- Autorización -->
+  <div class="section">
+    <h5>Autorizado por:</h5>
+    <strong>{{ autorizador.nombre }}</strong>
+  </div>
+
+  <!-- Pie de página -->
+  <div class="footer">
+    {{ empresa.nombre }} — Orden de Pago<br>
+    Fecha de emisión: {{ fecha_emision }}
+  </div>
+</body>
+</html>

@@ -1,0 +1,234 @@
+/* frontend/src/components/ListaOrdenesCompra.css */
+
+.lista-ordenes-container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.lista-ordenes-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.header-titulo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-titulo h1 {
+  margin: 0;
+  font-size: 28px;
+  color: #1f2937;
+}
+
+.total-registros {
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.btn-nuevo {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-nuevo:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #6b7280;
+  font-size: 16px;
+}
+
+.mensaje {
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.mensaje-error {
+  background: #fee2e2;
+  border-left: 4px solid #dc2626;
+  color: #991b1b;
+}
+
+.mensaje-success {
+  background: #d1fae5;
+  border-left: 4px solid #10b981;
+  color: #065f46;
+}
+
+/* FILTROS */
+.filtros-container {
+  display: flex;
+  gap: 20px; /* más separación entre filtros */
+  margin-bottom: 20px; /* aumentar separación vertical con la tabla */
+  flex-wrap: wrap;
+  align-items: center;
+  z-index: 2; /* evitar solapamiento visual por encima de la tabla */
+}
+
+.filtro-grupo {
+  /* permitir que los filtros sean más compactos y se puedan encoger */
+  flex: 0 1 360px; /* grow:0, shrink:1, base:360px */
+  min-width: 220px;
+  max-width: 480px;
+}
+
+.filtro-input,
+.filtro-select {
+  width: 100%;
+  padding: 8px 10px; /* un poco más compacto */
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.15s;
+}
+
+.filtro-input:focus,
+.filtro-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* TABLA */
+.tabla-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  margin-top: 12px; /* aumentar separación para evitar que queden muy juntas */
+  position: relative;
+  z-index: 0;
+}
+
+.tabla-ordenes {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tabla-ordenes thead {
+  background: #f9fafb;
+}
+
+.tabla-ordenes th {
+  padding: 14px 16px;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+/* Evitar que la columna de fecha haga wrap en varias líneas */
+.tabla-ordenes th:first-child,
+.tabla-ordenes td:first-child {
+  white-space: nowrap;
+  width: 140px; /* asegurar espacio suficiente para la fecha */
+}
+
+.tabla-ordenes tbody tr {
+  border-bottom: 1px solid #f3f4f6;
+  transition: background-color 0.2s;
+}
+
+.tabla-ordenes tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+.fila-clickable {
+  cursor: pointer;
+}
+
+.tabla-ordenes td {
+  padding: 14px 16px;
+  font-size: 14px;
+  color: #374151;
+}
+
+.numero-oc {
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+.monto {
+  text-align: right;
+  font-weight: 500;
+}
+
+.sin-datos {
+  text-align: center;
+  padding: 40px !important;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+/* ESTADOS */
+.estado-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.estado-pendiente {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.estado-parcial {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.estado-recibida {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .lista-ordenes-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .btn-nuevo {
+    width: 100%;
+  }
+
+  .tabla-container {
+    overflow-x: auto;
+  }
+
+  .tabla-ordenes {
+    min-width: 800px;
+  }
