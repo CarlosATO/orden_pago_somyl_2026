@@ -1,22 +1,40 @@
 import re
 from datetime import datetime
 from flask import current_app
+import threading
+import time
+
 
 def is_db_available(db):
     return db is not None
 
-def safe_generate(model, prompt, default=None):
-    """Call the LLM safely with a fallback.
-    Returns text or default if model is not configured or call fails.
+
+def safe_generate(model, prompt, default=None, timeout=3):
+    """Call the LLM safely with a fallback and optional timeout.
+    Returns text or default if model is not configured, call fails, or timeout occurs.
     """
     if model is None:
         current_app.logger.debug("LLM not configured, returning default")
         return default
-    try:
-        return model.generate_content(prompt).text.strip()
-    except Exception as e:
-        current_app.logger.warning(f"LLM generate failed: {e}")
+
+    result = {'text': None, 'error': None}
+
+    def _call():
+        try:
+            result['text'] = model.generate_content(prompt).text.strip()
+        except Exception as e:
+            result['error'] = str(e)
+
+    t = threading.Thread(target=_call, daemon=True)
+    t.start()
+    t.join(timeout)
+    if t.is_alive():
+        current_app.logger.warning(f"LLM generate timeout after {timeout}s")
         return default
+    if result['error']:
+        current_app.logger.warning(f"LLM generate failed: {result['error']}")
+        return default
+    return result['text']
 
 def format_money(value):
     try:
