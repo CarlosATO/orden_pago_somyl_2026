@@ -4,7 +4,7 @@ import google.generativeai as genai
 import os
 
 # IMPORTAMOS EL NUEVO ESPECIALISTA
-from .bot_tools import chat_proveedores, operaciones
+from .bot_tools import chat_proveedores, operaciones, chat_proyectos
 
 bp = Blueprint("chatbot", __name__)
 
@@ -30,15 +30,17 @@ def clasificar_intencion(texto):
     prompt = f"""
     Analiza: "{texto}"
     Clasifica en UNA categoría:
-    1. PROVEEDORES: Si pide datos, rut, banco, contacto o lista de empresas.
-    2. ESTADO_OC: Si pide estado de una orden de compra (OC). Extrae el número. (Ej: ESTADO_OC|3520)
-    3. CHARLA: Saludos o cualquier otra cosa.
-    
-    Responde SOLO formato: CATEGORIA o CATEGORIA|DATO
+    1. PROVEEDORES: Datos de empresas, rut, pagos, contacto.
+    2. PROYECTOS: Preguntas sobre obras, proyectos, faenas, gastos de un proyecto.
+    3. ESTADO_OC: Estado de una orden de compra específica (N°).
+    4. CHARLA: Saludos u otros.
+
+    Responde SOLO con: PROVEEDORES, PROYECTOS, ESTADO_OC|Numero, o CHARLA.
     """
     try:
-        return model.generate_content(prompt).text.strip().replace('"', '')
-    except:
+        respuesta = model.generate_content(prompt).text.strip()
+        return respuesta.replace('"', '')
+    except Exception:
         return "CHARLA"
 
 @bp.route("/webhook", methods=['POST'])
@@ -57,6 +59,9 @@ def whatsapp_reply():
     # 2. Enrutar
     if "PROVEEDORES" in intencion_raw:
         respuesta = chat_proveedores.procesar_consulta(msg, db, model)
+    
+    elif "PROYECTOS" in intencion_raw:
+        respuesta = chat_proyectos.procesar_consulta(msg, db, model)
 
     elif "ESTADO_OC" in intencion_raw:
         try:
