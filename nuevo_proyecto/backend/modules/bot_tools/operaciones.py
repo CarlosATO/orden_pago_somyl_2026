@@ -1,6 +1,7 @@
 from datetime import datetime
 from flask import current_app
 from .base import format_date_iso
+
 def formatear_fecha(fecha_str):
     # wrapper: prefer base.format_date_iso but keep local name
     return format_date_iso(fecha_str)
