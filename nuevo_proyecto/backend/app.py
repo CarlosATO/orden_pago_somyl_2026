@@ -30,10 +30,18 @@ def create_app():
     CORS(app, resources={r"/*": {"origins": "*"}})
     app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY")
 
-    # Supabase
+    # Supabase (crear cliente solo si están las variables)
     url: str = os.environ.get("SUPABASE_URL")
     key: str = os.environ.get("SUPABASE_KEY")
-    app.config['SUPABASE'] = create_client(url, key)
+    if url and key:
+        try:
+            app.config['SUPABASE'] = create_client(url, key)
+        except Exception as e:
+            app.logger.warning(f"No se pudo inicializar Supabase client: {e}")
+            app.config['SUPABASE'] = None
+    else:
+        app.logger.warning("Variables SUPABASE_URL/SUPABASE_KEY no definidas; continuando sin cliente Supabase")
+        app.config['SUPABASE'] = None
 
     # --- Imports de Módulos ---
     from .modules.auth import bp as auth_bp
