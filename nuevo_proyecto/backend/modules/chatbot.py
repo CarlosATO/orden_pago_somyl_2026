@@ -10,6 +10,21 @@ from .bot_tools.base import extract_order_number, safe_generate
 
 bp = Blueprint("chatbot", __name__)
 
+
+@bp.route('/health', methods=['GET'])
+def chatbot_health():
+    """Return basic health info for the chatbot (modules and LLM availability)."""
+    try:
+        modules = ['chat_proveedores', 'chat_proyectos', 'chat_pagos', 'chat_ordenes', 'chat_materiales', 'cobranza', 'operaciones']
+        return {
+            'success': True,
+            'llm': bool(model),
+            'modules': modules
+        }
+    except Exception as e:
+        logger.exception(f"Error in chatbot health: {e}")
+        return {'success': False, 'message': str(e)}, 500
+
 # --- CONFIGURACIÓN SEGURA ---
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 model = None
@@ -71,46 +86,59 @@ def clasificar_intencion(texto):
 
 @bp.route("/webhook", methods=['POST'])
 def whatsapp_reply():
-    db = current_app.config['SUPABASE']
+    db = current_app.config.get('SUPABASE')
     msg = request.values.get('Body', '')
     logger.info(f"📩 Recibido: {msg}")
 
-    # 1. Clasificar
-    intencion_raw = clasificar_intencion(msg)
-    logger.info(f"🧠 Intención: {intencion_raw}")
-
     resp = MessagingResponse()
-    respuesta = ""
+    respuesta = None
 
-    # 2. Enrutar
-    if "PROVEEDORES" in intencion_raw:
-        respuesta = chat_proveedores.procesar_consulta(msg, db, model)
-    
-    elif "PROYECTOS" in intencion_raw:
-        respuesta = chat_proyectos.procesar_consulta(msg, db, model)
-    elif "PAGOS" in intencion_raw:
-        respuesta = chat_pagos.procesar_consulta(msg, db, model)
+    try:
+        # 1. Clasificar
+        intencion_raw = clasificar_intencion(msg)
+        logger.info(f"🧠 Intención: {intencion_raw}")
 
-    elif "ORDENES" in intencion_raw:
-        respuesta = chat_ordenes.procesar_consulta(msg, db, model)
+        # 2. Enrutar (cada módulo maneja errores internos)
+        if "PROVEEDORES" in intencion_raw:
+            respuesta = chat_proveedores.procesar_consulta(msg, db, model)
+            logger.debug("Ruteado a chat_proveedores")
+        elif "PROYECTOS" in intencion_raw:
+            respuesta = chat_proyectos.procesar_consulta(msg, db, model)
+            logger.debug("Ruteado a chat_proyectos")
+        elif "PAGOS" in intencion_raw:
+            respuesta = chat_pagos.procesar_consulta(msg, db, model)
+            logger.debug("Ruteado a chat_pagos")
+        elif "ORDENES" in intencion_raw:
+            respuesta = chat_ordenes.procesar_consulta(msg, db, model)
+            logger.debug("Ruteado a chat_ordenes")
+        elif "MATERIALES" in intencion_raw:
+            respuesta = chat_materiales.procesar_consulta(msg, db, model)
+            logger.debug("Ruteado a chat_materiales")
+        elif "ESTADO_OC" in intencion_raw:
+            try:
+                numero = intencion_raw.split('|')[1]
+                respuesta = operaciones.consultar_estado_oc(numero, db)
+                logger.debug(f"Ruteado a operaciones.consultar_estado_oc #{numero}")
+            except Exception:
+                respuesta = "Entendí que buscas una OC, pero no vi el número claro."
+        else:
+            # Charla general fallback (usar safe_generate si model existe)
+            if model:
+                prompt = f"Eres el asistente de Somyl. El usuario dice: '{msg}'. Responde breve y cordial."
+                respuesta = safe_generate(model, prompt, default=None) or "Hola, soy el asistente virtual de Somyl. ¿En qué puedo ayudarte?"
+            else:
+                respuesta = "Hola, soy el asistente virtual de Somyl. ¿En qué puedo ayudarte?"
 
-    elif "MATERIALES" in intencion_raw:
-        respuesta = chat_materiales.procesar_consulta(msg, db, model)
+    except Exception as e:
+        # Catch-all to avoid returning nothing and to ensure Twilio gets a response
+        logger.exception(f"Error procesando webhook: {e}")
+        respuesta = "Lo siento, ocurrió un error procesando tu solicitud. Intenta nuevamente más tarde."
 
-    elif "ESTADO_OC" in intencion_raw:
-        try:
-            numero = intencion_raw.split('|')[1]
-            respuesta = operaciones.consultar_estado_oc(numero, db)
-        except:
-            respuesta = "Entendí que buscas una OC, pero no vi el número claro."
+    # Always respond
+    try:
+        resp.message(respuesta)
+    except Exception:
+        logger.exception("Error forming Twilio MessagingResponse; returning fallback message")
+        resp.message("Lo siento, no puedo responder en este momento.")
 
-    else:
-        # Charla general
-        try:
-            prompt = f"Eres el asistente de Somyl. El usuario dice: '{msg}'. Responde breve y cordial."
-            respuesta = model.generate_content(prompt).text
-        except:
-            respuesta = "Hola, soy el asistente virtual de Somyl. ¿En qué puedo ayudarte?"
-
-    resp.message(respuesta)
     return str(resp)
