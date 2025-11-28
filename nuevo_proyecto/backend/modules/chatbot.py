@@ -1,4 +1,4 @@
-from flask import Blueprint, request, current_app, jsonify
+from flask import Blueprint, request, current_app, jsonify, Response
 from collections import deque
 import time
 import logging
@@ -183,4 +183,4 @@ def whatsapp_reply():
         logger.exception("Error forming Twilio MessagingResponse; returning fallback message")
         resp.message("Lo siento, no puedo responder en este momento.")
 
-    return str(resp)
+    return Response(str(resp), mimetype='text/xml')
