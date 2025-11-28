@@ -1,5 +1,7 @@
 # backend/modules/bot_tools/chat_proveedores.py
 import re
+from flask import current_app
+from .base import safe_generate, is_db_available
 
 def procesar_consulta(texto_usuario, db, model):
     """
@@ -17,23 +19,28 @@ def procesar_consulta(texto_usuario, db, model):
         Responde SOLO con el dato extraído.
         """
         try:
-            busqueda = model.generate_content(prompt).text.strip().replace('"', '').replace("'", "")
-        except:
+            busqueda = safe_generate(model, prompt, default=None)
+            if busqueda:
+                busqueda = busqueda.strip().replace('"', '').replace("'", "")
+        except Exception:
+            current_app.logger.exception("Error calling LLM for provider extraction")
             return "Tuve un error técnico procesando tu solicitud."
 
         # CASO A: No entendió el nombre
-        if busqueda == "NONE" or len(busqueda) < 2:
+        if busqueda == "NONE" or not busqueda or len(busqueda) < 2:
             return "Entendí que preguntas por un proveedor, pero no capté el nombre. ¿Podrías repetirlo? (Ej: 'Datos de Disantel' o 'Rut de Sodimac')"
 
         # CASO B: Listar todos
         if busqueda == "LISTAR":
+            if not is_db_available(db):
+                return "No hay base de datos disponible para listar proveedores."
             res = db.table('proveedores').select('nombre').order('nombre').limit(15).execute()
             if not res.data: return "No hay proveedores registrados."
             lista = "\n".join([f"🔹 {p['nombre']}" for p in res.data])
             return f"📋 **Lista de Proveedores (Primeros 15):**\n\n{lista}\n\n_(Escribe el nombre de uno para ver su ficha)_"
 
         # CASO C: Buscar Proveedor Específico
-        print(f"👀 Buscando en DB: {busqueda}")
+        current_app.logger.info(f"👀 Buscando en DB: {busqueda}")
         res = db.table('proveedores').select('*').ilike('nombre', f'%{busqueda}%').limit(1).execute()
 
         if not res.data:

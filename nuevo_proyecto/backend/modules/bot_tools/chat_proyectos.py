@@ -1,79 +1,97 @@
-# backend/modules/bot_tools/chat_proyectos.py
 import re
+from flask import current_app
+from .base import safe_generate, is_db_available, format_money
 
 def procesar_consulta(texto_usuario, db, model):
     """
-    Maneja preguntas sobre PROYECTOS (Obras).
+    Maneja preguntas sobre PROYECTOS (Obras) con búsqueda inteligente.
     """
     try:
         print(f"🏗️ ChatProyectos: Analizando '{texto_usuario}'")
 
-        # 1. IDENTIFICAR INTENCIÓN CON IA
+        # 1. ESTRATEGIA DE EXTRACCIÓN (Prompt Mejorado)
         prompt = f"""
-        Analiza: "{texto_usuario}"
-        - Si pide listar proyectos activos/obras, responde 'LISTAR'.
-        - Si busca un proyecto específico, extrae SOLO el nombre o palabra clave.
-        - Si no hay nombre claro, responde 'NONE'.
+        Tu trabajo es extraer el nombre del proyecto de construcción de este mensaje: "{texto_usuario}"
+        
+        Reglas:
+        1. Si pide lista (ej: "ver obras", "cuales son los proyectos"), responde 'LISTAR'.
+        2. Si pregunta por una obra (ej: "gastos de Borgoño", "estado financiero Huawei"), extrae SOLO el nombre (ej: "Borgoño", "Huawei").
+        3. IGNORA palabras de relleno como: estado, financiero, dame, gasto, informe, proyecto, obra.
+        4. Si no hay nombre, responde 'NONE'.
+        
         Responde SOLO con el dato extraído.
         """
         try:
-            busqueda = model.generate_content(prompt).text.strip().replace('"', '').replace("'", "")
-        except:
-            return "Tuve un error técnico analizando el nombre del proyecto."
+            busqueda = safe_generate(model, prompt, default='NONE')
+            if busqueda:
+                busqueda = busqueda.strip().replace('"', '').replace("'", "")
+        except Exception:
+            current_app.logger.exception("Error calling LLM for project extraction")
+            busqueda = 'NONE'
 
-        if busqueda == "NONE" or len(busqueda) < 2:
-            return "Entendí que buscas un Proyecto, pero no capté el nombre. (Ej: 'Estado del proyecto Torre B' o 'Lista de obras')"
-
-        # CASO A: LISTAR PROYECTOS ACTIVOS
+        # CASO A: LISTAR PROYECTOS
         if busqueda == "LISTAR":
-            # Asumimos que tienes una columna 'activo' o similar. Si no, quitamos el filtro.
-            res = db.table('proyectos').select('proyecto').eq('activo', True).limit(15).execute()
-            if not res.data: return "No hay proyectos activos registrados."
+            if not is_db_available(db):
+                return "No hay base de datos disponible para listar proyectos."
+            res = db.table('proyectos').select('proyecto').eq('activo', True).limit(20).execute()
+            if not res.data: return "No hay proyectos activos."
             
             lista = "\n".join([f"🏗️ {p['proyecto']}" for p in res.data])
-            return f"📋 **Proyectos Activos:**\n\n{lista}\n\n_(Escribe el nombre de uno para ver su estado financiero)_"
+            return f"📋 **Proyectos Activos:**\n\n{lista}\n\n_(Escribe el nombre de uno para ver sus finanzas)_"
 
-        # CASO B: BUSCAR UN PROYECTO ESPECÍFICO
-        print(f"👀 Buscando Proyecto: {busqueda}")
-        res = db.table('proyectos').select('*').ilike('proyecto', f'%{busqueda}%').limit(1).execute()
+        # CASO B: BÚSQUEDA POR NOMBRE (Con Respaldo)
+        # Si la IA falló (NONE) o nos dio algo muy corto, usamos la "palabra clave"
+        palabra_clave = busqueda
+        
+        if busqueda == "NONE" or not busqueda or len(busqueda) < 2:
+            # PLAN B: Tomamos la palabra más larga de la frase del usuario
+            # (Ej: "dame estado BORGOÑO" -> "BORGOÑO")
+            palabras = texto_usuario.split()
+            palabras_utiles = [p for p in palabras if len(p) > 3 and p.lower() not in ['dame', 'estado', 'financiero', 'proyecto', 'lista']]
+            if palabras_utiles:
+                palabra_clave = max(palabras_utiles, key=len)
+                current_app.logger.info(f"🔄 IA falló, intentando con palabra clave: '{palabra_clave}'")
+            else:
+                return "Entendí que buscas un Proyecto, pero no capté el nombre. (Ej: 'Estado Borgoño')"
+
+        current_app.logger.info(f"👀 Buscando Proyecto: '{palabra_clave}'")
+        
+        # Buscamos en la base de datos
+        if not is_db_available(db):
+            return "No hay base de datos disponible para buscar proyectos."
+        res = db.table('proyectos').select('*').ilike('proyecto', f'%{palabra_clave}%').limit(1).execute()
 
         if not res.data:
-            return f"🚫 No encontré ningún proyecto que coincida con *'{busqueda}'*."
+            return f"🚫 No encontré el proyecto *'{palabra_clave}'*.\nPrueba escribiendo solo una parte del nombre."
 
         p = res.data[0]
         p_id = p['id']
 
-        # --- EL SUPERPODER: CÁLCULO FINANCIERO EN TIEMPO REAL ---
-        # Sumamos todas las Órdenes de Compra de este proyecto
+        # --- CÁLCULO FINANCIERO ---
+        # Sumamos todas las Órdenes de Compra
         gastos = db.table('orden_de_compra').select('total').eq('proyecto', p_id).execute()
-        
-        total_gastado = sum([g.get('total', 0) or 0 for g in gastos.data])
+        total_gastado = sum([float(g.get('total', 0) or 0) for g in (gastos.data or [])])
         cantidad_ocs = len(gastos.data)
         
-        # Formato moneda
-        total_fmt = "${:,.0f}".format(total_gastado).replace(",", ".")
+        total_fmt = format_money(total_gastado)
         
-        # Datos generales
         cliente = p.get('cliente', 'Interno')
-        direccion = p.get('direccion', 'Sin dirección')
-        estado = "🟢 Activo" if p.get('activo') else "🔴 Cerrado"
+        direccion = p.get('direccion') or "Sin dirección"
+        estado_obra = "🟢 Activo" if p.get('activo') else "🔴 Cerrado"
 
-        mensaje = f"""
-🏗️ **FICHA DE PROYECTO**
+        return f"""
+🏗️ **REPORTE DE OBRA**
 ----------------------------
 **{p['proyecto']}**
 📍 {direccion}
 👤 Cliente: {cliente}
-Estado: {estado}
+Estado: {estado_obra}
 
-💰 **Estado Financiero**
-• Gasto Comprometido: *{total_fmt}*
-• Órdenes Emitidas: {cantidad_ocs}
-
-_(Este monto es la suma de todas las OCs emitidas para esta obra)_
+💰 **Finanzas (Gastos)**
+• Total Comprometido: *{total_fmt}*
+• N° de Órdenes: {cantidad_ocs}
 """
-        return mensaje
 
     except Exception as e:
-        print(f"❌ Error en ChatProyectos: {e}")
+        current_app.logger.exception(f"❌ Error en ChatProyectos: {e}")
         return "Ocurrió un error consultando el proyecto."

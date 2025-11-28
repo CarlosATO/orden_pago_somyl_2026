@@ -1,18 +1,16 @@
 from datetime import datetime
+from flask import current_app
+from .base import format_date_iso
 def formatear_fecha(fecha_str):
-    if not fecha_str: return "Sin fecha"
-    try:
-        dt = datetime.fromisoformat(fecha_str.replace('Z', ''))
-        return dt.strftime('%d/%m/%Y')
-    except:
-        return fecha_str
+    # wrapper: prefer base.format_date_iso but keep local name
+    return format_date_iso(fecha_str)
 
 def consultar_estado_oc(numero_oc, db):
     """
     Busca una OC forzando el tipo de dato a ENTERO.
     """
     try:
-        print(f"🔍 Buscando OC #{numero_oc}")
+        current_app.logger.info(f"🔍 Buscando OC #{numero_oc}")
         
         # --- CORRECCIÓN CRÍTICA: Forzar conversión a int ---
         try:
@@ -83,5 +81,5 @@ def consultar_estado_oc(numero_oc, db):
 """
 
     except Exception as e:
-        print(f"❌ Error tool OC: {e}")
+        current_app.logger.exception(f"❌ Error tool OC: {e}")
         return "Error técnico consultando la orden."
