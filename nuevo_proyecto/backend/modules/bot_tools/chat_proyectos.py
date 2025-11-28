@@ -7,7 +7,7 @@ def procesar_consulta(texto_usuario, db, model):
     Maneja preguntas sobre PROYECTOS (Obras) con búsqueda inteligente.
     """
     try:
-        print(f"🏗️ ChatProyectos: Analizando '{texto_usuario}'")
+        current_app.logger.info(f"🏗️ ChatProyectos: Analizando '{texto_usuario}'")
 
         # 1. ESTRATEGIA DE EXTRACCIÓN (Prompt Mejorado)
         prompt = f"""
