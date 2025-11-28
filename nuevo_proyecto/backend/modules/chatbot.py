@@ -1,4 +1,6 @@
-from flask import Blueprint, request, current_app
+from flask import Blueprint, request, current_app, jsonify
+from collections import deque
+import time
 import logging
 from twilio.twiml.messaging_response import MessagingResponse
 import google.generativeai as genai
@@ -9,6 +11,9 @@ from .bot_tools import chat_proveedores, operaciones, chat_proyectos, chat_pagos
 from .bot_tools.base import extract_order_number, safe_generate
 
 bp = Blueprint("chatbot", __name__)
+
+# In-memory trace store for debug (reset on restart)
+INTERACTIONS = deque(maxlen=200)
 
 
 @bp.route('/health', methods=['GET'])
@@ -24,6 +29,19 @@ def chatbot_health():
     except Exception as e:
         logger.exception(f"Error in chatbot health: {e}")
         return {'success': False, 'message': str(e)}, 500
+
+
+@bp.route('/trace', methods=['GET'])
+def chatbot_trace():
+    """Return a JSON list with the most recent interactions for debugging.
+    Note: this is in-memory and resets on restart. Use only for debugging.
+    """
+    try:
+        items = list(INTERACTIONS)[:50]
+        return jsonify({'success': True, 'items': items})
+    except Exception as e:
+        logger.exception(f"Error fetching trace: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 # --- CONFIGURACIÓN SEGURA ---
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
@@ -142,6 +160,21 @@ def whatsapp_reply():
             respuesta = str(respuesta)
     except Exception:
         respuesta = "No encontré la información solicitada."
+
+    # Track interactions for traceability
+    try:
+        INTERACTIONS.appendleft({
+            'ts': int(time.time()),
+            'from': request.values.get('From', ''),
+            'body': msg,
+            'intent': intencion_raw if 'intencion_raw' in locals() else None,
+            'response': respuesta,
+            'url': request.url,
+            'remote_addr': request.remote_addr,
+            'headers': {k: v for k, v in request.headers.items()}
+        })
+    except Exception:
+        logger.exception('Error appending interaction')
 
     # Always respond
     try:
