@@ -68,29 +68,58 @@ def procesar_consulta(texto_usuario, db, model):
         p_id = p['id']
 
         # --- CÁLCULO FINANCIERO ---
-        # Sumamos todas las Órdenes de Compra
-        gastos = db.table('orden_de_compra').select('total').eq('proyecto', p_id).execute()
-        total_gastado = sum([float(g.get('total', 0) or 0) for g in (gastos.data or [])])
-        cantidad_ocs = len(gastos.data)
-        
-        total_fmt = format_money(total_gastado)
+        # 1) Presupuesto total (tabla 'presupuesto')
+        try:
+            presup_data = db.table('presupuesto').select('monto').eq('proyecto_id', p_id).execute()
+            total_presupuesto = sum([float(x.get('monto', 0) or 0) for x in (presup_data.data or [])])
+        except Exception:
+            total_presupuesto = 0
+
+        # 2) Órdenes de pago (tabla 'orden_de_pago')
+        try:
+            ops = db.table('orden_de_pago').select('costo_final_con_iva, orden_numero').eq('proyecto', p_id).execute()
+            ordenes_pago = ops.data or []
+            total_ordenes_pago = sum([float(op.get('costo_final_con_iva', 0) or 0) for op in ordenes_pago])
+            cantidad_ordenes_pago = len(ordenes_pago)
+        except Exception:
+            total_ordenes_pago = 0
+            cantidad_ordenes_pago = 0
+
+        # 3) Gastos directos
+        try:
+            gd = db.table('gastos_directos').select('monto').eq('proyecto_id', p_id).execute()
+            gastos_directos = gd.data or []
+            total_gastos_directos = sum([float(g.get('monto', 0) or 0) for g in gastos_directos])
+        except Exception:
+            total_gastos_directos = 0
+
+        total_real = total_ordenes_pago + total_gastos_directos
+        total_fmt = format_money(total_real)
+        total_presupuesto_fmt = format_money(total_presupuesto)
+        total_ordenes_pago_fmt = format_money(total_ordenes_pago)
+        total_gastos_directos_fmt = format_money(total_gastos_directos)
         
         cliente = p.get('cliente', 'Interno')
         direccion = p.get('direccion') or "Sin dirección"
         estado_obra = "🟢 Activo" if p.get('activo') else "🔴 Cerrado"
 
         return f"""
-🏗️ **REPORTE DE OBRA**
-----------------------------
-**{p['proyecto']}**
-📍 {direccion}
-👤 Cliente: {cliente}
-Estado: {estado_obra}
+    🏗️ **REPORTE DE OBRA**
+    ----------------------------
+    **{p['proyecto']}**
+    📍 {direccion}
+    👤 Cliente: {cliente}
+    Estado: {estado_obra}
 
-💰 **Finanzas (Gastos)**
-• Total Comprometido: *{total_fmt}*
-• N° de Órdenes: {cantidad_ocs}
-"""
+    💰 **Finanzas (Resumen)**
+    • Total Real (Órdenes+GastosDir): *{total_fmt}*
+    • Órdenes de Pago (N): {cantidad_ordenes_pago} - {total_ordenes_pago_fmt}
+    • Gastos Directos: {total_gastos_directos_fmt}
+    • Presupuesto Total: {total_presupuesto_fmt}
+    • Diferencia (Presupuesto - Real): {format_money(total_presupuesto - total_real)}
+
+    _(Datos calculados desde: 'presupuesto', 'orden_de_pago', 'gastos_directos')_
+    """
 
     except Exception as e:
         current_app.logger.exception(f"❌ Error en ChatProyectos: {e}")
