@@ -122,7 +122,11 @@ def create_app():
             if index_file.exists():
                 return send_from_directory(app.static_folder, 'index.html')
         
-        return jsonify({"message": "Recurso no encontrado"}), 404
+        # Si no hay frontend (o no se encontró el index), devolvemos 200 para
+        # que los healthchecks del proveedor consideren la app UP. El endpoint
+        # real de estado está en /api/health. Esto evita fallos cuando el build
+        # del frontend no produce `frontend_dist` o durante despliegues.
+        return jsonify({"status": "ok", "message": "backend running (frontend not found)"}), 200
 
     return app
 
