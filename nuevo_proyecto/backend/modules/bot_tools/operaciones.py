@@ -1,5 +1,4 @@
 from datetime import datetime
-
 def formatear_fecha(fecha_str):
     if not fecha_str: return "Sin fecha"
     try:
