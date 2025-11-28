@@ -4,6 +4,7 @@ def is_db_available(db):
     """Verifica si la conexión a la BD es válida."""
     return db is not None
 
+
 def safe_generate(model, prompt, default=None):
     """Envía un prompt a Gemini de forma segura."""
     if not model:
