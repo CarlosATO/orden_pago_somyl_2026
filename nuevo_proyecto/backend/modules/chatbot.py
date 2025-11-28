@@ -58,7 +58,7 @@ def clasificar_intencion(texto):
         return 'PROYECTOS'
     if any(k in lower for k in ['deuda', 'pago', 'pagos', 'abono', 'saldo']):
         return 'PAGOS'
-    if any(k in lower for k in ['orden', 'ordenes', 'oc', 'ordenes de compra', 'orden_compra']):
+    if any(k in lower for k in ['orden', 'ordenes', 'oc', 'ordenes de compra', 'orden_compra', 'compra', 'compras']):
         return 'ORDENES'
     if any(k in lower for k in ['material', 'materiales', 'precio', 'stock', 'cod']):
         return 'MATERIALES'

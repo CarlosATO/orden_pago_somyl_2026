@@ -13,8 +13,9 @@ def procesar_consulta(texto_usuario, db, model=None):
         if oc_num and is_db_available(db):
             return detalle_oc(oc_num, db)
 
-        # Pregunta por listado para proveedor
-        if 'proveedor' in (texto_usuario or '').lower() and is_db_available(db):
+        # Pregunta por listado para proveedor o por compras de un proyecto
+        lower = (texto_usuario or '').lower()
+        if 'proveedor' in lower and is_db_available(db):
             prompt = f"Extrae SOLO el nombre del proveedor de: '{texto_usuario}'"
             prov_name = safe_generate(model, prompt, default=None) or ''
             if not prov_name:
@@ -29,6 +30,27 @@ def procesar_consulta(texto_usuario, db, model=None):
                 return f"No hay OC registradas para {prov['nombre']}"
             lines = [f"OC {o['orden_compra']} | {format_date_iso(o.get('fecha'))} | {format_money(o.get('total'))}" for o in res_ocs.data]
             return f"Órdenes para {prov['nombre']}:\n" + "\n".join(lines)
+
+        # Pregunta por compras de un proyecto (ej: 'compras del proyecto Borgoño')
+        if any(k in lower for k in ['compra', 'compras']) and is_db_available(db):
+            # Intentar extraer nombre del proyecto
+            prompt = f"Extrae SOLO el nombre del proyecto de: '{texto_usuario}'"
+            proyecto_name = safe_generate(model, prompt, default=None) or ''
+            proyecto_name = proyecto_name.strip()
+            if not proyecto_name:
+                return "Indica el nombre del proyecto para listar las compras (ej: 'Compras proyecto Borgoño')"
+            # Buscar proyecto
+            res_proj = db.table('proyectos').select('id, proyecto').ilike('proyecto', f'%{proyecto_name}%').limit(1).execute()
+            if not res_proj.data:
+                return f"No encontré el proyecto '{proyecto_name}'"
+            proj = res_proj.data[0]
+            proj_id = proj['id']
+            # Buscar ordenes de compra por proyecto
+            res_ocs = db.table('orden_de_compra').select('orden_compra, fecha, total, descripcion, proveedor').eq('proyecto', proj_id).order('fecha', desc=True).limit(50).execute()
+            if not res_ocs.data:
+                return f"No se encontraron compras registradas para el proyecto {proj['proyecto']}"
+            lines = [f"OC {o.get('orden_compra')} | {format_date_iso(o.get('fecha'))} | {format_money(o.get('total'))} | {o.get('proveedor','-')}" for o in res_ocs.data]
+            return f"Compras (OC) para {proj['proyecto']}:\n" + "\n".join(lines)
 
         return "Puedo ayudarte con el detalle de una OC (ej: 'OC 1234') o listar OCs de un proveedor (ej: 'Órdenes proveedor Disantel')."
 
