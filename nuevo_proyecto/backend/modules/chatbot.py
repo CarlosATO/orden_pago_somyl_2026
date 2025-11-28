@@ -134,6 +134,15 @@ def whatsapp_reply():
         logger.exception(f"Error procesando webhook: {e}")
         respuesta = "Lo siento, ocurrió un error procesando tu solicitud. Intenta nuevamente más tarde."
 
+    # Ensure the response is a string
+    try:
+        if respuesta is None:
+            respuesta = "No encontré la información solicitada."
+        elif not isinstance(respuesta, str):
+            respuesta = str(respuesta)
+    except Exception:
+        respuesta = "No encontré la información solicitada."
+
     # Always respond
     try:
         resp.message(respuesta)
