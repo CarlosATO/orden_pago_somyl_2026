@@ -44,6 +44,7 @@ def procesar_consulta(texto_usuario, db, model=None):
             if not res_proj.data:
                 return f"No encontré el proyecto '{proyecto_name}'"
             proj = res_proj.data[0]
+            current_app.logger.info(f"Listando compras del proyecto: {proj.get('proyecto')} ({proj.get('id')})")
             proj_id = proj['id']
             # Buscar ordenes de compra por proyecto
             res_ocs = db.table('orden_de_compra').select('orden_compra, fecha, total, descripcion, proveedor').eq('proyecto', proj_id).order('fecha', desc=True).limit(50).execute()
