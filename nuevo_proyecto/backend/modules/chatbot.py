@@ -21,10 +21,13 @@ def chatbot_health():
     """Return basic health info for the chatbot (modules and LLM availability)."""
     try:
         modules = ['chat_proveedores', 'chat_proyectos', 'chat_pagos', 'chat_ordenes', 'chat_materiales', 'cobranza', 'operaciones']
+        # Try to include commit SHA (if available in environment)
+        commit_sha = os.environ.get('COMMIT_SHA') or os.environ.get('GIT_COMMIT') or os.environ.get('RAILWAY_GIT_COMMIT')
         return {
             'success': True,
             'llm': bool(model),
-            'modules': modules
+            'modules': modules,
+            'version': commit_sha or 'unknown'
         }
     except Exception as e:
         logger.exception(f"Error in chatbot health: {e}")
