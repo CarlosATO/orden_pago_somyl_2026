@@ -1,7 +1,6 @@
 from datetime import datetime
 from flask import current_app
 from .base import format_date_iso
-
 def formatear_fecha(fecha_str):
     # wrapper: prefer base.format_date_iso but keep local name
     return format_date_iso(fecha_str)
@@ -51,7 +50,7 @@ def consultar_estado_oc(numero_oc, db):
         detalle_txt = ""
         for item in lineas[:8]: # Mostrar máx 8 líneas
             # Buscamos el nombre en varios campos posibles
-            desc = item.get('descripcion') or item.get('detalle') or item.get('material') or "Ítem"
+            desc = item.get('descripcion') or item.get('detalle') or item.get('material') or item.get('nombre') or "Ítem"
             cant = item.get('cantidad', 0)
             detalle_txt += f"• {cant} x {desc}\n"
             
@@ -61,8 +60,8 @@ def consultar_estado_oc(numero_oc, db):
         # 4. Calcular Estado (Recepciones)
         res_ing = db.table('ingresos').select('cantidad_ingresada').eq('orden_compra', numero_limpio).execute()
         
-        total_solicitado = sum([l.get('cantidad', 0) for l in lineas])
-        total_recibido = sum([i.get('cantidad_ingresada', 0) for i in res_ing.data])
+        total_solicitado = sum([float(l.get('cantidad', 0) or 0) for l in lineas])
+        total_recibido = sum([float(i.get('cantidad_ingresada', 0) or 0) for i in res_ing.data])
         
         estado = "🔴 PENDIENTE"
         if total_recibido > 0:
