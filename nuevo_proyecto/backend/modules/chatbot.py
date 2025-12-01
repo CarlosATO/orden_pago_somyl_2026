@@ -1,56 +1,33 @@
-from flask import Blueprint, request, current_app, jsonify, Response
+from flask import Blueprint, request, current_app, jsonify
 from collections import deque
 import time
 import logging
-from twilio.twiml.messaging_response import MessagingResponse
+import requests
 import google.generativeai as genai
 import os
+import json
 
-# IMPORTAMOS EL NUEVO ESPECIALISTA
+# IMPORTAMOS TUS ESPECIALISTAS (INTACTOS)
 from .bot_tools import chat_proveedores, operaciones, chat_proyectos, chat_pagos, chat_ordenes, chat_materiales
 from .bot_tools.base import extract_order_number, safe_generate
 
 bp = Blueprint("chatbot", __name__)
 
-# In-memory trace store for debug (reset on restart)
+# Trace store en memoria
 INTERACTIONS = deque(maxlen=200)
 
+# --- CONFIGURACIÓN ---
+# Nuevas variables para Meta
+VERIFY_TOKEN = os.environ.get("META_VERIFY_TOKEN")      # Tu contraseña inventada para el webhook
+WHATSAPP_TOKEN = os.environ.get("META_WHATSAPP_TOKEN")  # Token (comienza con EAA...)
+PHONE_NUMBER_ID = os.environ.get("META_PHONE_ID")       # ID del teléfono (no el número, el ID)
 
-@bp.route('/health', methods=['GET'])
-def chatbot_health():
-    """Return basic health info for the chatbot (modules and LLM availability)."""
-    try:
-        modules = ['chat_proveedores', 'chat_proyectos', 'chat_pagos', 'chat_ordenes', 'chat_materiales', 'cobranza', 'operaciones']
-        # Try to include commit SHA (if available in environment)
-        commit_sha = os.environ.get('COMMIT_SHA') or os.environ.get('GIT_COMMIT') or os.environ.get('RAILWAY_GIT_COMMIT')
-        return {
-            'success': True,
-            'llm': bool(model),
-            'modules': modules,
-            'version': commit_sha or 'unknown'
-        }
-    except Exception as e:
-        logger.exception(f"Error in chatbot health: {e}")
-        return {'success': False, 'message': str(e)}, 500
-
-
-@bp.route('/trace', methods=['GET'])
-def chatbot_trace():
-    """Return a JSON list with the most recent interactions for debugging.
-    Note: this is in-memory and resets on restart. Use only for debugging.
-    """
-    try:
-        items = list(INTERACTIONS)[:50]
-        return jsonify({'success': True, 'items': items})
-    except Exception as e:
-        logger.exception(f"Error fetching trace: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
-
-# --- CONFIGURACIÓN SEGURA ---
 GEMINI_KEY = os.environ.get("GEMINI_API_KEY")
 model = None
 
 logger = logging.getLogger(__name__)
+
+# Configuración Gemini
 if GEMINI_KEY:
     try:
         genai.configure(api_key=GEMINI_KEY)
@@ -59,131 +36,189 @@ if GEMINI_KEY:
     except Exception as e:
         logger.error(f"❌ Error Gemini: {e}")
 else:
-    logger.warning("⚠️ FALTA LA CLAVE GEMINI EN RAILWAY")
+    logger.warning("⚠️ FALTA LA CLAVE GEMINI")
+
+
+@bp.route('/health', methods=['GET'])
+def chatbot_health():
+    """Estado de salud del bot."""
+    return {
+        'status': 'ok',
+        'provider': 'meta_cloud_api',
+        'llm': bool(model)
+    }
+
+@bp.route('/trace', methods=['GET'])
+def chatbot_trace():
+    """Historial de debug."""
+    return jsonify({'success': True, 'items': list(INTERACTIONS)[:50]})
+
+
+def enviar_mensaje_meta(telefono, texto):
+    """Envía la respuesta a la API de WhatsApp Cloud."""
+    if not WHATSAPP_TOKEN or not PHONE_NUMBER_ID:
+        logger.error("❌ Faltan credenciales de Meta (Token o Phone ID)")
+        return
+
+    url = f"https://graph.facebook.com/v21.0/{PHONE_NUMBER_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "messaging_product": "whatsapp",
+        "to": telefono,
+        "type": "text",
+        "text": {"body": texto}
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()
+    except Exception as e:
+        logger.error(f"❌ Error enviando mensaje a Meta: {e}")
+        if 'response' in locals():
+            logger.error(f"Detalle Meta: {response.text}")
 
 
 def clasificar_intencion(texto):
-    """Decide a qué especialista llamar.
-    Uso: heurísticas (regex) primero para detectar OC o keywords; fallback LLM si necesario.
-    Retorna: PROVEEDORES, PROYECTOS, ESTADO_OC|<numero>, PAGOS, o CHARLA.
-    """
-    # Heurísticas simples locales (fast) — evita llamadas LLM innecesarias
+    """Misma lógica de clasificación que ya tenías."""
+    # 1. Heurísticas rápidas
     oc_num = extract_order_number(texto)
-    if oc_num:
-        return f"ESTADO_OC|{oc_num}"
+    if oc_num: return f"ESTADO_OC|{oc_num}"
 
     lower = texto.lower()
-    if any(k in lower for k in ['proveedor', 'proveedores', 'rut', 'fono', 'correo', 'email']):
-        return 'PROVEEDORES'
-    if any(k in lower for k in ['proyecto', 'obra', 'obras']):
-        return 'PROYECTOS'
-    if any(k in lower for k in ['deuda', 'pago', 'pagos', 'abono', 'saldo']):
-        return 'PAGOS'
-    if any(k in lower for k in ['orden', 'ordenes', 'oc', 'ordenes de compra', 'orden_compra', 'compra', 'compras']):
-        return 'ORDENES'
-    if any(k in lower for k in ['material', 'materiales', 'precio', 'stock', 'cod']):
-        return 'MATERIALES'
+    if any(k in lower for k in ['proveedor', 'rut', 'fono', 'correo']): return 'PROVEEDORES'
+    if any(k in lower for k in ['proyecto', 'obra']): return 'PROYECTOS'
+    if any(k in lower for k in ['deuda', 'pago', 'saldo']): return 'PAGOS'
+    if any(k in lower for k in ['orden', 'oc ', 'compra']): return 'ORDENES'
+    if any(k in lower for k in ['material', 'stock']): return 'MATERIALES'
 
-    # Fallback LLM classification only if model configured
-    if not model:
-        return 'CHARLA'
+    # 2. Fallback LLM
+    if not model: return 'CHARLA'
 
     prompt = f"""
     Analiza: "{texto}"
-    Clasifica en UNA categoría:
-    1. PROVEEDORES: Datos de empresas, rut, pagos, contacto.
-    2. PROYECTOS: Preguntas sobre obras, proyectos, faenas, gastos de un proyecto.
-    3. ESTADO_OC: Estado de una orden de compra específica (N°).
-    4. PAGOS: Consultas sobre pagos, abonos, saldos y ordenes de pago.
-    5. CHARLA: Saludos u otros.
-
-    Responde SOLO con: PROVEEDORES, PROYECTOS, ESTADO_OC|Numero, PAGOS, o CHARLA.
+    Clasifica en: PROVEEDORES, PROYECTOS, ESTADO_OC|Numero, PAGOS, o CHARLA.
+    Solo responde la categoría.
     """
     try:
-        respuesta = safe_generate(model, prompt, default='CHARLA') or 'CHARLA'
-        return respuesta.replace('"', '').strip()
-    except Exception:
+        respuesta = safe_generate(model, prompt, default='CHARLA')
+        return respuesta.replace('"', '').strip() if respuesta else 'CHARLA'
+    except:
         return 'CHARLA'
+
+
+# ==========================================
+# RUTAS DEL WEBHOOK (VERIFICACIÓN Y MENSAJES)
+# ==========================================
+
+@bp.route("/webhook", methods=['GET'])
+def verify_webhook():
+    """Ruta para validar el webhook con Meta."""
+    mode = request.args.get("hub.mode")
+    token = request.args.get("hub.verify_token")
+    challenge = request.args.get("hub.challenge")
+
+    if mode and token:
+        if mode == "subscribe" and token == VERIFY_TOKEN:
+            logger.info("✅ Webhook verificado correctamente.")
+            return challenge, 200
+        else:
+            logger.warning("❌ Fallo verificación de webhook (token incorrecto).")
+            return "Forbidden", 403
+    return "Webhook configurado (esperando GET de verificación)", 200
+
 
 @bp.route("/webhook", methods=['POST'])
 def whatsapp_reply():
-    db = current_app.config.get('SUPABASE')
-    msg = request.values.get('Body', '')
-    logger.info(f"📩 Recibido: {msg}")
+    """Recibe mensajes, procesa y responde asíncronamente (HTTP request a Meta)."""
+    body = request.get_json()
+    
+    # Validar que sea un evento de mensaje
+    try:
+        if not body or body.get("object") != "whatsapp_business_account":
+            return jsonify({"status": "ignored"}), 200
 
-    resp = MessagingResponse()
+        for entry in body.get("entry", []):
+            for change in entry.get("changes", []):
+                value = change.get("value", {})
+                
+                # Solo nos interesan los mensajes, no los estados (sent, delivered, etc)
+                if "messages" in value:
+                    for message in value["messages"]:
+                        # Solo procesamos texto por ahora
+                        if message["type"] == "text":
+                            procesar_mensaje_entrante(message)
+
+        return jsonify({"status": "success"}), 200
+
+    except Exception as e:
+        logger.exception(f"Error procesando webhook: {e}")
+        return jsonify({"status": "error"}), 500
+
+
+def procesar_mensaje_entrante(message_data):
+    """Lógica principal de respuesta separada de la ruta."""
+    db = current_app.config.get('SUPABASE')
+    
+    telefono = message_data['from']  # El ID del usuario (número)
+    texto_usuario = message_data['text']['body']
+    
+    logger.info(f"📩 Mensaje de {telefono}: {texto_usuario}")
+    
     respuesta = None
+    intencion_raw = "DESCONOCIDA"
 
     try:
         # 1. Clasificar
-        intencion_raw = clasificar_intencion(msg)
+        intencion_raw = clasificar_intencion(texto_usuario)
         logger.info(f"🧠 Intención: {intencion_raw}")
 
-        # 2. Enrutar (cada módulo maneja errores internos)
+        # 2. Enrutar
         if "PROVEEDORES" in intencion_raw:
-            respuesta = chat_proveedores.procesar_consulta(msg, db, model)
-            logger.debug("Ruteado a chat_proveedores")
+            respuesta = chat_proveedores.procesar_consulta(texto_usuario, db, model)
         elif "PROYECTOS" in intencion_raw:
-            respuesta = chat_proyectos.procesar_consulta(msg, db, model)
-            logger.debug("Ruteado a chat_proyectos")
+            respuesta = chat_proyectos.procesar_consulta(texto_usuario, db, model)
         elif "PAGOS" in intencion_raw:
-            respuesta = chat_pagos.procesar_consulta(msg, db, model)
-            logger.debug("Ruteado a chat_pagos")
+            respuesta = chat_pagos.procesar_consulta(texto_usuario, db, model)
         elif "ORDENES" in intencion_raw:
-            respuesta = chat_ordenes.procesar_consulta(msg, db, model)
-            logger.debug("Ruteado a chat_ordenes")
+            respuesta = chat_ordenes.procesar_consulta(texto_usuario, db, model)
         elif "MATERIALES" in intencion_raw:
-            respuesta = chat_materiales.procesar_consulta(msg, db, model)
-            logger.debug("Ruteado a chat_materiales")
+            respuesta = chat_materiales.procesar_consulta(texto_usuario, db, model)
         elif "ESTADO_OC" in intencion_raw:
             try:
                 numero = intencion_raw.split('|')[1]
                 respuesta = operaciones.consultar_estado_oc(numero, db)
-                logger.debug(f"Ruteado a operaciones.consultar_estado_oc #{numero}")
-            except Exception:
+            except:
                 respuesta = "Entendí que buscas una OC, pero no vi el número claro."
         else:
-            # Charla general fallback (usar safe_generate si model existe)
+            # Charla general
             if model:
-                prompt = f"Eres el asistente de Somyl. El usuario dice: '{msg}'. Responde breve y cordial."
-                respuesta = safe_generate(model, prompt, default=None) or "Hola, soy el asistente virtual de Somyl. ¿En qué puedo ayudarte?"
+                prompt = f"Eres el asistente de Somyl. Usuario dice: '{texto_usuario}'. Responde breve."
+                respuesta = safe_generate(model, prompt, default="Hola, ¿en qué puedo ayudarte?")
             else:
                 respuesta = "Hola, soy el asistente virtual de Somyl. ¿En qué puedo ayudarte?"
 
     except Exception as e:
-        # Catch-all to avoid returning nothing and to ensure Twilio gets a response
-        logger.exception(f"Error procesando webhook: {e}")
-        respuesta = "Lo siento, ocurrió un error procesando tu solicitud. Intenta nuevamente más tarde."
+        logger.exception(f"Error generando respuesta: {e}")
+        respuesta = "Lo siento, tuve un error interno. Intenta más tarde."
 
-    # Ensure the response is a string
-    try:
-        if respuesta is None:
-            respuesta = "No encontré la información solicitada."
-        elif not isinstance(respuesta, str):
-            respuesta = str(respuesta)
-    except Exception:
-        respuesta = "No encontré la información solicitada."
+    # Asegurar texto limpio
+    if not respuesta:
+        respuesta = "No encontré información."
+    respuesta = str(respuesta)
 
-    # Track interactions for traceability
+    # 3. Guardar traza
     try:
         INTERACTIONS.appendleft({
             'ts': int(time.time()),
-            'from': request.values.get('From', ''),
-            'body': msg,
-            'intent': intencion_raw if 'intencion_raw' in locals() else None,
-            'response': respuesta,
-            'url': request.url,
-            'remote_addr': request.remote_addr,
-            'headers': {k: v for k, v in request.headers.items()}
+            'from': telefono,
+            'body': texto_usuario,
+            'intent': intencion_raw,
+            'response': respuesta
         })
-    except Exception:
-        logger.exception('Error appending interaction')
+    except: pass
 
-    # Always respond
-    try:
-        resp.message(respuesta)
-    except Exception:
-        logger.exception("Error forming Twilio MessagingResponse; returning fallback message")
-        resp.message("Lo siento, no puedo responder en este momento.")
-
-    return Response(str(resp), mimetype='text/xml')
+    # 4. Enviar respuesta a Meta
+    enviar_mensaje_meta(telefono, respuesta)

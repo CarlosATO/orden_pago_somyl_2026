@@ -229,7 +229,6 @@ function OrdenCompra() {
         plazo_pago: plazoPago?.label || plazoPago?.value || '',
         proyecto: proyecto?.label || proyecto?.value || '',
         solicitado_por: solicitadoPor?.label || solicitadoPor?.value || '',
-        plazo_entrega: tipoEntrega?.label || tipoEntrega?.value || '',
         observaciones: observaciones || '',
         productos: lineas
           .filter(linea => (linea.material || linea.descripcion) && (linea.cantidad && Number(linea.cantidad) > 0))
