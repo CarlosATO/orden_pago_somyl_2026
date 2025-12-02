@@ -10,7 +10,6 @@ function OrdenesPago() {
   const [proveedor, setProveedor] = useState(null);
   const [proveedorData, setProveedorData] = useState(null);
   const [documentos, setDocumentos] = useState([]);
-  const [documentoSeleccionado, setDocumentoSeleccionado] = useState(null);
   const [lineasSeleccionadas, setLineasSeleccionadas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState(null);
@@ -71,7 +70,6 @@ function OrdenesPago() {
     setProveedor(selectedOption);
     setDocumentos([]);
     setLineasSeleccionadas([]);
-    setDocumentoSeleccionado(null);
     setNumeroOrdenOriginal(null); // Limpiar número de orden original al cambiar proveedor
     setModoConsulta(false); // Desactivar modo consulta
 
@@ -113,8 +111,22 @@ function OrdenesPago() {
   const handleSeleccionarDocumento = async (documento, oc) => {
     if (!proveedor) return;
 
+    // Verificar si este documento ya está seleccionado
+    const yaSeleccionado = lineasSeleccionadas.some(
+      linea => linea.documento === documento && linea.orden_compra === oc
+    );
+
+    if (yaSeleccionado) {
+      // Deseleccionar: remover todas las líneas de este documento
+      const nuevasLineas = lineasSeleccionadas.filter(
+        linea => !(linea.documento === documento && linea.orden_compra === oc)
+      );
+      setLineasSeleccionadas(nuevasLineas);
+      setMensaje({ tipo: 'info', texto: 'Documento deseleccionado' });
+      return;
+    }
+
     setLoading(true);
-    setDocumentoSeleccionado({ documento, oc });
 
     try {
       const token = getAuthToken();
@@ -130,8 +142,9 @@ function OrdenesPago() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setLineasSeleccionadas(data.data);
-          setMensaje({ tipo: 'success', texto: `${data.data.length} línea(s) cargadas` });
+          // AGREGAR las nuevas líneas a las existentes (no reemplazar)
+          setLineasSeleccionadas([...lineasSeleccionadas, ...data.data]);
+          setMensaje({ tipo: 'success', texto: `${data.data.length} línea(s) agregadas` });
         }
       }
     } catch (error) {
@@ -881,38 +894,45 @@ function OrdenesPago() {
                   </tr>
                 </thead>
                 <tbody>
-                  {documentos.map((doc, idx) => (
-                    <tr key={idx} className={documentoSeleccionado?.oc === doc.orden_compra ? 'selected-row' : ''}>
-                      <td>
-                        <button
-                          className={`btn-select ${documentoSeleccionado?.oc === doc.orden_compra ? 'selected' : ''}`}
-                          onClick={() => handleSeleccionarDocumento(doc.documento, doc.orden_compra)}
-                        >
-                          {documentoSeleccionado?.oc === doc.orden_compra ? (
-                            <>
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                                <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2"/>
-                              </svg>
-                              Seleccionado
-                            </>
+                  {documentos.map((doc, idx) => {
+                    // Verificar si este documento está seleccionado
+                    const estaSeleccionado = lineasSeleccionadas.some(
+                      linea => linea.documento === doc.documento && linea.orden_compra === doc.orden_compra
+                    );
+                    
+                    return (
+                      <tr key={idx} className={estaSeleccionado ? 'selected-row' : ''}>
+                        <td>
+                          <button
+                            className={`btn-select ${estaSeleccionado ? 'selected' : ''}`}
+                            onClick={() => handleSeleccionarDocumento(doc.documento, doc.orden_compra)}
+                          >
+                            {estaSeleccionado ? (
+                              <>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                                  <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2"/>
+                                </svg>
+                                Seleccionado
+                              </>
+                            ) : (
+                              'Seleccionar'
+                            )}
+                          </button>
+                        </td>
+                        <td>
+                          {doc.documento === 'SIN_DOCUMENTO' ? (
+                            <span className="badge badge-sin-doc">Sin documento</span>
                           ) : (
-                            'Seleccionar'
+                            <span className="badge badge-doc">{doc.documento}</span>
                           )}
-                        </button>
-                      </td>
-                      <td>
-                        {doc.documento === 'SIN_DOCUMENTO' ? (
-                          <span className="badge badge-sin-doc">Sin documento</span>
-                        ) : (
-                          <span className="badge badge-doc">{doc.documento}</span>
-                        )}
-                      </td>
-                      <td>
-                        <span className="badge badge-info">{doc.orden_compra}</span>
-                      </td>
-                      <td className="text-money">${doc.total_neto.toLocaleString('es-CL')}</td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td>
+                          <span className="badge badge-info">{doc.orden_compra}</span>
+                        </td>
+                        <td className="text-money">${doc.total_neto.toLocaleString('es-CL')}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
